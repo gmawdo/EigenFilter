@@ -2,10 +2,15 @@ import numpy as np
 from redhawkmaster import rh_io
 from redhawkmaster.las_modules import las_range, duplicate_attr, flightline_point_counter, rh_assign, virus
 
+# More complicated job that is classifying the flight line noise
+# into classification 1. It is doing two passes of flight line counter
+# and that is mild and strong. As output we have the flight line  clear.
 
-f002 = rh_io.las_input('/home/mcus/Downloads/TestArea.las', mode='r')
+input_file = 'TestArea_job002.las'
+output_file = 'TestArea_job003.las'
+f002 = rh_io.las_input('TestArea_job002.las', mode='r')
 
-f002_000 = rh_io.las_output('TestArea_003_output.las', f002)
+f002_000 = rh_io.las_output('TestArea_job003.las', f002)
 
 f002_000_prep = duplicate_attr(infile=f002_000,
                                attribute_in='intensity',
