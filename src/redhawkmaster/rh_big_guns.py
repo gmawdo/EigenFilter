@@ -80,29 +80,51 @@ def rh_tiling_gps_equal_filesize(filename, no_tiles=10):
 
 def rh_extract_ground(inname, outname, slope=0.1, cut=0.0, window=18, cell=1.0, scalar=0.5, threshold=0.5):
 
-    ground_command_v2 = "pdal translate {} {} smrf" \
+    json = '{"pipeline": ' \
+           '[{"count": "18446744073709551615", ' \
+           '"type": "readers.las", ' \
+           '"compression": "EITHER", ' \
+           '"filename": {}}, ' \
+           '{slope": {},' \
+           '"cut": {},' \
+           '"window": {},' \
+           '"cell": {},' \
+           '"scalar": {},' \
+           '"threshold": {},' \
+           '"type": "filters.smrf"' \
+           '},' \
+           '{' \
+           '"extra_dims": "all",' \
+           '"type": "writers.las",' \
+           '"filename": {}}' \
+           '}' \
+           ']' \
+           '}'
+    ground_command_v2 = "pdal translate " \
+                        "--writers.las.extra_dims=all {} {} smrf" \
                         " --filters.smrf.slope={} " \
                         "--filters.smrf.cut={} " \
                         "--filters.smrf.window={} " \
                         "--filters.smrf.cell={} " \
                         "--filters.smrf.scalar={} " \
-                        "--filters.smrf.threshold={} " \
-                        "--writers.las.extra_dims=all"
+                        "--filters.smrf.threshold={} "
 
     ground_command = "pdal ground --slope 0.1 --max_window_size 18 --cell_size 0.5 --initial_distance 2.0 -i {} -o {}"
 
     command_v2 = ground_command_v2.format(inname, outname, slope, cut, window, cell, scalar, threshold)
     command = ground_command.format(inname, outname)
-    print(command_v2)
-    # os.system(command)
+    # print(command)
+    os.system(command_v2)
 
 
 def rh_hag(inname, outname):
 
+    outname = outname.split('.')[0] + "_hag.las"
     hag_command = 'pdal translate {} {} hag --writers.las.extra_dims="all"'
 
     command = hag_command.format(inname, outname)
     os.system(command)
+    return outname
 
 
 def rh_hag_smooth(infile):

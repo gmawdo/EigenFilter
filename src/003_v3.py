@@ -6,11 +6,11 @@ from redhawkmaster.las_modules import las_range, duplicate_attr, flightline_poin
 # into classification 1. It is doing two passes of flight line counter
 # and that is mild and strong. As output we have the flight line  clear.
 
-input_file = 'TestArea_job002.las'
-output_file = 'TestArea_job003.las'
-f002 = rh_io.las_input('TestArea_job002.las', mode='r')
+input_file = 'ILIJA_FlightlineTest_job002.las'
+output_file = 'ILIJA_FlightlineTest_job003.las'
+f002 = rh_io.las_input(input_file, mode='r')
 
-f002_000 = rh_io.las_output('TestArea_job003.las', f002)
+f002_000 = rh_io.las_output(output_file, f002)
 
 f002_000_prep = duplicate_attr(infile=f002_000,
                                attribute_in='intensity',
@@ -20,8 +20,8 @@ f002_000_prep = duplicate_attr(infile=f002_000,
 
 point_id = np.arange(len(f002))
 
-point_id_630_730 = las_range(dimension=f002_000_prep.intensity,
-                             start=630, end=730,
+point_id_630_730 = las_range(dimension=f002_000.intensity,
+                             start=630, end=731,
                              reverse=False,
                              point_id_mask=point_id)
 

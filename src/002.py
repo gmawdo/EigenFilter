@@ -6,8 +6,8 @@ from redhawkmaster.las_modules import las_range
 # which has everything that IS classification 10
 
 job = '002'
-input_file = 'TestArea.las'
-output_file = 'TestArea_job002.las'
+input_file = 'ILIJA_FlightlineTest.las'
+output_file = 'ILIJA_FlightlineTest_job002.las'
 
 f001 = rh_io.las_input(input_file, mode='r')
 point_id = np.arange(len(f001))

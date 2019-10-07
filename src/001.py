@@ -6,8 +6,8 @@ from redhawkmaster.las_modules import las_range
 # which has everything that is NOT classification 10
 
 job = '001'
-input_file = 'TestArea.las'
-output_file = 'TestArea_job001.las'
+input_file = 'ILIJA_FlightlineTest.las'
+output_file = 'ILIJA_FlightlineTest_job001.las'
 
 f000 = rh_io.las_input(input_file, mode='r')
 
