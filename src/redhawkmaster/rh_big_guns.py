@@ -127,12 +127,12 @@ def rh_hag(inname, outname):
     return outname
 
 
-def rh_hag_smooth(infile):
+def rh_hag_smooth(infile, point_id_mask=np.array([])):
 
-    cls = infile.classification
-    x_array = infile.x
-    y_array = infile.y
-    z_array = infile.z
+    cls = infile.classification[point_id_mask]
+    x_array = infile.x[point_id_mask]
+    y_array = infile.y[point_id_mask]
+    z_array = infile.z[point_id_mask]
 
     class02 = (cls == 2)
 
@@ -153,6 +153,6 @@ def rh_hag_smooth(infile):
 
     znew = f(x_array, y_array, grid=False)
 
-    infile.heightaboveground = z_array - znew
+    infile.heightaboveground[point_id_mask] = z_array - znew
 
     return z_array - znew

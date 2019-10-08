@@ -139,11 +139,11 @@ def virus(infile, clip, num_itter, classif):
     return cls
 
 
-def rh_clip(infile, clip, cls_int):
+def rh_clip(infile, clip=100, cls_int=10, point_id_mask=np.array([])):
 
-    classification = infile.Classification
-    x_array = infile.x
-    y_array = infile.y
+    classification = infile.Classification[point_id_mask]
+    x_array = infile.x[point_id_mask]
+    y_array = infile.y[point_id_mask]
 
     class10 = (classification == cls_int)
 
@@ -163,6 +163,10 @@ def rh_clip(infile, clip, cls_int):
     cls_mask = np.logical_and(np.logical_not(mask), np.logical_not(class10))
 
     classification[cls_mask] = 7
+
+    cls_tmp = infile.classification
+    cls_tmp[point_id_mask] = classification
+    infile.classification = cls_tmp
 
     return classification
 
