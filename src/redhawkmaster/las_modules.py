@@ -171,22 +171,26 @@ def rh_clip(infile, clip=100, cls_int=10, point_id_mask=np.array([])):
     return classification
 
 
-def rh_kdistance(infile, k=10):
+def rh_kdistance(infile, output_file_name='', k=10, make_dimension=True):
 
     k = k + 1
-    outFile = File('T001.las', mode="w", header=infile.header)
-    outFile.define_new_dimension(name="KDistance", data_type=10, description="KDistance")
-
-    for dimension in infile.point_format:
-        dat = infile.reader.get_dimension(dimension.name)
-        outFile.writer.set_dimension(dimension.name, dat)
 
     coords = np.vstack((infile.x, infile.y, infile.z))
     nhbrs = NearestNeighbors(n_neighbors=k, algorithm="kd_tree").fit(np.transpose(coords))
     distances, indices = nhbrs.kneighbors(np.transpose(coords))
 
-    outFile.writer.set_dimension("kdistance", distances[:, -1])
-    outFile.close()
+    if make_dimension:
+        outFile = File(output_file_name, mode="w", header=infile.header)
+        outFile.define_new_dimension(name="kdistance", data_type=10, description="KDistance")
+
+        for dimension in infile.point_format:
+            dat = infile.reader.get_dimension(dimension.name)
+            outFile.writer.set_dimension(dimension.name, dat)
+
+        outFile.writer.set_dimension("kdistance", distances[:, -1])
+        return outFile
+    else:
+        infile.kdistance = distances[:, -1]
 
 
 def rh_assign(dimension, value, mask):
