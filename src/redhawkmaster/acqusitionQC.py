@@ -6,6 +6,45 @@ import csv
 import datetime
 import re
 from collections import defaultdict
+import bisect
+from datetime import datetime, timedelta
+from gnsscal import date2gpswd
+
+# https://stackoverflow.com/questions/33415475/how-to-get-current-date-and-time-from-gps-unsegment-time-in-python
+_LEAP_DATES = ((1981, 6, 30), (1982, 6, 30), (1983, 6, 30),
+               (1985, 6, 30), (1987, 12, 31), (1989, 12, 31),
+               (1990, 12, 31), (1992, 6, 30), (1993, 6, 30),
+               (1994, 6, 30), (1995, 12, 31), (1997, 6, 30),
+               (1998, 12, 31), (2005, 12, 31), (2008, 12, 31),
+               (2012, 6, 30), (2015, 6, 30), (2016, 12, 31))
+
+LEAP_DATES = tuple(datetime(i[0], i[1], i[2], 23, 59, 59) for i in _LEAP_DATES)
+
+
+def leap(date):
+    """
+    Return the number of leap seconds since 1980-01-01
+
+    :param date: datetime instance
+    :return: leap seconds for the date (int)
+    """
+    # bisect.bisect returns the index `date` would have to be
+    # inserted to keep `LEAP_DATES` sorted, so is the number of
+    # values in `LEAP_DATES` that are less than `date`, or the
+    # number of leap seconds.
+    return bisect.bisect(LEAP_DATES, date)
+
+
+def gps2utc(week, secs):
+    """
+    :param week: GPS week number, i.e. 1866
+    :param secs: number of seconds since the beginning of `week`
+    :return: datetime instance with UTC time
+    """
+    secs_in_week = 604800
+    gps_epoch = datetime(1980, 1, 6, 0, 0, 0)
+    date_before_leaps = gps_epoch + timedelta(seconds=week * secs_in_week + secs)
+    return date_before_leaps - timedelta(seconds=leap(date_before_leaps))
 
 
 def attribute(test, las_file, csv_name='attribute.csv'):
@@ -14,6 +53,7 @@ def attribute(test, las_file, csv_name='attribute.csv'):
                  'Max Return Number', 'Min Return Number', 'Range Return Number',
                  'Max Number of Returns', 'Min Number of Returns', 'Range Number of Returns',
                  'Max Gps Time', 'Min Gps Time', 'Range Gps Time',
+                 'Max Date Time', 'Min Date Time', 'Range Date Time',
                  'Max Scan Direction Flag', 'Min Scan Direction Flag', 'Range Scan Direction Flag',
                  'Max Edge of Flight Line', 'Min Edge of Flight Line', 'Range Edge of Flight Line',
                  'Max Classification', 'Min Classification', 'Range Classification',
@@ -54,6 +94,12 @@ def attribute(test, las_file, csv_name='attribute.csv'):
         maxGps = max(test.gps_time)
         minGps = min(test.gps_time)
         rangeGps = maxGps - minGps
+
+        week_day_of_creation = date2gpswd(test.header.get_date().date())[0]
+        maxDayCreation = gps2utc(week_day_of_creation, maxGps)
+        minDayCreation = gps2utc(week_day_of_creation, minGps)
+        rangeDayCreation = maxDayCreation - minDayCreation
+
         maxScanDirectionFlag = max(test.scan_dir_flag)
         minScanDirectionFlag = min(test.scan_dir_flag)
         rangeScanDirectionFlag = maxScanDirectionFlag - minScanDirectionFlag
@@ -86,6 +132,8 @@ def attribute(test, las_file, csv_name='attribute.csv'):
                        maxReturnNumber, minReturnNumber, rangeReturnNumber,
                        maxNumberOfReturns, minNumberOfReturns, rangeNumberOfReturns,
                        maxGps, minGps, rangeGps,
+                       maxDayCreation.strftime('%d-%B-%Y, %H:%M:%S'), minDayCreation.strftime('%d-%B-%Y, %H:%M:%S'),
+                       str(rangeDayCreation),
                        maxScanDirectionFlag, minScanDirectionFlag, rangeScanDirectionFlag,
                        maxEdgeOfFlightLine, minEdgeOfFlightLine, rangeEdgeOfFlightLine,
                        maxClassification, minClassification, rangeClassification,
