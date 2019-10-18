@@ -10,6 +10,12 @@ import bisect
 from datetime import datetime, timedelta
 from gnsscal import date2gpswd
 from sklearn.neighbors import NearestNeighbors
+import math
+import cv2
+from skimage import io
+import matplotlib.pyplot as plt
+import shapefile
+from pyproj import Proj, transform
 
 # https://stackoverflow.com/questions/33415475/how-to-get-current-date-and-time-from-gps-unsegment-time-in-python
 # Needs to be updated in some time
@@ -511,3 +517,208 @@ def radial_count_v4(infile, k=51, radius=0.5, spacetime=True, v_speed=2, N=20):
         intensity = num_neighbours
 
     return intensity
+
+
+def polygon_select(infile, resolution=10):
+    """
+    Make a polygon file which is going to give the vegetation on maps (json file) or google earth (ESRI shape file).
+
+    :param infile: object on which to extract the vegetation
+    :type infile: laspy object
+    :param resolution: multiply the coords by this number to get better images
+    :type resolution: float
+    :return: json or shp file
+    """
+    # Reading a las file from the current location
+    inFile = infile
+
+    # Resolution of the image from the dataset
+    res = resolution
+
+    # xyz dataset multiply by the resolution
+    xyz = np.dstack((inFile.x * res, inFile.y * res, inFile.z * res))[0]
+
+    # Mask of the vegetation
+    mask15 = inFile.Classification == 15
+    xyz = xyz[mask15]
+
+    # Max and min of X, Y and Z for the image
+    xmax = max(inFile.x * res)
+    xmin = min(inFile.x * res)
+
+    ymax = max(inFile.y * res)
+    ymin = min(inFile.y * res)
+
+    zmax = max(inFile.z * res)
+    zmin = min(inFile.z * res)
+
+    # Resolution of the image
+    shape = (int(xmax - xmin + 1), int(ymax - ymin + 1))
+
+    # Array of the image X by Y
+    img = np.ma.array(np.ones(shape) * (zmax + 1))
+
+    # Populate the pixels
+    for inp in xyz:
+        img[int(inp[0] - xmin), int(inp[1] - ymin)] = int(inp[2])
+
+    # Set up the mask
+    img.mask = (img == zmax + 1)
+
+    # Save it with skimage (Yet to figure out why!)
+    io.imsave('foo.png', img)
+
+    # Read it with OpenCV (More libraries then skimage)
+    im_in = cv2.imread('./foo.png')
+
+    # Make a grayscale image
+    gray = cv2.cvtColor(im_in, cv2.COLOR_BGR2GRAY)
+
+    # Compute the edges with canny algorithm
+    edged = cv2.Canny(gray, 30, 200)
+    cv2.imwrite('edged1.png', edged)
+
+    # Find the contours of the image (It is going to be every hole)
+    contours, hierarchy = cv2.findContours(edged, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
+    # Draw them on the image
+    cv2.drawContours(im_in, contours, -1, (0, 255, 0), 3)
+
+    # Fill the polygons
+    cv2.fillPoly(im_in, contours, color=(255, 255, 255))
+    cv2.imwrite("filledPoly.png", im_in)
+
+    # Threshold.
+    # Set values equal to or above 220 to 0.
+    # Set values below 220 to 255.
+    th, im_th = cv2.threshold(im_in, 220, 255, cv2.THRESH_BINARY_INV);
+
+    # Copy the thresholded image.
+    im_floodfill = im_th.copy()
+
+    # Mask used to flood filling.
+    # Notice the size needs to be 2 pixels than the image.
+    h, w = im_th.shape[:2]
+    mask = np.zeros((h + 2, w + 2), np.uint8)
+
+    # Floodfill from point (0, 0)
+    cv2.floodFill(im_floodfill, mask, (0, 0), 255)
+
+    # Invert floodfilled image
+    im_floodfill_inv = cv2.bitwise_not(im_floodfill)
+
+    # Combine the two images to get the foreground.
+    im_out = im_th | im_floodfill_inv
+
+    cv2.imwrite('filled2.png', im_out)
+    image = cv2.imread('./filled2.png')
+
+    # Again from the filled picture make a grayscale
+    gray = cv2.cvtColor(image, cv2.COLOR_RGB2GRAY)
+
+    # Compute the edges with Canny on the filled image
+    edged = cv2.Canny(gray, 30, 200)
+
+    # Close down the contours with adding some pixels
+    kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (2, 2))
+    dilated = cv2.dilate(edged, kernel)
+    cv2.imwrite('edged.png', dilated)
+
+    # Again compute the contours on the filled image
+    contours, hierarchy = cv2.findContours(dilated, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    cv2.drawContours(image, contours, -1, (0, 255, 0), -1)
+
+    # We need to make a "bad" json file for our MAP plotting into javascript google maps
+    # and we do that with a simple string in which we apply the array of the (x,y) points
+    # for the polygons
+    jsonFile = "data = '{\"Polygons\":[\\\n"
+
+    # The number of the polygon
+    plid = 1
+
+    # Full polygons of the shape file
+    polygons = []
+
+    # Converting projected coordinates to lat-lon
+    # https://gis.stackexchange.com/questions/78838/converting-projected-coordinates-to-lat-lon-using-python
+    inProj = Proj(init='epsg:27700')
+    outProj = Proj(init='epsg:4326')
+
+    # We also need the (x,y) points the area and the centroid point in ASCII
+    with open('polygons.csv', 'w') as csvFile:
+        writer = csv.writer(csvFile)
+
+        # Headers for the CSV file
+        writer.writerow(['PlID', 'PtX', 'PtY', 'cX', 'cY', 'Area'])
+
+        # For each polygon (contour) we write it in the JSON string and in the file
+        for cnt in contours:
+
+            jsonFile += '['
+
+            # OpenCV moments which get us to compute the centroid point
+            M = cv2.moments(cnt)
+            if M['m00'] != 0:
+                cx = int(M['m10'] / M['m00'])
+                cy = int(M['m01'] / M['m00'])
+
+            # Area of the polygon
+            area = cv2.contourArea(cnt)
+
+            # Perimeter of the polygon (Just in case)
+            perimeter = cv2.arcLength(cnt, True)
+            # Centroid point on the image
+            cv2.circle(image, (cx, cy), 3, (0, 0, 255), -1)
+
+            # Each shape polygon separate
+            polygon = []
+
+            # For each point in the polygon we must compute the real x,y point
+            # from the image pixels and write them in the CSV and JSON
+            for pts in cnt:
+                row = [plid, (pts[0][1] / 10 + xmin / 10), (pts[0][0] / 10 + ymin / 10), (cy / 10 + xmin / 10),
+                       (cx / 10 + ymin / 10), area]
+
+                # convert the projected coordinates into lat-lon
+                coord1, coord2 = transform(inProj, outProj, (pts[0][1] / 10 + xmin / 10), (pts[0][0] / 10 + ymin / 10))
+                polygon.append([coord1, coord2])
+
+                jsonFile += "{\"lat\":" + str(row[1]) + ",\"lng\":" + str(row[2]) + "},\\\n"
+                writer.writerow(row)
+            writer.writerow(
+                [plid, (cnt[0][0][1] / 10 + xmin / 10), (cnt[0][0][0] / 10 + ymin / 10), (cy / 10 + xmin / 10),
+                 (cx / 10 + ymin / 10), area])
+            # We don't need comma in the final polygon in the "bad" JSON
+            if plid == len(contours):
+                jsonFile += "{\"lat\":" + str((cnt[0][0][1] / 10 + xmin / 10)) + ",\"lng\":" + str(
+                    (cnt[0][0][0] / 10 + ymin / 10)) + "}]\\\n"
+            else:
+                jsonFile += "{\"lat\":" + str((cnt[0][0][1] / 10 + xmin / 10)) + ",\"lng\":" + str(
+                    (cnt[0][0][0] / 10 + ymin / 10)) + "}],\\\n"
+
+            plid += 1
+
+            # Append to the whole shape polygons dataset
+            polygons.append(polygon)
+
+    print(polygons)
+
+    # Write the shape file
+    w = shapefile.Writer(infile.filename.split('.')[0])
+    w.field(infile.filename.split('.')[0], 'C')
+    w.record(infile.filename.split('.')[0])
+    w.poly(polygons)
+    w.close()
+
+    # We close down the "bad" JSON
+    jsonFile += "]}';"
+    # Write it in a .json file
+    with open("features.json", "w") as text_file:
+        text_file.write(jsonFile)
+    csvFile.close()
+    text_file.close()
+
+    # Delete all the helping images
+    os.system("rm ./*.png")
+    # Save the last output
+    cv2.imwrite('im_out.png', image)
+

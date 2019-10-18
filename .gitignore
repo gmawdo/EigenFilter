@@ -8,3 +8,6 @@ __pycache__/
 *.json
 *.txt
 *.csv
+*.dbf
+*.shp
+*.shx
