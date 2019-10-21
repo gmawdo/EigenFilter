@@ -16,6 +16,9 @@ from skimage import io
 import matplotlib.pyplot as plt
 import shapefile
 from pyproj import Proj, transform
+from shapely.geometry import mapping, Polygon, Point, shape
+import fiona
+
 
 # https://stackoverflow.com/questions/33415475/how-to-get-current-date-and-time-from-gps-unsegment-time-in-python
 # Needs to be updated in some time
@@ -519,7 +522,7 @@ def radial_count_v4(infile, k=51, radius=0.5, spacetime=True, v_speed=2, N=20):
     return intensity
 
 
-def polygon_select(infile, resolution=10):
+def polygon_select(infile, resolution=10, classif=15, classed='vegetation'):
     """
     Make a polygon file which is going to give the vegetation on maps (json file) or google earth (ESRI shape file).
 
@@ -527,6 +530,10 @@ def polygon_select(infile, resolution=10):
     :type infile: laspy object
     :param resolution: multiply the coords by this number to get better images
     :type resolution: float
+    :param classif: class number for which to extract the polygons (default 15 (Vegetation))
+    :type classif: int
+    :param classed: it tells are we going to output vegetation or pylon position (Set of points or set of polygons)
+    :type classed: string
     :return: json or shp file
     """
     # Reading a las file from the current location
@@ -539,7 +546,7 @@ def polygon_select(infile, resolution=10):
     xyz = np.dstack((inFile.x * res, inFile.y * res, inFile.z * res))[0]
 
     # Mask of the vegetation
-    mask15 = inFile.Classification == 15
+    mask15 = inFile.Classification == classif
     xyz = xyz[mask15]
 
     # Max and min of X, Y and Z for the image
@@ -590,7 +597,7 @@ def polygon_select(infile, resolution=10):
     # Threshold.
     # Set values equal to or above 220 to 0.
     # Set values below 220 to 255.
-    th, im_th = cv2.threshold(im_in, 220, 255, cv2.THRESH_BINARY_INV);
+    th, im_th = cv2.threshold(im_in, 220, 255, cv2.THRESH_BINARY_INV)
 
     # Copy the thresholded image.
     im_floodfill = im_th.copy()
@@ -619,7 +626,7 @@ def polygon_select(infile, resolution=10):
     edged = cv2.Canny(gray, 30, 200)
 
     # Close down the contours with adding some pixels
-    kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (2, 2))
+    kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (3, 3))
     dilated = cv2.dilate(edged, kernel)
     cv2.imwrite('edged.png', dilated)
 
@@ -637,14 +644,18 @@ def polygon_select(infile, resolution=10):
 
     # Full polygons of the shape file
     polygons = []
-
+    areas = []
+    centroids = []
     # Converting projected coordinates to lat-lon
     # https://gis.stackexchange.com/questions/78838/converting-projected-coordinates-to-lat-lon-using-python
     inProj = Proj(init='epsg:27700')
     outProj = Proj(init='epsg:4326')
 
+    # csv name
+    csvName = infile.filename.split('.')[0]+'_'+classed+'.csv'
+
     # We also need the (x,y) points the area and the centroid point in ASCII
-    with open('polygons.csv', 'w') as csvFile:
+    with open(csvName, 'w') as csvFile:
         writer = csv.writer(csvFile)
 
         # Headers for the CSV file
@@ -671,6 +682,8 @@ def polygon_select(infile, resolution=10):
 
             # Each shape polygon separate
             polygon = []
+            areaPL = []
+            centroid = []
 
             # For each point in the polygon we must compute the real x,y point
             # from the image pixels and write them in the CSV and JSON
@@ -680,7 +693,7 @@ def polygon_select(infile, resolution=10):
 
                 # convert the projected coordinates into lat-lon
                 coord1, coord2 = transform(inProj, outProj, (pts[0][1] / 10 + xmin / 10), (pts[0][0] / 10 + ymin / 10))
-                polygon.append([coord1, coord2])
+                polygon.append((coord1, coord2))
 
                 jsonFile += "{\"lat\":" + str(row[1]) + ",\"lng\":" + str(row[2]) + "},\\\n"
                 writer.writerow(row)
@@ -700,14 +713,83 @@ def polygon_select(infile, resolution=10):
             # Append to the whole shape polygons dataset
             polygons.append(polygon)
 
-    print(polygons)
+            # Append centroid points for each polygon
+            cnt1, cnt2 = transform(inProj, outProj, (cy / 10 + xmin / 10), (cx / 10 + ymin / 10))
+            centroid.append([cnt1, cnt2])
+
+            # Append area of each polygon
+            areaPL.append(area)
+
+            areas.append(areaPL)
+            centroids.append(centroid)
+
+    # print(polygons)
 
     # Write the shape file
-    w = shapefile.Writer(infile.filename.split('.')[0])
-    w.field(infile.filename.split('.')[0], 'C')
-    w.record(infile.filename.split('.')[0])
-    w.poly(polygons)
-    w.close()
+    # w = shapefile.Writer(infile.filename.split('.')[0])
+    # plid = 1
+    # # w.field(infile.filename.split('.')[0], 'C')
+    # # w.autoBalance = 1
+    # for pol in polygons:
+    #     # print(pol)
+    #     w.poly([pol])
+    #     # w.record(str(plid), str(plid))
+    #     # plid += 1
+    # w.field(infile.filename.split('.')[0])
+    # w.field(infile.filename.split('.')[0], 'C', '40')
+    # for pol in polygons:
+    #     w.record(str(plid), 'Polygon')
+    #     plid += 1
+    #
+    # w.close()
+
+    schema = {
+        'geometry': 'Polygon',
+        'properties': {'Classification': 'str',
+                       'Tile name': 'str',
+                       'Polygon number': 'int',
+                       'Area in m2': 'float',
+                       'Centroid XY': 'str',
+                       }
+    }
+
+    if classed == 'pylon':
+        schema = {
+            'geometry': 'Polygon',
+            'properties': {'Classification': 'str',
+                           'Tile name': 'str',
+                           'Pole number': 'int',
+                           }
+        }
+
+    nameSHP = infile.filename.split('.')[0]+'_'+classed+'.shp'
+
+    with fiona.open(nameSHP, 'w', 'ESRI Shapefile', schema) as c:
+        for poly in range(len(polygons)):
+            if classed == 'vegetation':
+                plg = Polygon(polygons[poly])
+
+                centroidsPnt = str(str(centroids[poly][0][0])+' '+str(centroids[poly][0][1]))
+                print(areas[poly])
+                c.write({
+                    'geometry': mapping(plg),
+                    'properties': {'Classification': 'Vegetation 3m',
+                                   'Tile name': infile.filename.split('.')[0],
+                                   'Polygon number': poly+1,
+                                   'Area in m2': areas[poly][0],
+                                   'Centroid XY': centroidsPnt
+                                   },
+                })
+            elif classed == 'pylon':
+                plg = Point(centroids[poly][0][0], centroids[poly][0][1])
+
+                c.write({
+                    'geometry': mapping(plg.buffer(0.00001)),
+                    'properties': {'Classification': 'Pole',
+                                   'Tile name': infile.filename.split('.')[0],
+                                   'Pole number': poly + 1
+                                   },
+                })
 
     # We close down the "bad" JSON
     jsonFile += "]}';"
