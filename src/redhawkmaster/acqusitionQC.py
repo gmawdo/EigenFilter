@@ -18,7 +18,7 @@ import shapefile
 from pyproj import Proj, transform
 from shapely.geometry import mapping, Polygon, Point, shape
 import fiona
-
+import imageio
 
 # https://stackoverflow.com/questions/33415475/how-to-get-current-date-and-time-from-gps-unsegment-time-in-python
 # Needs to be updated in some time
@@ -522,7 +522,7 @@ def radial_count_v4(infile, k=51, radius=0.5, spacetime=True, v_speed=2, N=20):
     return intensity
 
 
-def polygon_select(infile, resolution=10, classif=15, classed='vegetation'):
+def polygon_select(infile, resolution=10, classif=15, classed='polygon'):
     """
     Make a polygon file which is going to give the vegetation on maps (json file) or google earth (ESRI shape file).
 
@@ -532,7 +532,7 @@ def polygon_select(infile, resolution=10, classif=15, classed='vegetation'):
     :type resolution: float
     :param classif: class number for which to extract the polygons (default 15 (Vegetation))
     :type classif: int
-    :param classed: it tells are we going to output vegetation or pylon position (Set of points or set of polygons)
+    :param classed: it tells are we going to output polygon or points position
     :type classed: string
     :return: json or shp file
     """
@@ -574,6 +574,7 @@ def polygon_select(infile, resolution=10, classif=15, classed='vegetation'):
 
     # Save it with skimage (Yet to figure out why!)
     io.imsave('foo.png', img)
+    # imageio.imwrite('foo.png', img)
 
     # Read it with OpenCV (More libraries then skimage)
     im_in = cv2.imread('./foo.png')
@@ -652,7 +653,7 @@ def polygon_select(infile, resolution=10, classif=15, classed='vegetation'):
     outProj = Proj(init='epsg:4326')
 
     # csv name
-    csvName = infile.filename.split('.')[0]+'_'+classed+'.csv'
+    csvName = infile.filename.split('.')[0]+'_Classification'+str(classif)+'_'+classed+'.csv'
 
     # We also need the (x,y) points the area and the centroid point in ASCII
     with open(csvName, 'w') as csvFile:
@@ -697,9 +698,11 @@ def polygon_select(infile, resolution=10, classif=15, classed='vegetation'):
 
                 jsonFile += "{\"lat\":" + str(row[1]) + ",\"lng\":" + str(row[2]) + "},\\\n"
                 writer.writerow(row)
+
             writer.writerow(
                 [plid, (cnt[0][0][1] / 10 + xmin / 10), (cnt[0][0][0] / 10 + ymin / 10), (cy / 10 + xmin / 10),
                  (cx / 10 + ymin / 10), area])
+
             # We don't need comma in the final polygon in the "bad" JSON
             if plid == len(contours):
                 jsonFile += "{\"lat\":" + str((cnt[0][0][1] / 10 + xmin / 10)) + ",\"lng\":" + str(
@@ -753,7 +756,7 @@ def polygon_select(infile, resolution=10, classif=15, classed='vegetation'):
                        }
     }
 
-    if classed == 'pylon':
+    if classed == 'points':
         schema = {
             'geometry': 'Polygon',
             'properties': {'Classification': 'str',
@@ -762,15 +765,15 @@ def polygon_select(infile, resolution=10, classif=15, classed='vegetation'):
                            }
         }
 
-    nameSHP = infile.filename.split('.')[0]+'_'+classed+'.shp'
+    nameSHP = infile.filename.split('.')[0]+'_Classification'+str(classif)+'_'+classed+'.shp'
 
     with fiona.open(nameSHP, 'w', 'ESRI Shapefile', schema) as c:
         for poly in range(len(polygons)):
-            if classed == 'vegetation':
+            if classed == 'polygon':
                 plg = Polygon(polygons[poly])
 
                 centroidsPnt = str(str(centroids[poly][0][0])+' '+str(centroids[poly][0][1]))
-                print(areas[poly])
+                # print(areas[poly])
                 c.write({
                     'geometry': mapping(plg),
                     'properties': {'Classification': 'Vegetation 3m',
@@ -780,7 +783,7 @@ def polygon_select(infile, resolution=10, classif=15, classed='vegetation'):
                                    'Centroid XY': centroidsPnt
                                    },
                 })
-            elif classed == 'pylon':
+            elif classed == 'points':
                 plg = Point(centroids[poly][0][0], centroids[poly][0][1])
 
                 c.write({
