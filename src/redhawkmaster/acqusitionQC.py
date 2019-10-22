@@ -674,10 +674,11 @@ def polygon_select(infile, resolution=10, classif=15, classed='polygon'):
                 cy = int(M['m01'] / M['m00'])
 
             # Area of the polygon
-            area = cv2.contourArea(cnt)
+            area = cv2.contourArea(cnt)/(resolution * resolution)
 
             # Perimeter of the polygon (Just in case)
             perimeter = cv2.arcLength(cnt, True)
+
             # Centroid point on the image
             cv2.circle(image, (cx, cy), 3, (0, 0, 255), -1)
 
