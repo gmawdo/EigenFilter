@@ -329,3 +329,270 @@ def rh_assign(dimension, value, mask):
     cls = dimension
     cls[mask] = value
     return cls
+
+
+def rh_attribute_compute(infile, outname, k=50, radius=0.50, thresh=0.001, spacetime=True, v_speed=2,
+                         decimate=False, u=0.1, N=6):
+    """
+    Computing different mathematical attributes.
+
+    :param infile: input las file
+    :type infile: laspy object
+    :param outname: output file name
+    :type outname: string
+    :param k: number of neighbours (default 50)
+    :type k: int
+    :param radius: maximum radius of neighbourhoods
+    :type radius: float
+    :param thresh: threshold for non-zero eigenvalue (affects rank) (default 0.001)
+    :type thresh: float
+    :param spacetime: do you want spacetime? (default True)
+    :type spacetime: bool
+    :param v_speed: scale of spacetime solution (default 2)
+    :type v_speed: float
+    :param decimate: do you want to decimate? (default False)
+    :type decimate: bool
+    :param u: scale of decimation (e.g. 0.1 = 10cm) (default 0.1)
+    :type u: float
+    :param N:  number of subtiles (no edge effects) (default 6)
+    :type N: int
+    :return: las file to the sustem defined by outname
+    """
+
+    import numpy.linalg as LA
+
+    outFile = File(outname, header=infile.header, mode='w')
+
+    Specs = [spec.name for spec in infile.point_format]
+    if not ("xy_lin_reg" in Specs):
+        outFile.define_new_dimension(name="xy_lin_reg", data_type=9, description="XY-linear regression")
+    if not ("plan_reg" in Specs):
+        outFile.define_new_dimension(name="plan_reg", data_type=9, description="Planar regression")
+    if not ("eig0" in Specs):
+        outFile.define_new_dimension(name="eig0", data_type=9, description="Eigenvalue 0")
+    if not ("eig1" in Specs):
+        outFile.define_new_dimension(name="eig1", data_type=9, description="Eigenvalue 1")
+    if not ("eig2" in Specs):
+        outFile.define_new_dimension(name="eig2", data_type=9, description="Eigenvalue 2")
+    if not ("rank" in Specs):
+        outFile.define_new_dimension(name="rank", data_type=5, description="SVD rank")
+    if not ("lin_reg" in Specs):
+        outFile.define_new_dimension(name="lin_reg", data_type=9, description="Linear regression")
+    if not ("curv" in Specs):
+        outFile.define_new_dimension(name="curv", data_type=9, description="Curvature")
+    if not ("iso" in Specs):
+        outFile.define_new_dimension(name="iso", data_type=9, description="Isotropy")
+    if not ("ent" in Specs):
+        outFile.define_new_dimension(name="ent", data_type=9, description="Entropy")
+    if not ("plang" in Specs):
+        outFile.define_new_dimension(name="plang", data_type=9, description="Angle of plane")
+    if not ("lang" in Specs):
+        outFile.define_new_dimension(name="lang", data_type=9, description="Angle of line")
+
+    for dimension in infile.point_format:
+        dat = infile.reader.get_dimension(dimension.name)
+        outFile.writer.set_dimension(dimension.name, dat)
+
+    if v_speed == 0 :
+        spacetime = False
+
+    x_array = infile.x
+    y_array = infile.y
+    z_array = infile.z
+    heightaboveground = infile.heightaboveground
+    gps_time = infile.gps_time
+    intensity = infile.intensity
+    classification = infile.classification
+
+    dummy = 0 * x_array
+
+    dummies = {'xy_lin_reg': dummy.astype(x_array.dtype), 'lin_reg': dummy.astype(x_array.dtype),
+               'plan_reg': dummy.astype(x_array.dtype), 'eig0': dummy.astype(x_array.dtype),
+               'eig1': dummy.astype(x_array.dtype), 'eig2': dummy.astype(x_array.dtype),
+               'curv': dummy.astype(x_array.dtype), 'iso': dummy.astype(x_array.dtype),
+               'rank': dummy.astype(classification.dtype), 'impdec': dummy.astype(x_array.dtype),
+               'ent': dummy.astype(x_array.dtype), 'plang': dummy.astype(x_array.dtype),
+               'lang': dummy.astype(x_array.dtype), 'linearity': dummy.astype(x_array.dtype),
+               'planarity': dummy.astype(x_array.dtype), 'scattering': dummy.astype(x_array.dtype),
+               'codim2': dummy.astype(x_array.dtype), 'codim1': dummy.astype(x_array.dtype),
+               'codim0': dummy.astype(x_array.dtype), 'dimension': dummy.astype(classification.dtype)}
+
+    if len(x_array) != 0:
+
+        times = list([np.quantile(gps_time, q=float(i)/float(N)) for i in range(N+1)])
+
+        for i in range(N):
+
+            time_range = (times[i] <= gps_time) * (gps_time <= times[i+1])
+
+            coords = np.vstack((x_array[time_range], y_array[time_range],
+                                heightaboveground[time_range])+spacetime*(v_speed*gps_time[time_range],))
+
+            if decimate:
+                spatial_coords, ind, inv, cnt = np.unique(np.floor(coords[0:4, :]/u),
+                                                          return_index=True, return_inverse=True,
+                                                          return_counts=True, axis=1)
+            else:
+                ind = np.arange(len(x_array[time_range]))
+                inv = ind
+
+            coords = coords[:, ind]
+
+            distances, indices = NearestNeighbors(n_neighbors=k, algorithm="kd_tree").\
+                fit(np.transpose(coords)).\
+                kneighbors(np.transpose(coords))
+
+            neighbours = coords[:, indices]
+            keeping = distances < radius
+            Ns = np.sum(keeping, axis=1)
+
+            means = coords[:, :, None]
+            raw_deviations = keeping * (neighbours - means) / np.sqrt(Ns[None, :, None])  # (3,N,k)
+            cov_matrices = np.matmul(raw_deviations.transpose(1, 0, 2), raw_deviations.transpose(1, 2, 0))  # (N,3,3)
+            xy_covs = cov_matrices[:, 0, 1]
+            yz_covs = cov_matrices[:, 1, 2]
+            zx_covs = cov_matrices[:, 2, 0]
+            xx_covs = cov_matrices[:, 0, 0]
+            yy_covs = cov_matrices[:, 1, 1]
+            zz_covs = cov_matrices[:, 2, 2]
+
+            evals, evects = LA.eigh(cov_matrices)
+            evals2, evects2 = LA.eigh(cov_matrices[:, 0:2, 0:2])
+
+            exp1 = xx_covs * yy_covs * zz_covs + 2 * xy_covs * yz_covs * zx_covs
+            exp2 = xx_covs * yz_covs * yz_covs + yy_covs * zx_covs * zx_covs + zz_covs * xy_covs * xy_covs
+            xy_lin_regs = abs(xy_covs / np.sqrt(xx_covs * yy_covs))
+
+            plan_regs = exp2 / exp1
+
+            xy_lin_regs[np.logical_or(np.isnan(xy_lin_regs), np.isinf(xy_lin_regs))] = 1
+
+            lin_regs = abs(xy_covs * yz_covs * zx_covs / (xx_covs * yy_covs * zz_covs))
+            lin_regs[np.logical_or(np.isnan(lin_regs), np.isinf(lin_regs))] = 1
+
+            plan_regs[np.logical_or(np.isnan(plan_regs), np.isinf(plan_regs))] = 1
+
+            ranks = np.sum(evals > thresh, axis=1, dtype=np.double)
+            means = np.mean(neighbours, axis=2)
+
+            p0 = evals[:, -3] / (evals[:, -1] + evals[:, -2] + evals[:, -3])
+            p1 = evals[:, -2] / (evals[:, -1] + evals[:, -2] + evals[:, -3])
+            p2 = evals[:, -1] / (evals[:, -1] + evals[:, -2] + evals[:, -3])
+
+            p0 = -p0 * np.log(p0)
+            p1 = -p1 * np.log(p1)
+            p2 = -p2 * np.log(p2)
+            p0[np.isnan(p0)] = 0
+            p1[np.isnan(p1)] = 0
+            p2[np.isnan(p2)] = 0
+
+            E = (p0 + p1 + p2) / np.log(3)
+
+            if not decimate:
+                cnt = 3 * k / (4 * np.pi * (distances[:, -1] ** 3))
+
+            dummies['xy_lin_reg'][time_range] = xy_lin_regs[inv].astype(x_array.dtype)
+            dummies['lin_reg'][time_range] = lin_regs[inv].astype(x_array.dtype)
+            dummies['plan_reg'][time_range] = plan_regs[inv].astype(x_array.dtype)
+            dummies['eig0'][time_range] = evals[:, -3][inv].astype(x_array.dtype)
+            dummies['eig1'][time_range] = evals[:, -2][inv].astype(x_array.dtype)
+            dummies['eig2'][time_range] = evals[:, -1][inv].astype(x_array.dtype)
+            dummies['curv'][time_range] = p0[inv].astype(x_array.dtype)
+
+            dummies['curv'][np.logical_or(np.isnan(dummies['curv']), np.isinf(dummies['curv']))] = (
+                        0 * x_array[np.logical_or(np.isnan(dummies['curv']), np.isinf(dummies['curv']))]).astype(
+                x_array.dtype)
+
+            dummies['iso'][time_range] = ((evals[:, -1] + evals[:, -2] + evals[:, -3]) / np.sqrt(
+                3 * (evals[:, -1] ** 2 + evals[:, -2] ** 2 + evals[:, -3] ** 2)))[inv].astype(x_array.dtype)
+
+            dummies['iso'][np.logical_or(np.isnan(dummies['iso']), np.isinf(dummies['iso']))] = (
+                        0 * x_array[np.logical_or(np.isnan(dummies['iso']), np.isinf(dummies['iso']))]).astype(
+                x_array.dtype)
+
+            dummies['rank'][time_range] = ranks[inv].astype(classification.dtype)
+
+            dummies['impdec'][time_range] = cnt[inv].astype(x_array.dtype)
+
+            dummies['ent'][time_range] = E[inv].astype(x_array.dtype)
+
+            dummies['plang'][time_range] = np.clip(2 * (np.arccos(abs(evects[:, 2, -3]) / (
+                np.sqrt(evects[:, 2, -3] ** 2 + evects[:, 1, -3] ** 2 + evects[:, 0, -3] ** 2))) / np.pi), 0, 1)[
+                inv].astype(x_array.dtype)
+
+            dummies['plang'][np.logical_or(np.isnan(dummies['plang']), np.isinf(dummies['plang']))] = (
+                        0 * x_array[np.logical_or(np.isnan(dummies['plang']), np.isinf(dummies['plang']))]).astype(
+                x_array.dtype)
+
+            dummies['lang'][time_range] = np.clip(2 * (np.arccos(abs(evects[:, 2, -1]) / (
+                np.sqrt(evects[:, 2, -1] ** 2 + evects[:, 1, -1] ** 2 + evects[:, 0, -1] ** 2))) / np.pi), 0, 1)[
+                inv].astype(x_array.dtype)
+
+            dummies['lang'][np.logical_or(np.isnan(dummies['lang']), np.isinf(dummies['lang']))] = (
+                        0 * x_array[np.logical_or(np.isnan(dummies['lang']), np.isinf(dummies['lang']))]).astype(
+                x_array.dtype)
+
+        some_definitions = {
+            "dim1_mw": (lambda x, y, z: (z - y) / z),
+            "dim2_mw": (lambda x, y, z: (y - x) / z),
+            "dim3_mw": (lambda x, y, z: x / z),
+            "dim1_sd": (lambda x, y, z: (z - y) / (x + y + z)),
+            "dim2_sd": (lambda x, y, z: 2 * (y - x) / (x + y + z)),
+            "dim3_sd": (lambda x, y, z: 3 * x / (x + y + z)),
+            "dimension": (lambda x, y, z: 1 + np.argmax(
+                np.stack(((z - y) / (x + y + z), 2 * (y - x) / (x + y + z), 3 * x / (x + y + z)), axis=1))),
+        }
+
+        for function_lambdas in some_definitions:
+            dummies[function_lambdas] = some_definitions[function_lambdas](dummies['eig0'], dummies['eig1'],
+                                                                           dummies['eig2'])
+            dummies[function_lambdas][
+                np.logical_or(np.isnan(dummies[function_lambdas]), np.isinf(dummies[function_lambdas]))] = (0 * x_array[
+                np.logical_or(np.isnan(dummies[function_lambdas]), np.isinf(dummies[function_lambdas]))]).astype(
+                x_array.dtype),
+        for signal in dummies:
+            outFile.writer.set_dimension(signal, dummies[signal])
+    else:
+        for signal in dummies:
+            outFile.writer.set_dimension(signal, np.zeros((1,len(x_array)),dtype=np.double))
+
+        print('Empty dataset.')
+
+    return outFile
+
+
+def rh_mult_attr(infile, mul=1000):
+    """
+    Multiply the attr by some number.
+
+    :param infile: las file on which to multiply the attributes.
+    :type infile: laspy object
+    :param mul: by how much to miltiply
+    :return:
+    """
+
+    xy_lin_reg = infile.xy_lin_reg * mul
+    plan_reg = infile.plan_reg * mul
+    eig0 = infile.eig0 * mul
+    eig1 = infile.eig1 * mul
+    eig2 = infile.eig2 * mul
+    rank = infile.rank * mul
+    lin_reg = infile.lin_reg * mul
+    curv = infile.curv * mul
+    iso = infile.iso * mul
+    ent = infile.ent * mul
+    plang = infile.plang * mul
+    lang = infile.lang * mul
+
+    infile.xy_lin_reg = xy_lin_reg
+    infile.plan_reg = plan_reg
+    infile.eig0 = eig0
+    infile.eig1 = eig1
+    infile.eig2 = eig2
+    infile.rank = rank
+    infile.lin_reg = lin_reg
+    infile.curv = curv
+    infile.iso = iso
+    infile.ent = ent
+    infile.plang = plang
+    infile.lang = lang

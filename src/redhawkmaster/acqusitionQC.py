@@ -1,4 +1,6 @@
 import os
+import sys
+
 from laspy.file import File
 import numpy as np
 import time
@@ -18,7 +20,8 @@ import shapefile
 from pyproj import Proj, transform
 from shapely.geometry import mapping, Polygon, Point, shape
 import fiona
-import imageio
+import xlsxwriter
+from openpyxl import load_workbook
 
 # https://stackoverflow.com/questions/33415475/how-to-get-current-date-and-time-from-gps-unsegment-time-in-python
 # Needs to be updated in some time
@@ -522,6 +525,32 @@ def radial_count_v4(infile, k=51, radius=0.5, spacetime=True, v_speed=2, N=20):
     return intensity
 
 
+def getWKT_PRJ_file(filename, epsg_code):
+    """
+    Write the projection file.
+
+    :param filename: name of the PRJ file
+    :type filename: string
+    :param epsg_code:
+    :type epsg_code: string
+    :return: .prj file
+    """
+    import urllib.request
+    # access projection information
+    wkt = urllib.request.urlopen("http://spatialreference.org/ref/epsg/{0}/prettywkt/".format(epsg_code))
+    # remove spaces between charachters
+    string_wkt = wkt.read().decode('utf-8')
+    remove_spaces = string_wkt.replace(" ", "")
+    # place all the text on one line
+    output = remove_spaces.replace("\n", "")
+
+    # create the .prj file
+    prj = open(filename+".prj", "w")
+
+    prj.write(output)
+    prj.close()
+
+
 def polygon_select(infile, resolution=10, classif=15, classed='polygon'):
     """
     Make a polygon file which is going to give the vegetation on maps (json file) or google earth (ESRI shape file).
@@ -534,7 +563,7 @@ def polygon_select(infile, resolution=10, classif=15, classed='polygon'):
     :type classif: int
     :param classed: it tells are we going to output polygon or points position
     :type classed: string
-    :return: json or shp file
+    :return: json, shp, xlsx, csv and prj files
     """
     # Reading a las file from the current location
     inFile = infile
@@ -661,11 +690,16 @@ def polygon_select(infile, resolution=10, classif=15, classed='polygon'):
 
         # Headers for the CSV file
         writer.writerow(['PlID', 'PtX', 'PtY', 'cX', 'cY', 'Area'])
-
+        pId = []
+        cntX = []
+        cntY = []
         # For each polygon (contour) we write it in the JSON string and in the file
         for cnt in contours:
 
             jsonFile += '['
+
+            # polygon id
+            pId.append(plid)
 
             # OpenCV moments which get us to compute the centroid point
             M = cv2.moments(cnt)
@@ -684,7 +718,6 @@ def polygon_select(infile, resolution=10, classif=15, classed='polygon'):
 
             # Each shape polygon separate
             polygon = []
-            areaPL = []
             centroid = []
 
             # For each point in the polygon we must compute the real x,y point
@@ -721,53 +754,47 @@ def polygon_select(infile, resolution=10, classif=15, classed='polygon'):
             cnt1, cnt2 = transform(inProj, outProj, (cy / 10 + xmin / 10), (cx / 10 + ymin / 10))
             centroid.append([cnt1, cnt2])
 
-            # Append area of each polygon
-            areaPL.append(area)
+            # Excel coords
+            cntX.append(cnt1)
+            cntY.append(cnt2)
 
-            areas.append(areaPL)
+            # Append area of each polygon
+            areas.append(area)
+
             centroids.append(centroid)
 
     # print(polygons)
 
-    # Write the shape file
-    # w = shapefile.Writer(infile.filename.split('.')[0])
-    # plid = 1
-    # # w.field(infile.filename.split('.')[0], 'C')
-    # # w.autoBalance = 1
-    # for pol in polygons:
-    #     # print(pol)
-    #     w.poly([pol])
-    #     # w.record(str(plid), str(plid))
-    #     # plid += 1
-    # w.field(infile.filename.split('.')[0])
-    # w.field(infile.filename.split('.')[0], 'C', '40')
-    # for pol in polygons:
-    #     w.record(str(plid), 'Polygon')
-    #     plid += 1
-    #
-    # w.close()
+    # Make xlsx file
+    xlsx_polygon(infile.filename.split('.')[0]+'_Classification'+str(classif)+'_'+classed, np.array([pId, cntX, cntY, areas]))
 
+    # Description for the shape file
     schema = {
         'geometry': 'Polygon',
-        'properties': {'Classification': 'str',
-                       'Tile name': 'str',
-                       'Polygon number': 'int',
-                       'Area in m2': 'float',
-                       'Centroid XY': 'str',
+        'properties': {'class': 'str',
+                       'tileNo': 'str',
+                       'polygonNo': 'int',
+                       'area(m2)': 'float',
+                       'centroidXY': 'str',
+                       'desc': 'str',
+                       'voltage': 'str',
+                       'srcName': 'str',
                        }
     }
 
     if classed == 'points':
         schema = {
             'geometry': 'Polygon',
-            'properties': {'Classification': 'str',
-                           'Tile name': 'str',
-                           'Pole number': 'int',
+            'properties': {'class': 'str',
+                           'tileNo': 'str',
+                           'poleNo': 'int',
                            }
         }
 
+    # Name of the shape file
     nameSHP = infile.filename.split('.')[0]+'_Classification'+str(classif)+'_'+classed+'.shp'
 
+    # Write the shapefile
     with fiona.open(nameSHP, 'w', 'ESRI Shapefile', schema) as c:
         for poly in range(len(polygons)):
             if classed == 'polygon':
@@ -777,11 +804,14 @@ def polygon_select(infile, resolution=10, classif=15, classed='polygon'):
                 # print(areas[poly])
                 c.write({
                     'geometry': mapping(plg),
-                    'properties': {'Classification': 'Vegetation 3m',
-                                   'Tile name': infile.filename.split('.')[0],
-                                   'Polygon number': poly+1,
-                                   'Area in m2': areas[poly][0],
-                                   'Centroid XY': centroidsPnt
+                    'properties': {'class': 'Vegetation 3m',
+                                   'tileNo': infile.filename.split('.')[0],
+                                   'polygonNo': poly+1,
+                                   'area(m2)': areas[poly],
+                                   'centroidXY': centroidsPnt,
+                                   'desc': '',
+                                   'voltage': '',
+                                   'srcName': ''
                                    },
                 })
             elif classed == 'points':
@@ -789,22 +819,195 @@ def polygon_select(infile, resolution=10, classif=15, classed='polygon'):
 
                 c.write({
                     'geometry': mapping(plg.buffer(0.00001)),
-                    'properties': {'Classification': 'Pole',
-                                   'Tile name': infile.filename.split('.')[0],
-                                   'Pole number': poly + 1
+                    'properties': {'class': 'Pole',
+                                   'tileNo': infile.filename.split('.')[0],
+                                   'poleNo': poly + 1
                                    },
                 })
 
     # We close down the "bad" JSON
     jsonFile += "]}';"
     # Write it in a .json file
-    with open("features.json", "w") as text_file:
+    with open(infile.filename.split('.')[0]+'_Classification'+str(classif)+'_'+classed+".json", "w") as text_file:
         text_file.write(jsonFile)
     csvFile.close()
     text_file.close()
+
+    # Get the projection file
+    getWKT_PRJ_file(infile.filename.split('.')[0]+'_Classification'+str(classif)+'_'+classed, "4326")
 
     # Delete all the helping images
     os.system("rm ./*.png")
     # Save the last output
     cv2.imwrite('im_out.png', image)
 
+
+def xlsx_polygon(filename, data):
+    """
+    Make a polygon file which is going to give the vegetation on maps (json file) or google earth (ESRI shape file).
+
+    :param filename: name of the file which will be put on the spreadsheet
+    :type filename: string
+    :param data: array of columns for the xlsx data
+    :type data: ndarray
+    :return: writes a xlsx file to the system
+    """
+
+    workbook = xlsxwriter.Workbook(filename.split('.')[0]+'.xlsx')
+    # By default worksheet names in the spreadsheet will be
+    # Sheet1, Sheet2 etc., but we can also specify a name.
+    worksheet = workbook.add_worksheet("My sheet")
+
+    # Start from the first cell. Rows and
+    # columns are zero indexed.
+    row = 0
+    col = 0
+
+    # Header of the excel file
+    worksheet.write_row(row, col, ['Polygon ID', 'Centroid X', 'Centroid Y', 'Area(m2)'])
+    row += 1
+
+    # Transpose the data each row to be in a different array
+    data = data.T
+
+    # Write the data with specific column width
+    for item in data:
+        worksheet.set_column(row, col, len(str(item))/2)
+        worksheet.write_row(row, col, item)
+        row += 1
+
+    workbook.close()
+
+
+def column_string(n):
+    """
+    Turn number into column letter.
+
+    :param n: number of the column
+    :return: string
+    """
+    string = ""
+    while n > 0:
+        n, remainder = divmod(n - 1, 26)
+        string = chr(65 + remainder) + string
+    return string
+
+
+def fill_shape_file(filename_poly, filename_lines):
+    """
+    Fill the description of the polygon file that is near the lines.
+
+    :param filename_poly: name of the shape file with the polygons
+    :type filename_poly: string
+    :param filename_lines: name of the shape file with the lines
+    :type filename_lines: string
+    :return:
+    """
+    import geopandas as gpd
+    from shapely.wkt import loads
+
+    # Get the shape file
+    sf_poly = shapefile.Reader(filename_poly)
+    print('number of shapes imported:', len(sf_poly.shapes()))
+    print('geometry attributes in each shape:')
+
+    # dict for filled polygons
+    poly_filled = []
+
+    # open the existing polygon without the extra attr
+    with fiona.open(filename_poly+'.shp') as polygons:
+
+        # copy the schema from the shape file
+        schema = polygons.schema.copy()
+
+        # iterate through each polygon
+        for pol in polygons:
+
+            # create polygon string with cooordinates
+            poly_string = 'POLYGON (('
+
+            indx = 1
+
+            # get the coordinates into projection 27700 same as the shape conductor file
+            for coord in pol['geometry']['coordinates'][0]:
+                inProj = Proj(init='epsg:4326')
+                outProj = Proj(init='epsg:27700')
+                cnt1, cnt2 = transform(inProj, outProj, coord[0], coord[1])
+                if indx != len(pol['geometry']['coordinates'][0]):
+                    poly_string += '' + str(cnt1) + ' ' + str(cnt2) + ', '
+                else:
+                    poly_string += '' + str(cnt1) + ' ' + str(cnt2) + ' '
+                indx += 1
+            # close the polygon
+            poly_string += '))'
+
+            min_distance = sys.maxsize
+            with fiona.open(filename_lines+'.shp') as lines:
+
+                inProj = Proj(init='epsg:27700')
+                outProj = Proj(init='epsg:4326')
+
+                line_string = 'LINESTRING ('
+
+                ind = 0
+                min_ind = ind
+                for line in lines:
+                    indx = 1
+                    line_string = 'LINESTRING ('
+                    for coord in line['geometry']['coordinates']:
+                        # cnt1, cnt2 = transform(inProj, outProj, coord[0], coord[1])
+                        # print(cnt1, cnt2)
+                        if indx != len(line['geometry']['coordinates']):
+                            line_string += ''+str(coord[0])+' '+str(coord[1])+', '
+                        else:
+                            line_string += '' + str(coord[0]) + ' ' + str(coord[1]) + ' '
+                        indx += 1
+                    line_string += ')'
+
+                    lline = loads(line_string)
+                    g_line = gpd.GeoSeries(lline)
+
+                    poly = loads(poly_string)
+                    g_poly = gpd.GeoSeries(poly)
+                    if g_poly.distance(g_line)[0] < min_distance:
+                        min_distance = g_poly.distance(g_line)[0]
+                        min_ind = ind
+                    ind += 1
+
+                pol['properties']['desc'] = lines[min_ind]['properties']['desc']
+                pol['properties']['voltage'] = lines[min_ind]['properties']['voltage']
+                pol['properties']['srcName'] = lines[min_ind]['properties']['srcName']
+
+                poly_filled.append(pol)
+
+                # print(pol)
+                # print(min_distance)
+                # print(min_ind)
+
+    extra_data = []
+    with fiona.open(filename_poly+'.shp', 'w', 'ESRI Shapefile', schema) as c:
+        for elem in poly_filled:
+            c.write({'properties': elem['properties'], 'geometry': mapping(shape(elem['geometry']))})
+            extra_data.append([elem['properties']['desc'], elem['properties']['voltage'], elem['properties']['srcName']])
+
+    wb = load_workbook(filename_poly+'.xlsx')
+
+    sheet = wb.active
+
+    max_col = sheet.max_column
+    max_row = sheet.max_row
+
+    sheet.cell(row=1, column=max_col+1).value = 'Description'
+    sheet.cell(row=1, column=max_col + 2).value = 'Voltage'
+    sheet.cell(row=1, column=max_col + 3).value = 'Source Name'
+
+    sheet.column_dimensions[column_string(max_col + 1)].width = 100
+    sheet.column_dimensions[column_string(max_col + 2)].width = sheet.column_dimensions['A'].width
+    sheet.column_dimensions[column_string(max_col + 3)].width = sheet.column_dimensions['A'].width
+
+    for i in range(2, max_row+1):
+        sheet.cell(row=i, column=max_col+1).value = extra_data[i-2][0]
+        sheet.cell(row=i, column=max_col + 2).value = extra_data[i-2][1]
+        sheet.cell(row=i, column=max_col + 3).value = extra_data[i-2][2]
+
+    wb.save(filename_poly+'.xlsx')
