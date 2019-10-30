@@ -1,12 +1,13 @@
 from redhawkmaster import rh_io
-from redhawkmaster.las_modules import rh_attribute_compute
+from redhawkmaster.las_modules import rh_attribute_compute, rh_return_index,rh_cluster
 from redhawkmaster.acqusitionQC import polygon_select, fill_shape_file
 
-infile = rh_io.las_input('ILIJA_FlightlineTest_job050_hag.las',
+infile = rh_io.las_input('als_model.las',
                          mode='r')
 
 
-outFile = rh_attribute_compute(infile, 'attr.las')
+outFile = rh_cluster(infile, 'cluster.las', tolerance=1.0)
+print(outFile.cluster_id)
 outFile.close()
 
 # polygon_select(infile,

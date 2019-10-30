@@ -596,3 +596,114 @@ def rh_mult_attr(infile, mul=1000):
     infile.ent = ent
     infile.plang = plang
     infile.lang = lang
+
+
+def rh_return_index(infile, outname):
+    """
+    Combine return info in one header.
+
+    :param infile: las file from which to read return number and number of returns
+    :param outname: name of the las file which will be outputed
+    :return: laspy object
+    """
+
+    outFile = File(outname, header=infile.header, mode='w')
+
+    Specs = [spec.name for spec in infile.point_format]
+
+    if not ("user_return_index" in Specs):
+        outFile.define_new_dimension(name="user_return_index", data_type=5, description="User combined return attr.")
+
+    for dimension in infile.point_format:
+        dat = infile.reader.get_dimension(dimension.name)
+        outFile.writer.set_dimension(dimension.name, dat)
+
+    USER_ReturnIndex = infile.num_returns * 10
+    USER_ReturnIndex = USER_ReturnIndex + infile.return_num
+
+    outFile.user_return_index = USER_ReturnIndex
+
+    return outFile
+
+
+def rh_cluster(infile, outname, min_points=1, max_points=sys.maxsize, tolerance=1.0):
+    """
+    Compute cluster ID on a las file.
+
+    :param infile: las file on which to get the cluster id.
+    :param outname: name of the las file which will be outputed
+    :param min_points: minimum number of points for which we are going to consider a cluster
+    :param max_points: maximum number of points to consider the cluster
+    :param tolerance: maximum Euclidean distance for a point to be added to the cluster.
+    :return: las object
+    """
+
+    from sklearn.cluster import DBSCAN
+
+    outFile = File(outname, header=infile.header, mode='w')
+
+    Specs = [spec.name for spec in infile.point_format]
+
+    if not ("cluster_id" in Specs):
+        outFile.define_new_dimension(name="cluster_id", data_type=5, description="Clustering id")
+
+    for dimension in infile.point_format:
+        dat = infile.reader.get_dimension(dimension.name)
+        outFile.writer.set_dimension(dimension.name, dat)
+
+    points = np.stack((infile.x, infile.y, infile.z), axis=1)
+
+    clustering = DBSCAN(eps=tolerance, min_samples=min_points).fit(points)
+
+    labels = clustering.labels_
+
+    outFile.cluster_id = labels + 1
+
+    return outFile
+
+
+def rh_cluster_median_return(infile, outname):
+    """
+    Make dimension cluster_id_median and cluter_id_mean.
+
+    :param infile: las file object from which to compute
+    :param outname: name file of the output las file
+    :return: laspy object
+    """
+
+    outFile = File(outname, header=infile.header, mode='w')
+
+    Specs = [spec.name for spec in infile.point_format]
+
+    if not ("cluster_id_median" in Specs):
+        outFile.define_new_dimension(name="cluster_id_median", data_type=9, description="Clustering id median")
+
+    if not ("cluster_id_mean" in Specs):
+        outFile.define_new_dimension(name="cluster_id_median", data_type=9, description="Clustering id mean")
+
+    for dimension in infile.point_format:
+        dat = infile.reader.get_dimension(dimension.name)
+        outFile.writer.set_dimension(dimension.name, dat)
+
+    return_number = infile.return_num * 10
+    return_number = infile.num_returns + return_number
+    cluster_id = infile.cluster_id
+
+    ClusterID_Median = np.zeros(len(infile.x))
+    ClusterID_Mean = np.zeros(len(infile.x))
+
+    for i in np.unique(np.sort(cluster_id)):
+
+        Mask = cluster_id == i
+        Mask_ReturnNumber = return_number[Mask]
+
+        Median = np.median(Mask_ReturnNumber)
+        Mean = np.mean(Mask_ReturnNumber)
+
+        ClusterID_Median[Mask] = Median
+        ClusterID_Mean[Mask] = Mean
+
+    outFile.cluster_id_median = ClusterID_Median
+    outFile.cluster_id_mean = ClusterID_Mean
+
+    return outFile
