@@ -214,6 +214,8 @@ def virus(infile, clip, num_itter, classif):
             # The distances that are less then the clip get classified
             cls[np.logical_and(distances[:, 0] < clip, np.logical_not(class1))] = classif
 
+    infile.classification = cls
+
     return cls
 
 
@@ -554,7 +556,7 @@ def rh_attribute_compute(infile, outname, k=50, radius=0.50, thresh=0.001, space
             outFile.writer.set_dimension(signal, dummies[signal])
     else:
         for signal in dummies:
-            outFile.writer.set_dimension(signal, np.zeros((1,len(x_array)),dtype=np.double))
+            outFile.writer.set_dimension(signal, np.zeros((1, len(x_array)), dtype=np.double))
 
         print('Empty dataset.')
 
@@ -677,9 +679,15 @@ def rh_cluster_median_return(infile, outname):
 
     if not ("cluster_id_median" in Specs):
         outFile.define_new_dimension(name="cluster_id_median", data_type=9, description="Clustering id median")
+        ClusterID_Median = np.zeros(len(infile.x))
+    else:
+        ClusterID_Median = infile.cluster_id_median
 
     if not ("cluster_id_mean" in Specs):
         outFile.define_new_dimension(name="cluster_id_median", data_type=9, description="Clustering id mean")
+        ClusterID_Mean = np.zeros(len(infile.x))
+    else:
+        ClusterID_Mean = infile.cluster_id_mean
 
     for dimension in infile.point_format:
         dat = infile.reader.get_dimension(dimension.name)
@@ -688,9 +696,6 @@ def rh_cluster_median_return(infile, outname):
     return_number = infile.return_num * 10
     return_number = infile.num_returns + return_number
     cluster_id = infile.cluster_id
-
-    ClusterID_Median = np.zeros(len(infile.x))
-    ClusterID_Mean = np.zeros(len(infile.x))
 
     for i in np.unique(np.sort(cluster_id)):
 
@@ -707,3 +712,110 @@ def rh_cluster_median_return(infile, outname):
     outFile.cluster_id_mean = ClusterID_Mean
 
     return outFile
+
+
+def rh_cluster_id_count_max(infile, outname):
+    """
+    Count number in each cluster.
+
+    :param infile: las file on wchi to make dimension
+    :param outname: file name for the output file
+    :return: laspy object
+    """
+
+    outFile = File(outname, header=infile.header, mode='w')
+
+    ClusterIDCountMax = np.zeros(len(infile.x))
+
+    Specs = [spec.name for spec in infile.point_format]
+
+    if not ("cluster_id_count_max" in Specs):
+        outFile.define_new_dimension(name="cluster_id_count_max", data_type=9, description="Clustering id median")
+
+    for dimension in infile.point_format:
+        dat = infile.reader.get_dimension(dimension.name)
+        outFile.writer.set_dimension(dimension.name, dat)
+
+    if "cluster_id_count_max" in Specs:
+
+        ClusterIDCountMax = outFile.cluster_id_count_max
+
+    ClusterID = infile.cluster_id
+
+    for i in np.unique(np.sort(ClusterID)):
+
+        Mask = ClusterID == i
+
+        number_of_points = np.sum(Mask)
+
+        ClusterIDCountMax[Mask] = number_of_points
+
+    ClusterIDCountMax = np.clip(ClusterIDCountMax, 0, 10000)
+
+    outFile.cluster_id = ClusterID
+    outFile.cluster_id_count_max = ClusterIDCountMax
+
+    return outFile
+
+
+def rh_curvature(infile, multiplier=100):
+    """
+    Multiply the curvature by some number.
+
+    :param infile: laspy object with curvature dimension
+    :param multiplier: number which the curvature will be multiplied by.
+    :return:
+    """
+
+    Curvature = infile.curvature
+
+    Curvature *= multiplier
+
+    infile.curvature = Curvature
+
+
+def rh_curvature_change_median(infile, clip=16, classification=15, n_neigh=251):
+    """
+
+    :param infile:
+    :param clip:
+    :param classification:
+    :param n_neigh:
+    :return:
+    """
+
+    cls = infile.classification
+    x_array = infile.x
+    y_array = infile.y
+    z_array = infile.x
+
+    class10 = (cls == classification)
+
+    # XYZ dataset
+    coords = np.vstack((x_array, y_array, z_array))
+
+    # XYZ dataset with all classification 15
+    coords_flight = np.vstack((x_array[class10], y_array[class10], z_array[class10]))
+
+    if len(coords_flight[0]) != 0:
+        # n_neighbors is the number of neighbors of a point, I can't take everything within 1m
+        # but I can take a lot of them for now 125
+        if len(coords_flight[0]) < 251:
+            n_neigh = len(coords_flight[0])
+        else:
+            n_neigh = 251
+
+        nhbrs = NearestNeighbors(n_neighbors=n_neigh, algorithm="kd_tree").fit(np.transpose(coords_flight))
+        distances, indices = nhbrs.kneighbors(np.transpose(coords))
+
+        Curvature = infile.curvature
+
+        Curvature_array = Curvature[indices].astype(float)
+        Curvature_array[distances >= clip] = np.nan
+        Curvature_avg = np.nanmedian(Curvature_array, axis=1)
+
+        # Apply the median Curvature
+        Curvature = Curvature_avg.astype('double')
+
+        # Get the changed Curvature to output
+        infile.curvature = Curvature
