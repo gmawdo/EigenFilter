@@ -32,14 +32,17 @@ def las_range(dimension, start=(-sys.maxsize-1), end=sys.maxsize, reverse=False,
 
     # For each dimension we make a mask from start until end
     # If a dimension is in lowercase letters is scaled one
-    mask = (dimension >= start) & (dimension < end)
+    dimension = dimension[point_id_mask]
+    if point_id_mask.size == 0:
+        mask = np.zeros(len(dimension), dtype=bool)
+    else:
+        mask = (dimension >= start) & (dimension < end)
     if reverse:
         mask = ~mask
 
-    if point_id_mask.size != 0:
-        return point_id_mask[mask]
-    else:
-        return mask
+    print(np.where(mask)[0])
+    return point_id_mask[np.where(mask)[0]]
+
 
 
 def duplicate_attr(infile, attribute_in, attribute_out, attr_descrp, attr_type):
@@ -358,7 +361,7 @@ def rh_attribute_compute(infile, outname, k=50, radius=0.50, thresh=0.001, space
     :type u: float
     :param N:  number of subtiles (no edge effects) (default 6)
     :type N: int
-    :return: las file to the sustem defined by outname
+    :return: las file to the system defined by outname
     """
 
     import numpy.linalg as LA
@@ -369,14 +372,16 @@ def rh_attribute_compute(infile, outname, k=50, radius=0.50, thresh=0.001, space
 
     extra_dims = [
      ["xy_lin_reg", 9, "Linear regression."],
+     ["lin_reg", 9, "Linear regression."],
      ["plan_reg", 9, "Planar regression."],
      ["eig0", 9, "Eigenvalue 0. "],
      ["eig1", 9, "Eigenvalue 1. "],
      ["eig2", 9, "Eigenvalue 2. "],
      ["rank", 5, "Structure matrix."],
      ["curv", 9, "Curvature."],
+     ["iso", 9, "Isotropy"],
      ["ent", 9, "Entropy"],
-     ["plan", 9, "Planar angle"],
+     ["plang", 9, "Planar angle"],
      ["lang", 9, "Linear angle"],
      ["linearity", 9, "Closeness to a line"],
      ["planarity", 9, "Closeness to a plane"],
@@ -398,7 +403,7 @@ def rh_attribute_compute(infile, outname, k=50, radius=0.50, thresh=0.001, space
         dat = infile.reader.get_dimension(dimension.name)
         outFile.writer.set_dimension(dimension.name, dat)
 
-    if v_speed == 0 :
+    if v_speed == 0:
         spacetime = False
 
     x_array = infile.x
@@ -419,9 +424,9 @@ def rh_attribute_compute(infile, outname, k=50, radius=0.50, thresh=0.001, space
                'ent': dummy.astype(x_array.dtype), 'plang': dummy.astype(x_array.dtype),
                'lang': dummy.astype(x_array.dtype), 'linearity': dummy.astype(x_array.dtype),
                'planarity': dummy.astype(x_array.dtype), 'scattering': dummy.astype(x_array.dtype),
-               'dim0_mw': dummy.astype(x_array.dtype), 'dim1_mw': dummy.astype(x_array.dtype),
-               'dim2_mw': dummy.astype(x_array.dtype), 'dim0_sd': dummy.astype(x_array.dtype),
-               'dim1_sd': dummy.astype(x_array.dtype), 'dim2_sd': dummy.astype(x_array.dtype),
+               'dim1_mw': dummy.astype(x_array.dtype), 'dim2_mw': dummy.astype(x_array.dtype),
+               'dim3_mw': dummy.astype(x_array.dtype), 'dim1_sd': dummy.astype(x_array.dtype),
+               'dim2_sd': dummy.astype(x_array.dtype), 'dim3_sd': dummy.astype(x_array.dtype),
                'dimension': dummy.astype(x_array.dtype)}
 
     if len(x_array) != 0:
@@ -456,6 +461,7 @@ def rh_attribute_compute(infile, outname, k=50, radius=0.50, thresh=0.001, space
             means = coords[:, :, None]
             raw_deviations = keeping * (neighbours - means) / np.sqrt(Ns[None, :, None])  # (3,N,k)
             cov_matrices = np.matmul(raw_deviations.transpose(1, 0, 2), raw_deviations.transpose(1, 2, 0))  # (N,3,3)
+            cov_matrices = np.maximum(cov_matrices, cov_matrices.swapaxes(-1, -2))
             xy_covs = cov_matrices[:, 0, 1]
             yz_covs = cov_matrices[:, 1, 2]
             zx_covs = cov_matrices[:, 2, 0]
@@ -464,7 +470,6 @@ def rh_attribute_compute(infile, outname, k=50, radius=0.50, thresh=0.001, space
             zz_covs = cov_matrices[:, 2, 2]
 
             evals, evects = LA.eigh(cov_matrices)
-            evals2, evects2 = LA.eigh(cov_matrices[:, 0:2, 0:2])
 
             exp1 = xx_covs * yy_covs * zz_covs + 2 * xy_covs * yz_covs * zx_covs
             exp2 = xx_covs * yz_covs * yz_covs + yy_covs * zx_covs * zx_covs + zz_covs * xy_covs * xy_covs
@@ -482,6 +487,7 @@ def rh_attribute_compute(infile, outname, k=50, radius=0.50, thresh=0.001, space
             ranks = np.sum(evals > thresh, axis=1, dtype=np.double)
             means = np.mean(neighbours, axis=2)
 
+            # normal curvature filters
             p0 = evals[:, -3] / (evals[:, -1] + evals[:, -2] + evals[:, -3])
             p1 = evals[:, -2] / (evals[:, -1] + evals[:, -2] + evals[:, -3])
             p2 = evals[:, -1] / (evals[:, -1] + evals[:, -2] + evals[:, -3])
@@ -547,16 +553,13 @@ def rh_attribute_compute(infile, outname, k=50, radius=0.50, thresh=0.001, space
             "dim2_sd": (lambda x, y, z: 2 * (y - x) / (x + y + z)),
             "dim3_sd": (lambda x, y, z: 3 * x / (x + y + z)),
             "dimension": (lambda x, y, z: 1 + np.argmax(
-                np.stack(((z - y) / (x + y + z), 2 * (y - x) / (x + y + z), 3 * x / (x + y + z)), axis=1))),
+                np.stack(((z - y) / (x + y + z), 2 * (y - x) / (x + y + z), 3 * x / (x + y + z)), axis=1), axis=1)),
         }
 
         for function_lambdas in some_definitions:
-            print(function_lambdas)
 
             dummies[function_lambdas] = some_definitions[function_lambdas](dummies['eig0'], dummies['eig1'],
                                                                            dummies['eig2'])
-            print(type((0 * x_array[
-                np.logical_or(np.isnan(dummies[function_lambdas]), np.isinf(dummies[function_lambdas]))])))
 
             dummies[function_lambdas][
                 np.logical_or(np.isnan(dummies[function_lambdas]), np.isinf(dummies[function_lambdas]))] = (0 * x_array[
@@ -564,6 +567,7 @@ def rh_attribute_compute(infile, outname, k=50, radius=0.50, thresh=0.001, space
                 x_array.dtype)
 
         for signal in dummies:
+            print(dummies[signal])
             outFile.writer.set_dimension(signal, dummies[signal])
     else:
         for signal in dummies:

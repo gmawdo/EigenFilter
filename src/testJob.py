@@ -8,11 +8,11 @@ from redhawkmaster.rh_big_guns import hough_3d, apply_hough, corridor, pylon_ext
 # infile = rh_io.las_input('T000.las',
 #                          mode='r')
 np.seterr(divide='ignore', invalid='ignore')
-infile_hag = rh_io.las_input('T000_hag.las',
+infile_hag = rh_io.las_input('ILIJA_FLightlineTest_job090.las',
                              mode='r')
 
 # Worked without new stuff
-rh_attribute_compute(infile_hag, 't000_attr1.las')
+rh_attribute_compute(infile_hag, 'ILIJA_FLightlineTest_job090_attr.las')
 
 # works 200 !
 # mask_shape = extract_shape_conductors(infile,
