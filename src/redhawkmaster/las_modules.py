@@ -366,30 +366,33 @@ def rh_attribute_compute(infile, outname, k=50, radius=0.50, thresh=0.001, space
     outFile = File(outname, header=infile.header, mode='w')
 
     Specs = [spec.name for spec in infile.point_format]
-    if not ("xy_lin_reg" in Specs):
-        outFile.define_new_dimension(name="xy_lin_reg", data_type=9, description="XY-linear regression")
-    if not ("plan_reg" in Specs):
-        outFile.define_new_dimension(name="plan_reg", data_type=9, description="Planar regression")
-    if not ("eig0" in Specs):
-        outFile.define_new_dimension(name="eig0", data_type=9, description="Eigenvalue 0")
-    if not ("eig1" in Specs):
-        outFile.define_new_dimension(name="eig1", data_type=9, description="Eigenvalue 1")
-    if not ("eig2" in Specs):
-        outFile.define_new_dimension(name="eig2", data_type=9, description="Eigenvalue 2")
-    if not ("rank" in Specs):
-        outFile.define_new_dimension(name="rank", data_type=5, description="SVD rank")
-    if not ("lin_reg" in Specs):
-        outFile.define_new_dimension(name="lin_reg", data_type=9, description="Linear regression")
-    if not ("curv" in Specs):
-        outFile.define_new_dimension(name="curv", data_type=9, description="Curvature")
-    if not ("iso" in Specs):
-        outFile.define_new_dimension(name="iso", data_type=9, description="Isotropy")
-    if not ("ent" in Specs):
-        outFile.define_new_dimension(name="ent", data_type=9, description="Entropy")
-    if not ("plang" in Specs):
-        outFile.define_new_dimension(name="plang", data_type=9, description="Angle of plane")
-    if not ("lang" in Specs):
-        outFile.define_new_dimension(name="lang", data_type=9, description="Angle of line")
+
+    extra_dims = [
+     ["xy_lin_reg", 9, "Linear regression."],
+     ["plan_reg", 9, "Planar regression."],
+     ["eig0", 9, "Eigenvalue 0. "],
+     ["eig1", 9, "Eigenvalue 1. "],
+     ["eig2", 9, "Eigenvalue 2. "],
+     ["rank", 5, "Structure matrix."],
+     ["curv", 9, "Curvature."],
+     ["ent", 9, "Entropy"],
+     ["plan", 9, "Planar angle"],
+     ["lang", 9, "Linear angle"],
+     ["linearity", 9, "Closeness to a line"],
+     ["planarity", 9, "Closeness to a plane"],
+     ["scattering", 9, "3d-ness"],
+     ["dim1_mw", 9, "Similar to linearity"],
+     ["dim2_mw", 9, "Similar to planarity"],
+     ["dim3_mw", 9, "Similar to scattering"],
+     ["dim1_sd", 9, "Similar to linearity"],
+     ["dim2_sd", 9, "Similar to planarity"],
+     ["dim3_sd", 9, "Similar to scattering"],
+     ["dimension", 5, "Dimension of nbhd"]
+    ]
+
+    for dim in extra_dims:
+        if not(dim[0] in Specs):
+            outFile.define_new_dimension(name=dim[0], data_type=dim[1], description=dim[2])
 
     for dimension in infile.point_format:
         dat = infile.reader.get_dimension(dimension.name)
@@ -412,12 +415,14 @@ def rh_attribute_compute(infile, outname, k=50, radius=0.50, thresh=0.001, space
                'plan_reg': dummy.astype(x_array.dtype), 'eig0': dummy.astype(x_array.dtype),
                'eig1': dummy.astype(x_array.dtype), 'eig2': dummy.astype(x_array.dtype),
                'curv': dummy.astype(x_array.dtype), 'iso': dummy.astype(x_array.dtype),
-               'rank': dummy.astype(classification.dtype), 'impdec': dummy.astype(x_array.dtype),
+               'rank': dummy.astype(classification.dtype),
                'ent': dummy.astype(x_array.dtype), 'plang': dummy.astype(x_array.dtype),
                'lang': dummy.astype(x_array.dtype), 'linearity': dummy.astype(x_array.dtype),
                'planarity': dummy.astype(x_array.dtype), 'scattering': dummy.astype(x_array.dtype),
-               'codim2': dummy.astype(x_array.dtype), 'codim1': dummy.astype(x_array.dtype),
-               'codim0': dummy.astype(x_array.dtype), 'dimension': dummy.astype(classification.dtype)}
+               'dim0_mw': dummy.astype(x_array.dtype), 'dim1_mw': dummy.astype(x_array.dtype),
+               'dim2_mw': dummy.astype(x_array.dtype), 'dim0_sd': dummy.astype(x_array.dtype),
+               'dim1_sd': dummy.astype(x_array.dtype), 'dim2_sd': dummy.astype(x_array.dtype),
+               'dimension': dummy.astype(x_array.dtype)}
 
     if len(x_array) != 0:
 
@@ -514,7 +519,7 @@ def rh_attribute_compute(infile, outname, k=50, radius=0.50, thresh=0.001, space
 
             dummies['rank'][time_range] = ranks[inv].astype(classification.dtype)
 
-            dummies['impdec'][time_range] = cnt[inv].astype(x_array.dtype)
+            # dummies['impdec'][time_range] = cnt[inv].astype(x_array.dtype)
 
             dummies['ent'][time_range] = E[inv].astype(x_array.dtype)
 
@@ -546,12 +551,18 @@ def rh_attribute_compute(infile, outname, k=50, radius=0.50, thresh=0.001, space
         }
 
         for function_lambdas in some_definitions:
+            print(function_lambdas)
+
             dummies[function_lambdas] = some_definitions[function_lambdas](dummies['eig0'], dummies['eig1'],
                                                                            dummies['eig2'])
+            print(type((0 * x_array[
+                np.logical_or(np.isnan(dummies[function_lambdas]), np.isinf(dummies[function_lambdas]))])))
+
             dummies[function_lambdas][
                 np.logical_or(np.isnan(dummies[function_lambdas]), np.isinf(dummies[function_lambdas]))] = (0 * x_array[
                 np.logical_or(np.isnan(dummies[function_lambdas]), np.isinf(dummies[function_lambdas]))]).astype(
-                x_array.dtype),
+                x_array.dtype)
+
         for signal in dummies:
             outFile.writer.set_dimension(signal, dummies[signal])
     else:

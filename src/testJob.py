@@ -1,16 +1,24 @@
+import numpy as np
 from redhawkmaster import rh_io
-from redhawkmaster.las_modules import rh_cluster, rh_cluster_id_count_max, virus
+from redhawkmaster.las_modules import rh_cluster, rh_cluster_id_count_max, virus, rh_attribute_compute
 from redhawkmaster.acqusitionQC import polygon_select, fill_shape_file
 from redhawkmaster.rh_big_guns import hough_3d, apply_hough, corridor, pylon_extract, apply_pylon, \
-    extract_shape_conductors
+    extract_shape_conductors, rh_hag
 
-infile = rh_io.las_input('applied_150.las',
-                         mode='r')
+# infile = rh_io.las_input('T000.las',
+#                          mode='r')
+np.seterr(divide='ignore', invalid='ignore')
+infile_hag = rh_io.las_input('T000_hag.las',
+                             mode='r')
 
-mask_shape = extract_shape_conductors(infile,
-                                      shape_path='/home/mcus/redhawk/lidar-docker-testing/pipeline/')
+# Worked without new stuff
+rh_attribute_compute(infile_hag, 't000_attr1.las')
 
-outFile = rh_io.las_output('shaped_200.las', infile, mask=mask_shape)
+# works 200 !
+# mask_shape = extract_shape_conductors(infile,
+#                                       shape_path='/home/mcus/redhawk/lidar-docker-testing/pipeline/')
+#
+# outFile = rh_io.las_output('shaped_200.las', infile, mask=mask_shape)
 
 # 150 works !!!
 # apply_pylon(outFile)

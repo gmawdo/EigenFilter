@@ -161,6 +161,7 @@ def attribute(test, las_file, csv_name='attribute.csv'):
         maxBlue = max(test.blue)
         minBlue = min(test.blue)
         rangeBlue = maxBlue - minBlue
+        # TODO: maybe blue is not the final dimension
 
         # Make the row for the file
         attr_values = [las_file, maxX, minX, rangeX, maxY, minY, rangeY, maxZ, minZ, rangeZ,
@@ -350,7 +351,7 @@ def extract_qc(location="./", location_qc="./", attribute_name='attribute.csv', 
         if file_extension == '.las':
             print('Starting file: ' + filename)
             # Read the laspy object
-            test = File(las_file, mode='r')
+            test = File(location+filename+'.las', mode='r')
             # Run attribute
             attribute(test, filename, csv_name=(location_qc + attribute_name))
             # Run header
