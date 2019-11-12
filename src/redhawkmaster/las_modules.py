@@ -40,9 +40,7 @@ def las_range(dimension, start=(-sys.maxsize-1), end=sys.maxsize, reverse=False,
     if reverse:
         mask = ~mask
 
-    print(np.where(mask)[0])
     return point_id_mask[np.where(mask)[0]]
-
 
 
 def duplicate_attr(infile, attribute_in, attribute_out, attr_descrp, attr_type):
@@ -80,8 +78,8 @@ def duplicate_attr(infile, attribute_in, attribute_out, attr_descrp, attr_type):
     # Open the temp file
     inFile = File("T000_extradim.las", mode="r")
 
-    # Open output file with same name as infile just added the dimensions name
-    outFile1 = File(infile.filename.split('/')[-1].split('.las')[0]+"_"+attribute_out+".las",
+    # Open output file with same name as infile
+    outFile1 = File(infile.filename.split('/')[-1].split('.las')[0]+".las",
                     mode="w", header=inFile.header)
 
     # Populate the points
@@ -275,10 +273,11 @@ def rh_clip(infile, clip=100, cls_int=10, point_id_mask=np.array([])):
     return classification
 
 
-def rh_kdistance(infile, output_file_name='', k=10, make_dimension=True):
+def rh_kdistance(infile, output_file_name='', k=10, make_dimension=True, mask=np.array([])):
     """
     Compute kd distance on a file.
 
+    :param mask:
     :param infile: laspy object on which to create kd distance and populate it, or just populate it
     :type infile: laspy object
     :param output_file_name: output file name (default '')
@@ -294,7 +293,7 @@ def rh_kdistance(infile, output_file_name='', k=10, make_dimension=True):
     k = k + 1
 
     # coords of the file
-    coords = np.vstack((infile.x, infile.y, infile.z))
+    coords = np.vstack((infile.x[mask], infile.y[mask], infile.z[mask]))
 
     # Compute the distances
     nhbrs = NearestNeighbors(n_neighbors=k, algorithm="kd_tree").fit(np.transpose(coords))
@@ -316,7 +315,7 @@ def rh_kdistance(infile, output_file_name='', k=10, make_dimension=True):
         return outFile
     else:
         # if it is already made just populate it
-        infile.kdistance = distances[:, -1]
+        infile.kdistance[mask] = distances[:, -1]
 
 
 def rh_assign(dimension, value, mask):
@@ -567,7 +566,7 @@ def rh_attribute_compute(infile, outname, k=50, radius=0.50, thresh=0.001, space
                 x_array.dtype)
 
         for signal in dummies:
-            print(dummies[signal])
+
             outFile.writer.set_dimension(signal, dummies[signal])
     else:
         for signal in dummies:
@@ -593,7 +592,7 @@ def rh_mult_attr(infile, mul=1000):
     eig0 = infile.eig0 * mul
     eig1 = infile.eig1 * mul
     eig2 = infile.eig2 * mul
-    rank = infile.rank * mul
+    rank = infile.rank * 1
     lin_reg = infile.lin_reg * mul
     curv = infile.curv * mul
     iso = infile.iso * mul
@@ -615,7 +614,7 @@ def rh_mult_attr(infile, mul=1000):
     infile.lang = lang
 
 
-def rh_return_index(infile, outname):
+def rh_return_index(infile, outname=''):
     """
     Combine return info in one header.
 
@@ -624,28 +623,31 @@ def rh_return_index(infile, outname):
     :return: laspy object
     """
 
-    outFile = File(outname, header=infile.header, mode='w')
-
     Specs = [spec.name for spec in infile.point_format]
 
     if not ("user_return_index" in Specs):
+        outFile = File(outname, header=infile.header, mode='w')
         outFile.define_new_dimension(name="user_return_index", data_type=5, description="User combined return attr.")
 
-    for dimension in infile.point_format:
-        dat = infile.reader.get_dimension(dimension.name)
-        outFile.writer.set_dimension(dimension.name, dat)
+        for dimension in infile.point_format:
+            dat = infile.reader.get_dimension(dimension.name)
+            outFile.writer.set_dimension(dimension.name, dat)
 
-    USER_ReturnIndex = infile.num_returns * 10
-    USER_ReturnIndex = USER_ReturnIndex + infile.return_num
+        USER_ReturnIndex = infile.num_returns * 10
+        USER_ReturnIndex = USER_ReturnIndex + infile.return_num
 
-    outFile.user_return_index = USER_ReturnIndex
+        outFile.user_return_index = USER_ReturnIndex
+        return outFile
+    else:
+        USER_ReturnIndex = infile.num_returns * 10
+        USER_ReturnIndex = USER_ReturnIndex + infile.return_num
 
-    return outFile
+        infile.user_return_index = USER_ReturnIndex
 
 
-def rh_cluster(infile, outname, min_points=1, max_points=sys.maxsize, tolerance=1.0):
+def rh_cluster(infile, min_points=1, max_points=sys.maxsize, tolerance=1.0):
     """
-    Compute cluster ID on a las file.
+    Compute cluster ID on a las file. The dimension must be created before running the script.
 
     :param infile: las file on which to get the cluster id.
     :param outname: name of the las file which will be outputed
@@ -657,26 +659,30 @@ def rh_cluster(infile, outname, min_points=1, max_points=sys.maxsize, tolerance=
 
     from sklearn.cluster import DBSCAN
 
-    outFile = File(outname, header=infile.header, mode='w')
-
-    Specs = [spec.name for spec in infile.point_format]
-
-    if not ("cluster_id" in Specs):
-        outFile.define_new_dimension(name="cluster_id", data_type=5, description="Clustering id")
-
-    for dimension in infile.point_format:
-        dat = infile.reader.get_dimension(dimension.name)
-        outFile.writer.set_dimension(dimension.name, dat)
-
     points = np.stack((infile.x, infile.y, infile.z), axis=1)
 
     clustering = DBSCAN(eps=tolerance, min_samples=min_points).fit(points)
 
     labels = clustering.labels_
 
-    outFile.cluster_id = labels + 1
+    infile.cluster_id = labels + 1
 
-    return outFile
+
+def rh_pdal_cluster(inname, outname):
+    """
+    Performs pdal cluster.
+    :param inname: name of the laspy object to read
+    :param outname: name of the laspy object to write
+    :return:
+
+    """
+    command = 'pdal translate {} {} cluster ' \
+              '--filters.cluster.tolerance=2.0 ' \
+              '--filters.cluster.min_points=1 ' \
+              '--writers.las.extra_dims="all"'
+
+    command = command.format(inname,outname)
+    os.system(command)
 
 
 def rh_cluster_median_return(infile, outname):
@@ -695,18 +701,23 @@ def rh_cluster_median_return(infile, outname):
     if not ("cluster_id_median" in Specs):
         outFile.define_new_dimension(name="cluster_id_median", data_type=9, description="Clustering id median")
         ClusterID_Median = np.zeros(len(infile.x))
+
+        for dimension in infile.point_format:
+            dat = infile.reader.get_dimension(dimension.name)
+            outFile.writer.set_dimension(dimension.name, dat)
     else:
         ClusterID_Median = infile.cluster_id_median
 
     if not ("cluster_id_mean" in Specs):
         outFile.define_new_dimension(name="cluster_id_median", data_type=9, description="Clustering id mean")
         ClusterID_Mean = np.zeros(len(infile.x))
+
+        for dimension in infile.point_format:
+            dat = infile.reader.get_dimension(dimension.name)
+            outFile.writer.set_dimension(dimension.name, dat)
+
     else:
         ClusterID_Mean = infile.cluster_id_mean
-
-    for dimension in infile.point_format:
-        dat = infile.reader.get_dimension(dimension.name)
-        outFile.writer.set_dimension(dimension.name, dat)
 
     return_number = infile.return_num * 10
     return_number = infile.num_returns + return_number
@@ -729,7 +740,7 @@ def rh_cluster_median_return(infile, outname):
     return outFile
 
 
-def rh_cluster_id_count_max(infile, outname):
+def rh_cluster_id_count_max(infile):
     """
     Count number in each cluster.
 
@@ -738,22 +749,13 @@ def rh_cluster_id_count_max(infile, outname):
     :return: laspy object
     """
 
-    outFile = File(outname, header=infile.header, mode='w')
-
     ClusterIDCountMax = np.zeros(len(infile.x))
 
     Specs = [spec.name for spec in infile.point_format]
 
-    if not ("cluster_id_count_max" in Specs):
-        outFile.define_new_dimension(name="cluster_id_count_max", data_type=9, description="Clustering id median")
-
-    for dimension in infile.point_format:
-        dat = infile.reader.get_dimension(dimension.name)
-        outFile.writer.set_dimension(dimension.name, dat)
-
     if "cluster_id_count_max" in Specs:
 
-        ClusterIDCountMax = outFile.cluster_id_count_max
+        ClusterIDCountMax = infile.cluster_id_count_max
 
     ClusterID = infile.cluster_id
 
@@ -767,10 +769,8 @@ def rh_cluster_id_count_max(infile, outname):
 
     ClusterIDCountMax = np.clip(ClusterIDCountMax, 0, 10000)
 
-    outFile.cluster_id = ClusterID
-    outFile.cluster_id_count_max = ClusterIDCountMax
-
-    return outFile
+    infile.cluster_id = ClusterID
+    infile.cluster_id_count_max = ClusterIDCountMax
 
 
 def rh_curvature(infile, multiplier=100):

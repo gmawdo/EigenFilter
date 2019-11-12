@@ -1,18 +1,24 @@
 import numpy as np
 from redhawkmaster import rh_io
-from redhawkmaster.las_modules import rh_cluster, rh_cluster_id_count_max, virus, rh_attribute_compute
+from redhawkmaster.las_modules import rh_cluster, rh_cluster_id_count_max, virus, rh_attribute_compute, rh_mult_attr, \
+    rh_pdal_cluster
 from redhawkmaster.acqusitionQC import polygon_select, fill_shape_file
 from redhawkmaster.rh_big_guns import hough_3d, apply_hough, corridor, pylon_extract, apply_pylon, \
     extract_shape_conductors, rh_hag
 
 # infile = rh_io.las_input('T000.las',
 #                          mode='r')
-np.seterr(divide='ignore', invalid='ignore')
-infile_hag = rh_io.las_input('ILIJA_FLightlineTest_job090.las',
-                             mode='r')
+# np.seterr(divide='ignore', invalid='ignore')
+infile_hag = rh_io.las_input('ILIJA_FlightlineTest_job110_01.las',
+                              mode='r')
+
+rh_cluster(infile_hag, 'Small.las', tolerance=2.0)
 
 # Worked without new stuff
-rh_attribute_compute(infile_hag, 'ILIJA_FLightlineTest_job090_attr.las')
+# f091_050 = rh_io.las_output('ILIJA_FLightlineTest_job090_attr_nonoise_pdal.las', infile_hag)
+# point_id = np.arange(0, len(f091_050)-1)
+#
+# rh_mult_attr(f091_050)
 
 # works 200 !
 # mask_shape = extract_shape_conductors(infile,

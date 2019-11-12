@@ -3,14 +3,17 @@ from redhawkmaster import rh_io
 from redhawkmaster.las_modules import rh_mult_attr, las_range
 
 input_file = 'ILIJA_FLightlineTest_job090_attr_nonoise.las'
-output_file = 'ILIJA_FlightlineTest_job091_01_50.las'
+output_file = 'ILIJA_FlightlineTest_job100.las'
 
 f091_001 = rh_io.las_input(input_file, mode='r')
 
 f091_050 = rh_io.las_output(output_file, f091_001)
 point_id = np.arange(0, len(f091_050)-1)
 
+# 091_01_00 first !
+
 rh_mult_attr(f091_050)
+
 
 point_mask_xy_lin = las_range(dimension=f091_050.xy_lin_reg,
                               start=800,
@@ -39,17 +42,17 @@ point_mask_eig1 = las_range(dimension=f091_050.eig1,
                             point_id_mask=point_mask_eig0)
 
 point_mask_eig2 = las_range(dimension=f091_050.eig2,
-                            start=2,
+                            start=3,
                             reverse=False,
                             point_id_mask=point_mask_eig1)
 
 point_mask_rank = las_range(dimension=f091_050.rank,
-                            start=0, end=3,
+                            start=0, end=2,
                             reverse=False,
                             point_id_mask=point_mask_eig2)
 
 point_mask_curv = las_range(dimension=f091_050.curv,
-                            start=0, end=3.3,
+                            start=0, end=3.4,
                             reverse=False,
                             point_id_mask=point_mask_rank)
 

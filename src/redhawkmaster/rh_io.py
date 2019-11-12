@@ -36,7 +36,7 @@ def las_output(output_name, inFile, mask=np.array([])):
     # las file output variable
     outFile = File(output_name, mode='w', header=inFile.header)
 
-    # If the size is zero then we apply the mask
+    # If the size is not zero then we apply the mask
     # if it is zero then we take the whole file
     if mask.size != 0:
         outFile.points = inFile.points[mask]

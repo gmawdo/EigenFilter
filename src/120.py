@@ -1,8 +1,8 @@
 from redhawkmaster import rh_io
 from redhawkmaster.rh_big_guns import hough_3d
 
-input_file = 'ILIJA_FlightlineTest_job081.las'
-output_file = 'ILIJA_FlightlineTest_job090.las'
+input_file = 'ILIJA_FlightlineTest_job111.las'
+output_file = 'ILIJA_FlightlineTest_job120.las'
 
 infile = rh_io.las_input(input_file,
                          mode='r')
