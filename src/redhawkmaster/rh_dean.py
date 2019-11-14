@@ -4,7 +4,7 @@ from laspy.file import File
 from redhawkmaster import lasmaster as lm
 
 
-def rh_add_pid(infile, tile_name, point_id_name="slpid", start_step=0, inc_step=1):
+def point_id(infile, tile_name, point_id_name="slpid", start_value=0, inc_step=1):
     """
     Add incremental point ID to a tile.
 
@@ -28,7 +28,8 @@ def rh_add_pid(infile, tile_name, point_id_name="slpid", start_step=0, inc_step=
         outFile.define_new_dimension(name=point_id_name, data_type=7, description='Semantic Landscapes PID')
 
     # Set the dimension with the right ids
-    outFile.writer.set_dimension(point_id_name, np.arange(start=start_step, stop=(len(infile)*inc_step)+start_step, step=inc_step,
+    outFile.writer.set_dimension(point_id_name, np.arange(start=start_value, stop=(len(infile)*inc_step)+start_value,
+                                                          step=inc_step,
                                                           dtype=np.uint64))
 
     # Populate the points from the input file
