@@ -8,11 +8,13 @@ from redhawkmaster.rh_big_guns import hough_3d, apply_hough, corridor, pylon_ext
     extract_shape_conductors, rh_hag
 from redhawkmaster import rh_dean
 assert pathmagic
-# infile = rh_io.las_input('T000.las',
-#                          mode='r')
-# np.seterr(divide='ignore', invalid='ignore')
+infile = rh_io.las_input('T000.las',
+                         mode='r')
+np.seterr(divide='ignore', invalid='ignore')
 
-rh_dean.pp()
+outfile = rh_dean.rh_add_pid(infile, tile_name='T000_pid3.las', inc_step=1)
+outfile.close()
+
 # Worked without new stuff
 # f091_050 = rh_io.las_output('ILIJA_FLightlineTest_job090_attr_nonoise_pdal.las', infile_hag)
 # point_id = np.arange(0, len(f091_050)-1)
