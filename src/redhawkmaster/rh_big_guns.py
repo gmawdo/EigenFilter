@@ -152,13 +152,17 @@ def rh_tiling_gps_equal_filesize(filename, no_tiles=10):
     pool.close()
 
 
-def rh_extract_ground(inname, outname, slope=0.1, cut=0.0, window=18, cell=1.0, scalar=0.5, threshold=0.5):
+def extract_ground(infile, outname, extra_dims=None, ground_classification=2, above_ground_classification=4,
+                   slope=0.1, cut=0.0, window=18, cell=1.0, scalar=0.5, threshold=0.5):
     """
     Extraction of ground points. It is making the command
     to run the pdal ground app.
 
-    :param inname: File name on which we need to extract the ground points.
-    :type inname: string
+    :param above_ground_classification: Classification on above
+    :param ground_classification: Classification on ground
+    :param extra_dims: Array of extra dimensions and types like [(extra1,uint64),(extra2,float)]
+    :param infile: Las file on which we need to extract the ground points.
+    :type infile: laspy object
     :param outname: File name which will have the ground points classified
     :type outname: string
     :param slope: ground param
@@ -169,31 +173,25 @@ def rh_extract_ground(inname, outname, slope=0.1, cut=0.0, window=18, cell=1.0, 
     :param threshold: ground param
     """
 
-    # Example json which we don't need but
-    # might use later if we have pdal python library
-    json = '{"pipeline": ' \
-           '[{"count": "18446744073709551615", ' \
-           '"type": "readers.las", ' \
-           '"compression": "EITHER", ' \
-           '"filename": {}}, ' \
-           '{slope": {},' \
-           '"cut": {},' \
-           '"window": {},' \
-           '"cell": {},' \
-           '"scalar": {},' \
-           '"threshold": {},' \
-           '"type": "filters.smrf"' \
-           '},' \
-           '{' \
-           '"extra_dims": "all",' \
-           '"type": "writers.las",' \
-           '"filename": {}}' \
-           '}' \
-           ']' \
-           '}'
+    # if the extra dims is None make it empty array
+    if extra_dims is None:
+        extra_dims = []
+
+    # make a string for the extra dims
+    readers = " --readers.las.extra_dims=\""
+    i = 0
+    # if we have multiple dimensions make the string in way
+    # "extra1=type,extra2=type"
+    for dim in extra_dims:
+        i += 1
+        if i == len(extra_dims):
+            readers += dim[0]+'='+dim[1]+'\" '
+        else:
+            readers += dim[0] + '=' + dim[1] + ','
 
     # The ground command v2 with translate
     ground_command_v2 = "pdal translate " \
+                        + readers + \
                         "--writers.las.extra_dims=all {} {} smrf" \
                         " --filters.smrf.slope={} " \
                         "--filters.smrf.cut={} " \
@@ -203,12 +201,33 @@ def rh_extract_ground(inname, outname, slope=0.1, cut=0.0, window=18, cell=1.0, 
                         "--filters.smrf.threshold={} "
 
     # The ground command with pdal ground app
-    ground_command = "pdal ground --slope 0.1 --max_window_size 18 --cell_size 0.5 --initial_distance 2.0 -i {} -o {}"
+    # ground_command = "pdal ground --slope 0.1 --max_window_size 18 --cell_size 0.5 --initial_distance 2.0 -i {} -o {}"
 
-    command_v2 = ground_command_v2.format(inname, outname, slope, cut, window, cell, scalar, threshold)
-    command = ground_command.format(inname, outname)
-    # print(command)
+    # populate the command with all the attributes that ground have
+    command_v2 = ground_command_v2.format(infile.filename, outname, slope, cut, window, cell, scalar, threshold)
+    # command = ground_command.format(infile.filename, outname)
+
+    # call the command from the system which will make a file with name as outname
     os.system(command_v2)
+
+    # Read that file
+    outFile = File(outname, mode='rw')
+
+    # Take classification
+    cls_ground = outFile.classification
+
+    # See what is classified as ground
+    cls_mask_ground = cls_ground == 2
+
+    # Change the ground and above ground as we said in the parameters
+    cls_ground[cls_mask_ground] = ground_classification
+    cls_ground[~cls_mask_ground] = above_ground_classification
+
+    # Save the classification
+    outFile.classification = cls_ground
+
+    # return the las file
+    return outFile
 
 
 def rh_hag(inname, outname):

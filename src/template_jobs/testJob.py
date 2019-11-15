@@ -1,26 +1,30 @@
 import pathmagic
+import numpy as np
 from redhawkmaster import rh_io
 from redhawkmaster import rh_dean
+from redhawkmaster.rh_big_guns import extract_ground
+
 assert pathmagic
 
 # Input las file
-infile = rh_io.las_input('T000.las',
+infile = rh_io.las_input('T000_pid3.las',
                          mode='r')
 
-# Output run file with
-# tile_name is the name of the output file
-# point_id_name is the name of the dimension
-# start_step is from where to start the point id
-# inc_step how much to be incremented
-outfile = rh_dean.point_id(infile,
-                           tile_name='T000_pid3.las',
-                           point_id_name='slpid',
-                           start_value=1,
-                           inc_step=2)
+# Run the extract ground with all parameters
+outfile = extract_ground(infile,
+                         outname='T000_ground_withextra.las',
+                         extra_dims=[('slpid', 'uint64')],
+                         ground_classification=2,
+                         above_ground_classification=4,
+                         slope=0.1,
+                         cut=0.0,
+                         window=18,
+                         cell=1.0,
+                         scalar=0.5,
+                         threshold=0.5)
 
-# Test print to see the point id
-# change after . if you change point_id_name with the same value
-print(outfile.slpid)
+# Output the extra dimensions to see if it is through
+print(np.sort(outfile.slpid))
 
 # Close the file
 outfile.close()
