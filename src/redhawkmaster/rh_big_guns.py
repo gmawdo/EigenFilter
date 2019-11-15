@@ -152,7 +152,7 @@ def rh_tiling_gps_equal_filesize(filename, no_tiles=10):
     pool.close()
 
 
-def extract_ground(infile, outname, extra_dims=None, ground_classification=2, above_ground_classification=4,
+def pdal_smrf(infile, outname, extra_dims=None, ground_classification=2, above_ground_classification=4,
                    slope=0.1, cut=0.0, window=18, cell=1.0, scalar=0.5, threshold=0.5):
     """
     Extraction of ground points. It is making the command

@@ -2,7 +2,7 @@ import pathmagic
 import numpy as np
 from redhawkmaster import rh_io
 from redhawkmaster import rh_dean
-from redhawkmaster.rh_big_guns import extract_ground
+from redhawkmaster.rh_big_guns import pdal_smrf
 
 assert pathmagic
 
@@ -11,7 +11,7 @@ infile = rh_io.las_input('T000_pid3.las',
                          mode='r')
 
 # Run the extract ground with all parameters
-outfile = extract_ground(infile,
+outfile = pdal_smrf(infile,
                          outname='T000_ground_withextra.las',
                          extra_dims=[('slpid', 'uint64')],
                          ground_classification=2,
