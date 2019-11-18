@@ -11,7 +11,7 @@ def point_id(infile, tile_name, point_id_name="slpid", start_value=0, inc_step=1
     :param tile_name: name of the output las file
     :param infile: laspy object on which to make a dimension with name point_id_name
     :param point_id_name: name of the dimension
-    :param start_step: where the point id dimension will start
+    :param start_value: where the point id dimension will start
     :param inc_step: how much to increment the point ID.
     :return:
     """
@@ -40,3 +40,25 @@ def point_id(infile, tile_name, point_id_name="slpid", start_value=0, inc_step=1
 
     # Return the las file
     return outFile
+
+
+def add_hag(tile_name, output_file, vox=1, alpha=0.01):
+    """
+    Add hag in a file.
+
+    :param output_file: Name of the output file
+    :param tile_name: Name of the input file
+    :param vox: Voxel size
+    :param alpha: A number between 0 and 1 to determine which z value is picked for ground.
+    :return:
+    """
+
+    cf = {
+        "vox": vox,
+        "alpha": alpha,
+    }
+
+    out_file = lm.lpinteraction.add_hag(tile_name, output_file, config=cf)
+
+    return out_file
+
