@@ -11,7 +11,7 @@ def point_id(infile, tile_name, point_id_name="slpid", start_value=0, inc_step=1
     :param tile_name: name of the output las file
     :param infile: laspy object on which to make a dimension with name point_id_name
     :param point_id_name: name of the dimension
-    :param start_step: where the point id dimension will start
+    :param start_value: where the point id dimension will start
     :param inc_step: how much to increment the point ID.
     :return:
     """
@@ -40,3 +40,32 @@ def point_id(infile, tile_name, point_id_name="slpid", start_value=0, inc_step=1
 
     # Return the las file
     return outFile
+
+
+def add_attributes(tile_name, output_file, time_intervals=10, k=range(4, 50), radius=0.5,
+                   virtual_speed=0, voxel_size=0):
+    """
+    Add some math magic to a tile.
+
+    :param tile_name: name of the input file
+    :param output_file: name of the output_file
+    :param radius: Furtherst distance allowed for neighbours (i.e. radius of sphere around points)
+    :param k: list of k values to consider
+    :param time_intervals: how many time intervals to split the tile into for
+    computing attributes (this only affects memory usage - no edge effects)
+    :param virtual_speed: Most unintuitive parameter. This is how much time is considered as a spacial variable along
+     with x,y,z in spacetime solution. Wehave used 2.0 before. 0 is no spacetime.
+    :param voxel_size:
+    :return:
+    """
+    # Prepare the config
+    cf = {
+        "timeIntervals": time_intervals,
+        "k"			:	k,  # must be a generator
+        "radius"		:	radius,
+        "virtualSpeed"	:	virtual_speed,
+        "decimate"		:	voxel_size,
+    }
+
+    # Call the lasmaster
+    lm.lpinteraction.attr(tile_name, output_file, config=cf)
