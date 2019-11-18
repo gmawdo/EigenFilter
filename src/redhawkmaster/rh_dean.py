@@ -108,7 +108,7 @@ def bbox(tile_name, output_file):
 
         try:
             angle = inFile.ang3
-        except None:
+        except AttributeError:
             angle = inFile.ang2
 
         classn0[(distances[:, 0] < 1) & (angle[classn == 0] < 0.2)] = 5
@@ -138,7 +138,7 @@ def bbox(tile_name, output_file):
                 predicate[classn_5_save[(classn == 0) | classn_5_save]] = labels == item
                 predicate_bb, area, x_min, x_max, y_min, y_max = bb(x[(classn == 0) | classn_5_save],
                                                                     y[(classn == 0) | classn_5_save],
-                                                                    z[(classn == 0) | classn_5_save], predicate)
+                                                                    z[(classn == 0) | classn_5_save], predicate, R)
                 classn05 = classn[(classn == 0) | classn_5_save]
                 classn05[predicate_bb] = 5
                 classn[(classn == 0) | classn_5_save] = classn05

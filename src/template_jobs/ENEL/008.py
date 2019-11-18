@@ -6,9 +6,9 @@ from redhawkmaster.rh_io import las_input
 
 assert pathmagic
 
-input_file = 'T000_pid.las'
+input_file = 'T000_bbox_in.las'
 # Name of the output file
-output_file = 'T000_ground.las'
+output_file = 'T000_bbox_out.las'
 
 
 bbox(input_file, output_file)
