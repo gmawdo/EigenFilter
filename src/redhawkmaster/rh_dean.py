@@ -155,6 +155,55 @@ def bbox(tile_name, output_file):
     out.close()
 
 
+def bbox_rectangle(inFile, out, classification_in=6, accuracy=3601):
+    """
+    Adds minimal area rectangle around some classification.
+
+    :param classification_in:
+    :param inFile:
+    :param out:
+    :param accuracy:
+    :return:
+    """
+
+    theta = np.linspace(0, 2 * np.pi, num=accuracy)
+
+    R = np.zeros((theta.size, 2, 2))
+    R[:, 0, 0] = np.cos(theta)
+    R[:, 0, 1] = -np.sin(theta)
+    R[:, 1, 0] = np.sin(theta)
+    R[:, 1, 1] = np.cos(theta)
+
+    x = inFile.x
+    y = inFile.y
+    z = inFile.z
+
+    classn = np.ones(len(inFile), dtype=int)
+    classn[:] = inFile.classification[:]
+
+    classn_2_save = classn == classification_in
+
+    if (classn == classification_in).any():
+        clustering = DBSCAN(eps=0.5, min_samples=1).fit(np.stack((x, y, z), axis=1)[classn_2_save, :])
+        labels = clustering.labels_
+        L = np.unique(labels)
+        bldgs = np.empty((L.size, 6))
+        i = 0
+        for item in L:
+            predicate = np.zeros(len(inFile), dtype=bool)
+            predicate[classn_2_save] = labels == item
+            predicate_bb, area, x_min, x_max, y_min, y_max = bb(x, y, z, predicate, R)
+            classn[predicate_bb] = classification_in
+            bldgs[i] = [i, area, x_min, x_max, y_min, y_max]
+            i += 1
+            np.savetxt("buildings_" + inFile.filename[-4:] + ".csv", bldgs, delimiter=",",
+                       header="ID, Area, X_min, X_max, Y_min, Y_max")
+
+    out.classification = classn
+
+    return classn
+
+
 def add_hag(tile_name, output_file, vox=1, alpha=0.01):
     """
     Add hag in a file.
