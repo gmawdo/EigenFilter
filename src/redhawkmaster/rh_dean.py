@@ -44,6 +44,7 @@ def point_id(infile, tile_name, point_id_name="slpid", start_value=0, inc_step=1
     # Return the las file
     return outFile
 
+
 def bb(x, y, z, predicate, R):
     Coords = np.stack((x, y), axis=0)
     coords_R = np.matmul(R, Coords[:, predicate])
@@ -65,6 +66,7 @@ def bb(x, y, z, predicate, R):
 def bbox(tile_name, output_file):
     inFile = File(tile_name)
     hag = inFile.hag
+    # num == accuracy
     theta = np.linspace(0, 2 * np.pi, num=1000)
     S = np.sin(theta)
     C = np.cos(theta)
@@ -99,7 +101,9 @@ def bbox(tile_name, output_file):
             i += 1
             np.savetxt("buildings_" + tile_name[-4:] + ".csv", bldgs, delimiter=",",
                        header="ID, Area, X_min, X_max, Y_min, Y_max")
+    # ===== END ===== Bounding Box - Rectangle
 
+    # ===== START ===== Corridor 2D
     if (classn == 0).any() and (classn == 1).any():
         nhbrs = NearestNeighbors(n_neighbors=1, algorithm="kd_tree").fit(np.stack((x, y), axis=1)[classn == 1, :])
         distances, indices = nhbrs.kneighbors(np.stack((x, y), axis=1)[classn == 0, :])
@@ -110,10 +114,13 @@ def bbox(tile_name, output_file):
         except AttributeError:
             angle = inFile.ang2
 
+        # Distance Threshold ==> 1  && Angle 0.2
         classn0[(distances[:, 0] < 1) & (angle[classn == 0] < 0.2)] = 5
         classn0[(distances[:, 0] < 1) & (angle[classn == 0] < 0.2)] = 5
         classn[classn == 0] = classn0
+        # ===== END ===== Corridor 2D
 
+        # ===== START ===== Voxel 2D Analysis
         if (classn == 5).any():
             classn_5_save = classn == 5
             classn5 = classn[classn_5_save]
@@ -122,10 +129,12 @@ def bbox(tile_name, output_file):
             for item in np.unique(inv):
                 z_max = np.max(z[classn_5_save][inv == item])
                 z_min = np.min(z[classn_5_save][inv == item])
+                # Range attribute 5
                 if (z_max - z_min) < 5:
                     classn5[inv == item] = 0
             classn[classn_5_save] = classn5
-
+        # ===== END ===== Voxel 2D Analysis
+        # ===== START ===== Small tool
         if (classn == 5).any():
             classn_5_save = classn == 5
             clustering = DBSCAN(eps=0.5, min_samples=1).fit(np.stack((x, y), axis=1)[classn_5_save, :])
@@ -141,9 +150,10 @@ def bbox(tile_name, output_file):
                 classn05 = classn[(classn == 0) | classn_5_save]
                 classn05[predicate_bb] = 5
                 classn[(classn == 0) | classn_5_save] = classn05
-
+        # ===== END ===== Small tool
     out.classification = classn
     out.close()
+
 
 def add_hag(tile_name, output_file, vox=1, alpha=0.01):
     """
@@ -185,10 +195,10 @@ def add_attributes(tile_name, output_file, time_intervals=10, k=range(4, 50), ra
     # Prepare the config
     cf = {
         "timeIntervals": time_intervals,
-        "k"			:	k,  # must be a generator
-        "radius"		:	radius,
-        "virtualSpeed"	:	virtual_speed,
-        "decimate"		:	voxel_size,
+        "k": k,  # must be a generator
+        "radius": radius,
+        "virtualSpeed": virtual_speed,
+        "decimate": voxel_size,
     }
 
     # Call the lasmaster
