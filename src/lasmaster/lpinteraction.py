@@ -1,3 +1,4 @@
+
 import numpy as np
 
 np.seterr(divide='ignore', invalid='ignore')
@@ -33,7 +34,9 @@ def name_modifier_attr(config):
     return "attr" + num + K + R + C + u
 
 
+
 def attr(file_name, output_file, config, fun_val=fun.std_fun_val, fun_vec=fun.std_fun_vec, fun_kdist=fun.std_fun_kdist):
+
     print("attr. start", file_name)
     in_file = File(file_name, mode="r")
     header = in_file.header
@@ -43,7 +46,9 @@ def attr(file_name, output_file, config, fun_val=fun.std_fun_val, fun_vec=fun.st
     time = in_file.gps_time
     val, vec, k, kdist, inv = geo.attibutes_prelim(x, y, z, time, config)
     mod = name_modifier_attr(config)
+
     out_file = File(output_file, mode="w", header=header)
+
 
     # extract names of pre-existing attributes
     dimensions = [spec.name for spec in in_file.point_format]
@@ -111,7 +116,9 @@ def name_modifier_hag(config):
     return "hag" + "alpha" + A + "vox" + R
 
 
-def add_hag(file_name, config):
+
+def add_hag(file_name, output_file, config):
+
     start = time.time()
     in_file = File(file_name, mode="r")
     x_array = in_file.x
@@ -124,7 +131,9 @@ def add_hag(file_name, config):
     }
     hag = geo.hag(coord_dictionary, config)
     mod = name_modifier_hag(config)
-    out_file = File(mod + file_name, mode="w", header=in_file.header)
+
+    out_file = File(output_file, mode="w", header=in_file.header)
+
     # add pre-existing point records
     dimensions = [spec.name for spec in in_file.point_format]
     if not ("hag" in dimensions):
@@ -133,7 +142,9 @@ def add_hag(file_name, config):
         dat = in_file.reader.get_dimension(dimension)
         out_file.writer.set_dimension(dimension, dat)
     out_file.writer.set_dimension("hag", hag)
-    out_file.close()
+
+    return out_file
+
 
 
 def nfl(file_name, clip=100, fl=10, change_name=True):

@@ -42,6 +42,28 @@ def point_id(infile, tile_name, point_id_name="slpid", start_value=0, inc_step=1
     return outFile
 
 
+
+def add_hag(tile_name, output_file, vox=1, alpha=0.01):
+    """
+    Add hag in a file.
+
+    :param output_file: Name of the output file
+    :param tile_name: Name of the input file
+    :param vox: Voxel size
+    :param alpha: A number between 0 and 1 to determine which z value is picked for ground.
+    :return:
+    """
+
+    cf = {
+        "vox": vox,
+        "alpha": alpha,
+    }
+
+    out_file = lm.lpinteraction.add_hag(tile_name, output_file, config=cf)
+
+    return out_file
+
+
 def add_attributes(tile_name, output_file, time_intervals=10, k=range(4, 50), radius=0.5,
                    virtual_speed=0, voxel_size=0):
     """
@@ -69,3 +91,4 @@ def add_attributes(tile_name, output_file, time_intervals=10, k=range(4, 50), ra
 
     # Call the lasmaster
     lm.lpinteraction.attr(tile_name, output_file, config=cf)
+
