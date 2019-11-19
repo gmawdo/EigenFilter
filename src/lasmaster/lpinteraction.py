@@ -33,10 +33,8 @@ def name_modifier_attr(config):
     C = spacetime * ("v_speed" + str(C_int).zfill(2) + "_" + str(C_rat).zfill(2))
     return "attr" + num + K + R + C + u
 
-
-
+  
 def attr(file_name, output_file, config, fun_val=fun.std_fun_val, fun_vec=fun.std_fun_vec, fun_kdist=fun.std_fun_kdist):
-
     print("attr. start", file_name)
     in_file = File(file_name, mode="r")
     header = in_file.header
@@ -48,8 +46,7 @@ def attr(file_name, output_file, config, fun_val=fun.std_fun_val, fun_vec=fun.st
     mod = name_modifier_attr(config)
 
     out_file = File(output_file, mode="w", header=header)
-
-
+    
     # extract names of pre-existing attributes
     dimensions = [spec.name for spec in in_file.point_format]
 
@@ -115,10 +112,7 @@ def name_modifier_hag(config):
     R = str(R_int).zfill(2) + "_" + str(R_rat).zfill(2) + "_"
     return "hag" + "alpha" + A + "vox" + R
 
-
-
 def add_hag(file_name, output_file, config):
-
     start = time.time()
     in_file = File(file_name, mode="r")
     x_array = in_file.x
@@ -133,7 +127,7 @@ def add_hag(file_name, output_file, config):
     mod = name_modifier_hag(config)
 
     out_file = File(output_file, mode="w", header=in_file.header)
-
+    
     # add pre-existing point records
     dimensions = [spec.name for spec in in_file.point_format]
     if not ("hag" in dimensions):
@@ -144,8 +138,6 @@ def add_hag(file_name, output_file, config):
     out_file.writer.set_dimension("hag", hag)
 
     return out_file
-
-
 
 def nfl(file_name, clip=100, fl=10, change_name=True):
     start = time.time()
@@ -169,5 +161,3 @@ def nfl(file_name, clip=100, fl=10, change_name=True):
     end = time.time()
     return file_name[:-4] + change_name * (
                 "NFLClip" + str(int(clip)).zfill(3) + "_" + str(int(100 * (clip - int(clip)))).zfill(2)) + ".las"
-    print(file_name, "Time taken: " + str(int((end - start) / 60)) + " minutes and " + str(
-        int(end - start - 60 * int((end - start) / 60))) + " seconds")
