@@ -241,6 +241,43 @@ def bbox_rectangle(inFile, out, classification_in=6, accuracy=3601):
     return classn
 
 
+def corridor_2d(inFile, distance=1, angle_th=0.2, classification_cond=1, classification_pyl=5, classification_un=0):
+    """
+    Take all unclassified points within xy distance 1m of the
+    conductor . Set all such points with vertical
+    angle < 0.2 to classification 5.
+
+    :param classification_un:
+    :param classification_pyl: Classification for a pylon.
+    :param classification_cond: Classification for a conductor.
+    :param inFile: laspy file with write mode
+    :param distance: distance threshold
+    :param angle_th: angle threshold
+    :return:
+    """
+    classn = inFile.classification
+    x = inFile.x
+    y = inFile.y
+
+    if (classn == classification_un).any() and (classn == classification_cond).any():
+        nhbrs = NearestNeighbors(n_neighbors=1, algorithm="kd_tree").fit(np.stack((x, y), axis=1)
+                                                                         [classn == classification_cond, :])
+        distances, indices = nhbrs.kneighbors(np.stack((x, y), axis=1)[classn == classification_un, :])
+        classn0 = classn[classn == classification_un]
+
+        try:
+            angle = inFile.ang3
+        except AttributeError:
+            angle = inFile.ang2
+
+        classn0[(distances[:, 0] < distance) & (angle[classn == classification_un] < angle_th)] = classification_pyl
+        classn[classn == classification_un] = classn0
+
+    inFile.classification = classn
+
+    return classn
+
+
 def add_hag(tile_name, output_file, vox=1, alpha=0.01):
     """
     Add hag in a file.
