@@ -155,7 +155,7 @@ def bbox(tile_name, output_file):
     out.close()
 
 
-def voxel_2d(infile, range_attr=5, classification_pyl=5, classification_un=0):
+def voxel_2d(infile, height_threshold=5, classification_in=5, classification_un=0):
     """
     Set up 1mx1m voxels and within each, select class 5
     points and set their class to 0 if the range (= max - min)
@@ -164,8 +164,8 @@ def voxel_2d(infile, range_attr=5, classification_pyl=5, classification_un=0):
     boxes.
 
     :param infile: las file with output mode
-    :param range_attr: range attribute
-    :param classification_pyl: classification of the pylon
+    :param height_threshold: range attribute
+    :param classification_in: classification of the pylon
     :param classification_un: classification of what is unclassified
     :return:
     """
@@ -174,8 +174,8 @@ def voxel_2d(infile, range_attr=5, classification_pyl=5, classification_un=0):
     z = infile.z
     classn = infile.classification
 
-    if (classn == classification_pyl).any():
-        classn_5_save = classn == classification_pyl
+    if (classn == classification_in).any():
+        classn_5_save = classn == classification_in
         classn5 = classn[classn_5_save]
         unq, ind, inv = np.unique(np.floor(np.stack((x, y), axis=1)[classn_5_save, :]).astype(int),
                                   return_index=True, return_inverse=True, return_counts=False, axis=0)
@@ -183,7 +183,7 @@ def voxel_2d(infile, range_attr=5, classification_pyl=5, classification_un=0):
             z_max = np.max(z[classn_5_save][inv == item])
             z_min = np.min(z[classn_5_save][inv == item])
             # Range attribute 5
-            if (z_max - z_min) < range_attr:
+            if (z_max - z_min) < height_threshold:
                 classn5[inv == item] = classification_un
         classn[classn_5_save] = classn5
 
