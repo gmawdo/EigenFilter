@@ -24,8 +24,8 @@ outfile = rh_io.las_output(output_file, infile)
 #                        accuracy=1000)
 
 voxel_2d(outfile,
-         range_attr=5,
-         classification_pyl=5,
+         height_threshold=5,
+         classification_in=5,
          classification_un=0)
 
 
