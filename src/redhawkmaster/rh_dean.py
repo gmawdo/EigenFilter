@@ -155,6 +155,48 @@ def bbox(tile_name, output_file):
     out.close()
 
 
+def recover_un(infile, classification_un=0, classification_in=5, accuracy=1000):
+    """
+    Cluster class 2 points. Use bounding box to recover
+    some unclassified points and make them into class 2, if
+    they fall within the bounding box.
+
+    :param accuracy:
+    :param infile:
+    :param classification_un:
+    :param classification_in:
+    :return:
+    """
+    theta = np.linspace(0, 2 * np.pi, num=accuracy)
+
+    R = np.zeros((theta.size, 2, 2))
+    R[:, 0, 0] = np.cos(theta)
+    R[:, 0, 1] = -np.sin(theta)
+    R[:, 1, 0] = np.sin(theta)
+    R[:, 1, 1] = np.cos(theta)
+    classn = infile.classification
+    x = infile.x
+    y = infile.y
+    z = infile.z
+    if (classn == classification_in).any():
+        classn_5_save = classn == classification_in
+        clustering = DBSCAN(eps=0.5, min_samples=1).fit(np.stack((x, y), axis=1)[classn_5_save, :])
+        labels = clustering.labels_
+        L = np.unique(labels)
+
+        for item in L:
+            predicate = np.zeros(len(infile), dtype=bool)[(classn == classification_un) | classn_5_save]
+            predicate[classn_5_save[(classn == classification_un) | classn_5_save]] = labels == item
+            predicate_bb, area, x_min, x_max, y_min, y_max = bb(x[(classn == classification_un) | classn_5_save],
+                                                                y[(classn == classification_un) | classn_5_save],
+                                                                z[(classn == classification_un) | classn_5_save],
+                                                                predicate, R)
+            classn05 = classn[(classn == classification_un) | classn_5_save]
+            classn05[predicate_bb] = classification_in
+            classn[(classn == classification_un) | classn_5_save] = classn05
+    infile.classification = classn
+    
+    
 def voxel_2d(infile, height_threshold=5, classification_in=5, classification_un=0):
     """
     Set up 1mx1m voxels and within each, select class 5
