@@ -193,6 +193,42 @@ def recover_un(infile, classification_un=0, classification_pyl=5, accuracy=1000)
             classn05[predicate_bb] = 5
             classn[(classn == 0) | classn_5_save] = classn05
     infile.classification = classn
+    
+    
+def voxel_2d(infile, height_threshold=5, classification_in=5, classification_un=0):
+    """
+    Set up 1mx1m voxels and within each, select class 5
+    points and set their class to 0 if the range (= max - min)
+    of z values of class 5 points is < 5. This is a slightly ad
+    hoc addition to get over the leaky affect of bounding
+    boxes.
+
+    :param infile: las file with output mode
+    :param height_threshold: range attribute
+    :param classification_in: classification of the pylon
+    :param classification_un: classification of what is unclassified
+    :return:
+    """
+    x = infile.x
+    y = infile.y
+    z = infile.z
+    classn = infile.classification
+
+    if (classn == classification_in).any():
+        classn_5_save = classn == classification_in
+        classn5 = classn[classn_5_save]
+        unq, ind, inv = np.unique(np.floor(np.stack((x, y), axis=1)[classn_5_save, :]).astype(int),
+                                  return_index=True, return_inverse=True, return_counts=False, axis=0)
+        for item in np.unique(inv):
+            z_max = np.max(z[classn_5_save][inv == item])
+            z_min = np.min(z[classn_5_save][inv == item])
+            # Range attribute 5
+            if (z_max - z_min) < height_threshold:
+                classn5[inv == item] = classification_un
+        classn[classn_5_save] = classn5
+
+    infile.classification = classn
+
     return classn
 
 
@@ -241,6 +277,43 @@ def bbox_rectangle(inFile, out, classification_in=6, accuracy=3601):
                        header="ID, Area, X_min, X_max, Y_min, Y_max")
 
     out.classification = classn
+
+    return classn
+
+
+def corridor_2d(inFile, distance=1, angle_th=0.2, classification_cond=1, classification_pyl=5, classification_un=0):
+    """
+    Take all unclassified points within xy distance 1m of the
+    conductor . Set all such points with vertical
+    angle < 0.2 to classification 5.
+
+    :param classification_un:
+    :param classification_pyl: Classification for a pylon.
+    :param classification_cond: Classification for a conductor.
+    :param inFile: laspy file with write mode
+    :param distance: distance threshold
+    :param angle_th: angle threshold
+    :return:
+    """
+    classn = inFile.classification
+    x = inFile.x
+    y = inFile.y
+
+    if (classn == classification_un).any() and (classn == classification_cond).any():
+        nhbrs = NearestNeighbors(n_neighbors=1, algorithm="kd_tree").fit(np.stack((x, y), axis=1)
+                                                                         [classn == classification_cond, :])
+        distances, indices = nhbrs.kneighbors(np.stack((x, y), axis=1)[classn == classification_un, :])
+        classn0 = classn[classn == classification_un]
+
+        try:
+            angle = inFile.ang3
+        except AttributeError:
+            angle = inFile.ang2
+
+        classn0[(distances[:, 0] < distance) & (angle[classn == classification_un] < angle_th)] = classification_pyl
+        classn[classn == classification_un] = classn0
+
+    inFile.classification = classn
 
     return classn
 
