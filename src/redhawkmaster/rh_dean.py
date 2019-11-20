@@ -155,15 +155,16 @@ def bbox(tile_name, output_file):
     out.close()
 
 
-def recover_un(infile, classification_un=0, classification_pyl=5, accuracy=1000):
+def recover_un(infile, classification_un=0, classification_in=5, accuracy=1000):
     """
     Cluster class 2 points. Use bounding box to recover
     some unclassified points and make them into class 2, if
     they fall within the bounding box.
+
     :param accuracy:
     :param infile:
     :param classification_un:
-    :param classification_pyl:
+    :param classification_in:
     :return:
     """
     theta = np.linspace(0, 2 * np.pi, num=accuracy)
@@ -177,21 +178,21 @@ def recover_un(infile, classification_un=0, classification_pyl=5, accuracy=1000)
     x = infile.x
     y = infile.y
     z = infile.z
-    if (classn == 5).any():
-        classn_5_save = classn == 5
+    if (classn == classification_in).any():
+        classn_5_save = classn == classification_in
         clustering = DBSCAN(eps=0.5, min_samples=1).fit(np.stack((x, y), axis=1)[classn_5_save, :])
         labels = clustering.labels_
         L = np.unique(labels)
 
         for item in L:
             predicate = np.zeros(len(infile), dtype=bool)[(classn == 0) | classn_5_save]
-            predicate[classn_5_save[(classn == 0) | classn_5_save]] = labels == item
-            predicate_bb, area, x_min, x_max, y_min, y_max = bb(x[(classn == 0) | classn_5_save],
-                                                                y[(classn == 0) | classn_5_save],
-                                                                z[(classn == 0) | classn_5_save], predicate, R)
-            classn05 = classn[(classn == 0) | classn_5_save]
-            classn05[predicate_bb] = 5
-            classn[(classn == 0) | classn_5_save] = classn05
+            predicate[classn_5_save[(classn == classification_un) | classn_5_save]] = labels == item
+            predicate_bb, area, x_min, x_max, y_min, y_max = bb(x[(classn == classification_un) | classn_5_save],
+                                                                y[(classn == classification_un) | classn_5_save],
+                                                                z[(classn == classification_un) | classn_5_save], predicate, R)
+            classn05 = classn[(classn == classification_un) | classn_5_save]
+            classn05[predicate_bb] = classification_in
+            classn[(classn == classification_un) | classn_5_save] = classn05
     infile.classification = classn
     
     
