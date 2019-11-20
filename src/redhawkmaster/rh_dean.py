@@ -185,11 +185,12 @@ def recover_un(infile, classification_un=0, classification_in=5, accuracy=1000):
         L = np.unique(labels)
 
         for item in L:
-            predicate = np.zeros(len(infile), dtype=bool)[(classn == 0) | classn_5_save]
+            predicate = np.zeros(len(infile), dtype=bool)[(classn == classification_un) | classn_5_save]
             predicate[classn_5_save[(classn == classification_un) | classn_5_save]] = labels == item
             predicate_bb, area, x_min, x_max, y_min, y_max = bb(x[(classn == classification_un) | classn_5_save],
                                                                 y[(classn == classification_un) | classn_5_save],
-                                                                z[(classn == classification_un) | classn_5_save], predicate, R)
+                                                                z[(classn == classification_un) | classn_5_save],
+                                                                predicate, R)
             classn05 = classn[(classn == classification_un) | classn_5_save]
             classn05[predicate_bb] = classification_in
             classn[(classn == classification_un) | classn_5_save] = classn05
