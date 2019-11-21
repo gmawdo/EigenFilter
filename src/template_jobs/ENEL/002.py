@@ -5,9 +5,9 @@ from redhawkmaster.rh_io import las_input
 
 assert pathmagic
 
-input_file = 'T000_pid.las'
+input_file = 'T000_001.las'
 # Name of the output file
-output_file = 'T000_ground.las'
+output_file = 'T000_002.las'
 
 # Read the input file
 infile = las_input(input_file,
@@ -17,8 +17,8 @@ infile = las_input(input_file,
 outfile = pdal_smrf(infile,
                     outname=output_file,
                     extra_dims=[('slpid', 'uint64')],
-                    ground_classification=2,
-                    above_ground_classification=4,
+                    ground_classification=6,
+                    above_ground_classification=0,
                     slope=0.1,
                     cut=0.0,
                     window=18,

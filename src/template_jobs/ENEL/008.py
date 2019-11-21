@@ -9,9 +9,9 @@ from redhawkmaster.rh_io import las_input
 
 assert pathmagic
 
-input_file = 'T000_bbox_in.las'
+input_file = 'T000_007.las'
 # Name of the output file
-output_file = 'T000_bbox_out_008.las'
+output_file = 'T000_008.las'
 
 
 infile = rh_io.las_input(input_file, mode='r')
@@ -19,8 +19,9 @@ outfile = rh_io.las_output(output_file, infile)
 
 bbox_rectangle(infile,
                outfile,
-               classification_in=2,
+               classification_in=6,
                accuracy=1000)
+
 corridor_2d(outfile,
             distance_threshold=1,
             angle_threshold=0.2,

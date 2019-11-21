@@ -7,9 +7,9 @@ assert pathmagic
 
 input_file = 'T000_ground.las'
 # Name of the output file
-output_file1 = 'T000_ground_points.las'
+output_file1 = 'T000_003_ground.las'
 
-output_file2 = 'T000_non_ground_points.las'
+output_file2 = 'T000_003_non_ground.las'
 
 # Read the input file
 infile = las_input(input_file,

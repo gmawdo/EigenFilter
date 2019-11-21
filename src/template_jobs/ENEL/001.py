@@ -6,7 +6,7 @@ assert pathmagic
 # Name of the input file
 input_file = 'T000.las'
 # Name of the output file
-output_file = 'T000_pid.las'
+output_file = 'T000_001.las'
 
 # Read the input file
 infile = las_input(input_file,

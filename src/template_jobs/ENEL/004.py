@@ -5,10 +5,10 @@ from redhawkmaster.rh_io import las_input
 
 assert pathmagic
 
-input_file = 'T000_non_ground_points.las'
+input_file = 'T000_003_non_ground.las'
 
 # Name of the output file
-output_file = 'T000_attr.las'
+output_file = 'T000_004.las'
 
 add_attributes(input_file,
                output_file,
