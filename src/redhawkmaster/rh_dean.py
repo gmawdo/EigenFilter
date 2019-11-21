@@ -368,3 +368,40 @@ def add_attributes(tile_name, output_file, time_intervals=10, k=range(4, 50), ra
 
     # Call the lasmaster
     lm.lpinteraction.attr(tile_name, output_file, config=cf)
+
+
+def sd_merge(input_files, output_file):
+    """
+    Merge array of file into one las file.
+
+    :param input_files: Array of las files ['infile1.las', 'infile2.las']
+    :param output_file: Name of the output file
+    :return:
+    """
+
+    tile1 = input_files[0]
+    tile2 = input_files[1]
+    name = output_file
+    inFile1 = File(tile1)
+    inFile2 = File(tile2)
+    outFile = File(name, mode="w", header=inFile1.header)
+    outFile.x = np.concatenate((inFile1.x, inFile2.x))
+    outFile.y = np.concatenate((inFile1.y, inFile2.y))
+    outFile.z = np.concatenate((inFile1.z, inFile2.z))
+    outFile.gps_time = np.concatenate((inFile1.gps_time, inFile2.gps_time))
+    outFile.classification = np.concatenate((inFile1.classification, inFile2.classification))
+    outFile.intensity = np.concatenate((inFile1.intensity, inFile2.intensity))
+    outFile.return_num = np.concatenate((inFile1.return_num, inFile2.return_num))
+    outFile.num_returns = np.concatenate((inFile1.num_returns, inFile2.num_returns))
+    mask = (np.concatenate((np.ones(len(inFile1), dtype=int), np.zeros(len(inFile2), dtype=int)))).astype(bool)
+    specs1 = [spec.name for spec in inFile1.point_format]
+    specs2 = [spec.name for spec in inFile2.point_format]
+    for dim in specs1:
+        dat1 = inFile1.reader.get_dimension(dim)
+        DAT = np.zeros(len(inFile1) + len(inFile2), dtype=dat1.dtype)
+        DAT[mask] = dat1
+        if dim in specs2:
+            dat2 = inFile2.reader.get_dimension(dim)
+            DAT[~mask] = dat2
+        outFile.writer.set_dimension(dim, DAT)
+    outFile.close()
