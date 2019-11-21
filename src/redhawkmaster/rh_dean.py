@@ -156,7 +156,7 @@ def bbox(tile_name, output_file):
     out.close()
 
 
-def bbox_rectangle(inFile, out, classification_in=6, accuracy=3601):
+def bbox_rectangle(inFile, out, classification_in=2, accuracy=3601):
     """
     Adds minimal area rectangle around some classification.
 

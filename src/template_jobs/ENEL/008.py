@@ -19,7 +19,7 @@ outfile = rh_io.las_output(output_file, infile)
 
 bbox_rectangle(infile,
                outfile,
-               classification_in=6,
+               classification_in=2,
                accuracy=1000)
 
 corridor_2d(outfile,

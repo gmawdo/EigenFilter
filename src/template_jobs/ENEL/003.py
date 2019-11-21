@@ -5,7 +5,7 @@ from redhawkmaster.rh_io import las_input, las_output
 
 assert pathmagic
 
-input_file = 'T000_ground.las'
+input_file = 'T000_002.las'
 # Name of the output file
 output_file1 = 'T000_003_ground.las'
 
@@ -16,12 +16,12 @@ infile = las_input(input_file,
                    mode='r')
 
 point_id_ground = las_range(dimension=infile.classification,
-                            start=2, end=3,
+                            start=6, end=7,
                             reverse=False,
                             point_id_mask=infile.slpid)
 
 point_id_non_ground = las_range(dimension=infile.classification,
-                                start=2, end=3,
+                                start=6, end=7,
                                 reverse=True,
                                 point_id_mask=infile.slpid)
 
