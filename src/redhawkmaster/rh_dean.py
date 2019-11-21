@@ -2,7 +2,7 @@ import numpy as np
 from laspy.file import File
 from sklearn.cluster import DBSCAN
 from sklearn.neighbors import NearestNeighbors
-
+import pandas as pd
 from redhawkmaster import lasmaster as lm
 
 
@@ -374,6 +374,81 @@ def add_attributes(tile_name, output_file, time_intervals=10, k=range(4, 50), ra
     lm.lpinteraction.attr(tile_name, output_file, config=cf)
 
 
+def conductor_matters_1(infile, epsilon=2.5, classification_in=0, classification_up=1,
+                        distance_ground=7, length_threshold=4):
+    """
+
+    :param infile:
+    :param epsilon:
+    :param classification_up:
+    :param classification_in:
+    :param length_threshold:
+    :param distance_ground:
+    :return:
+    """
+
+    x = infile.x
+    y = infile.y
+    z = infile.z
+    hag = infile.hag
+    classn = infile.classification
+    cond = classn == classification_up
+    if cond.any():
+        clustering = DBSCAN(eps=epsilon, min_samples=1).fit(np.stack((x, y, z), axis=1)[cond, :])
+        labels = clustering.labels_
+        frame = {
+            'A': labels,
+            'X': x[cond],
+            'Y': y[cond],
+            'Z': z[cond],
+            'H': hag[cond]
+        }
+        df = pd.DataFrame(frame)
+        maxs = (df.groupby('A').max()).values
+        mins = (df.groupby('A').min()).values
+        lq = (df.groupby('A').quantile(0.5)).values
+        unq, ind, inv, cnt = np.unique(labels, return_index=True, return_inverse=True, return_counts=True)
+        lengths = \
+        np.sqrt((maxs[:, 0] - mins[:, 0]) ** 2 + (maxs[:, 1] - mins[:, 1]) ** 2 + (maxs[:, 2] - mins[:, 2]) ** 2)[inv]
+        hags = lq[inv, 3]
+        lengths[labels == -1] = 0
+        classn1 = classn[cond]
+        classn1[:] = classification_up
+        classn1[lengths <= length_threshold] = classification_in
+        classn1[hags < distance_ground] = classification_in
+        classn[cond] = classn1
+
+    infile.classification = classn
+
+    return classn
+
+
+def veg_risk(infile, classification_in=1, classification_veg=3, classification_inter=4, distance_veg=3):
+    """
+
+    :param infile:
+    :param classification_in:
+    :param classification_veg:
+    :param classification_inter:
+    :param distance_veg:
+    :return:
+    """
+    classn = infile.classification
+    x = infile.x
+    y = infile.y
+    z = infile.z
+
+    if (classn == classification_in).any() and (classn == classification_veg).any():
+        nhbrs = NearestNeighbors(n_neighbors=1, algorithm="kd_tree").fit(np.stack((x, y, z), axis=1)
+                                                                         [classn == classification_in, :])
+        distances, indices = nhbrs.kneighbors(np.stack((x, y, z), axis=1)[classn == classification_veg, :])
+        classn3 = classn[classn == classification_veg]
+        classn3[distances[:, 0] < distance_veg] = classification_inter
+        classn[classn == classification_veg] = classn3
+
+    infile.classification = classn
+
+    
 def sd_merge(input_files, output_file):
     """
     Merge array of file into one las file.
@@ -409,3 +484,4 @@ def sd_merge(input_files, output_file):
             DAT[~mask] = dat2
         outFile.writer.set_dimension(dim, DAT)
     outFile.close()
+
