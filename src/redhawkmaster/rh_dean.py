@@ -155,85 +155,6 @@ def bbox(tile_name, output_file):
     out.close()
 
 
-def recover_un(infile, classification_un=0, classification_in=5, accuracy=1000):
-    """
-    Cluster class 2 points. Use bounding box to recover
-    some unclassified points and make them into class 2, if
-    they fall within the bounding box.
-
-    :param accuracy:
-    :param infile:
-    :param classification_un:
-    :param classification_in:
-    :return:
-    """
-    theta = np.linspace(0, 2 * np.pi, num=accuracy)
-
-    R = np.zeros((theta.size, 2, 2))
-    R[:, 0, 0] = np.cos(theta)
-    R[:, 0, 1] = -np.sin(theta)
-    R[:, 1, 0] = np.sin(theta)
-    R[:, 1, 1] = np.cos(theta)
-    classn = infile.classification
-    x = infile.x
-    y = infile.y
-    z = infile.z
-    if (classn == classification_in).any():
-        classn_5_save = classn == classification_in
-        clustering = DBSCAN(eps=0.5, min_samples=1).fit(np.stack((x, y), axis=1)[classn_5_save, :])
-        labels = clustering.labels_
-        L = np.unique(labels)
-
-        for item in L:
-            predicate = np.zeros(len(infile), dtype=bool)[(classn == classification_un) | classn_5_save]
-            predicate[classn_5_save[(classn == classification_un) | classn_5_save]] = labels == item
-            predicate_bb, area, x_min, x_max, y_min, y_max = bb(x[(classn == classification_un) | classn_5_save],
-                                                                y[(classn == classification_un) | classn_5_save],
-                                                                z[(classn == classification_un) | classn_5_save],
-                                                                predicate, R)
-            classn05 = classn[(classn == classification_un) | classn_5_save]
-            classn05[predicate_bb] = classification_in
-            classn[(classn == classification_un) | classn_5_save] = classn05
-    infile.classification = classn
-    
-    
-def voxel_2d(infile, height_threshold=5, classification_in=5, classification_un=0):
-    """
-    Set up 1mx1m voxels and within each, select class 5
-    points and set their class to 0 if the range (= max - min)
-    of z values of class 5 points is < 5. This is a slightly ad
-    hoc addition to get over the leaky affect of bounding
-    boxes.
-
-    :param infile: las file with output mode
-    :param height_threshold: range attribute
-    :param classification_in: classification of the pylon
-    :param classification_un: classification of what is unclassified
-    :return:
-    """
-    x = infile.x
-    y = infile.y
-    z = infile.z
-    classn = infile.classification
-
-    if (classn == classification_in).any():
-        classn_5_save = classn == classification_in
-        classn5 = classn[classn_5_save]
-        unq, ind, inv = np.unique(np.floor(np.stack((x, y), axis=1)[classn_5_save, :]).astype(int),
-                                  return_index=True, return_inverse=True, return_counts=False, axis=0)
-        for item in np.unique(inv):
-            z_max = np.max(z[classn_5_save][inv == item])
-            z_min = np.min(z[classn_5_save][inv == item])
-            # Range attribute 5
-            if (z_max - z_min) < height_threshold:
-                classn5[inv == item] = classification_un
-        classn[classn_5_save] = classn5
-
-    infile.classification = classn
-
-    return classn
-
-
 def bbox_rectangle(inFile, out, classification_in=6, accuracy=3601):
     """
     Adds minimal area rectangle around some classification.
@@ -283,39 +204,122 @@ def bbox_rectangle(inFile, out, classification_in=6, accuracy=3601):
     return classn
 
 
-def corridor_2d(inFile, distance=1, angle_th=0.2, classification_cond=1, classification_pyl=5, classification_un=0):
+def corridor_2d(inFile, distance_threshold=1, angle_threshold=0.2,
+                classification_cond=1, classification_pyl=5, classification_up=0):
     """
     Take all unclassified points within xy distance 1m of the
     conductor . Set all such points with vertical
     angle < 0.2 to classification 5.
 
-    :param classification_un:
+    :param classification_up:
     :param classification_pyl: Classification for a pylon.
     :param classification_cond: Classification for a conductor.
     :param inFile: laspy file with write mode
-    :param distance: distance threshold
-    :param angle_th: angle threshold
+    :param distance_threshold: distance threshold
+    :param angle_threshold: angle threshold
     :return:
     """
     classn = inFile.classification
     x = inFile.x
     y = inFile.y
 
-    if (classn == classification_un).any() and (classn == classification_cond).any():
+    if (classn == classification_up).any() and (classn == classification_cond).any():
         nhbrs = NearestNeighbors(n_neighbors=1, algorithm="kd_tree").fit(np.stack((x, y), axis=1)
                                                                          [classn == classification_cond, :])
-        distances, indices = nhbrs.kneighbors(np.stack((x, y), axis=1)[classn == classification_un, :])
-        classn0 = classn[classn == classification_un]
+        distances, indices = nhbrs.kneighbors(np.stack((x, y), axis=1)[classn == classification_up, :])
+        classn0 = classn[classn == classification_up]
 
         try:
             angle = inFile.ang3
         except AttributeError:
             angle = inFile.ang2
 
-        classn0[(distances[:, 0] < distance) & (angle[classn == classification_un] < angle_th)] = classification_pyl
-        classn[classn == classification_un] = classn0
+        classn0[(distances[:, 0] < distance_threshold) & (angle[classn == classification_up] < angle_threshold)] =\
+            classification_pyl
+        classn[classn == classification_up] = classn0
 
     inFile.classification = classn
+
+    return classn
+
+
+def voxel_2d(infile, height_threshold=5, classification_in=5, classification_up=0):
+    """
+    Set up 1mx1m voxels and within each, select class 5
+    points and set their class to 0 if the range (= max - min)
+    of z values of class 5 points is < 5. This is a slightly ad
+    hoc addition to get over the leaky affect of bounding
+    boxes.
+
+    :param infile: las file with output mode
+    :param height_threshold: range attribute
+    :param classification_in: classification of the pylon
+    :param classification_up: classification of what is unclassified
+    :return:
+    """
+    x = infile.x
+    y = infile.y
+    z = infile.z
+    classn = infile.classification
+
+    if (classn == classification_in).any():
+        classn_5_save = classn == classification_in
+        classn5 = classn[classn_5_save]
+        unq, ind, inv = np.unique(np.floor(np.stack((x, y), axis=1)[classn_5_save, :]).astype(int),
+                                  return_index=True, return_inverse=True, return_counts=False, axis=0)
+        for item in np.unique(inv):
+            z_max = np.max(z[classn_5_save][inv == item])
+            z_min = np.min(z[classn_5_save][inv == item])
+            # Range attribute 5
+            if (z_max - z_min) < height_threshold:
+                classn5[inv == item] = classification_up
+        classn[classn_5_save] = classn5
+
+    infile.classification = classn
+
+    return classn
+
+
+def recover_un(infile, classification_up=0, classification_in=5, accuracy=1000):
+    """
+    Cluster class 2 points. Use bounding box to recover
+    some unclassified points and make them into class 2, if
+    they fall within the bounding box.
+
+    :param accuracy: how large will be the accuracy
+    :param infile: laspy file on which to change the classification
+    :param classification_up: on which classification to update
+    :param classification_in: classification that you want to be recovered in classification up
+    :return: array of the classification
+    """
+    theta = np.linspace(0, 2 * np.pi, num=accuracy)
+
+    R = np.zeros((theta.size, 2, 2))
+    R[:, 0, 0] = np.cos(theta)
+    R[:, 0, 1] = -np.sin(theta)
+    R[:, 1, 0] = np.sin(theta)
+    R[:, 1, 1] = np.cos(theta)
+    classn = infile.classification
+    x = infile.x
+    y = infile.y
+    z = infile.z
+    if (classn == classification_in).any():
+        classn_5_save = classn == classification_in
+        clustering = DBSCAN(eps=0.5, min_samples=1).fit(np.stack((x, y), axis=1)[classn_5_save, :])
+        labels = clustering.labels_
+        L = np.unique(labels)
+
+        for item in L:
+            predicate = np.zeros(len(infile), dtype=bool)[(classn == classification_up) | classn_5_save]
+            predicate[classn_5_save[(classn == classification_up) | classn_5_save]] = labels == item
+            predicate_bb, area, x_min, x_max, y_min, y_max = bb(x[(classn == classification_up) | classn_5_save],
+                                                                y[(classn == classification_up) | classn_5_save],
+                                                                z[(classn == classification_up) | classn_5_save],
+                                                                predicate, R)
+            classn05 = classn[(classn == classification_up) | classn_5_save]
+            classn05[predicate_bb] = classification_in
+            classn[(classn == classification_up) | classn_5_save] = classn05
+    infile.classification = classn
 
     return classn
 
@@ -443,3 +447,41 @@ def veg_risk(infile, classification_in=1, classification_veg=3, classification_i
         classn[classn == classification_veg] = classn3
 
     infile.classification = classn
+
+    
+def sd_merge(input_files, output_file):
+    """
+    Merge array of file into one las file.
+
+    :param input_files: Array of las files ['infile1.las', 'infile2.las']
+    :param output_file: Name of the output file
+    :return:
+    """
+
+    tile1 = input_files[0]
+    tile2 = input_files[1]
+    name = output_file
+    inFile1 = File(tile1)
+    inFile2 = File(tile2)
+    outFile = File(name, mode="w", header=inFile1.header)
+    outFile.x = np.concatenate((inFile1.x, inFile2.x))
+    outFile.y = np.concatenate((inFile1.y, inFile2.y))
+    outFile.z = np.concatenate((inFile1.z, inFile2.z))
+    outFile.gps_time = np.concatenate((inFile1.gps_time, inFile2.gps_time))
+    outFile.classification = np.concatenate((inFile1.classification, inFile2.classification))
+    outFile.intensity = np.concatenate((inFile1.intensity, inFile2.intensity))
+    outFile.return_num = np.concatenate((inFile1.return_num, inFile2.return_num))
+    outFile.num_returns = np.concatenate((inFile1.num_returns, inFile2.num_returns))
+    mask = (np.concatenate((np.ones(len(inFile1), dtype=int), np.zeros(len(inFile2), dtype=int)))).astype(bool)
+    specs1 = [spec.name for spec in inFile1.point_format]
+    specs2 = [spec.name for spec in inFile2.point_format]
+    for dim in specs1:
+        dat1 = inFile1.reader.get_dimension(dim)
+        DAT = np.zeros(len(inFile1) + len(inFile2), dtype=dat1.dtype)
+        DAT[mask] = dat1
+        if dim in specs2:
+            dat2 = inFile2.reader.get_dimension(dim)
+            DAT[~mask] = dat2
+        outFile.writer.set_dimension(dim, DAT)
+    outFile.close()
+
