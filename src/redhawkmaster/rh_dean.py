@@ -235,7 +235,7 @@ def corridor_2d(inFile, distance_threshold=1, angle_threshold=0.2,
         except AttributeError:
             angle = inFile.ang2
 
-        classn0[(distances[:, 0] < distance_threshold) & (angle[classn == classification_up] < angle_threshold)] =\
+        classn0[(distances[:, 0] < distance_threshold) & (angle[classn == classification_up] < angle_threshold)] = \
             classification_pyl
         classn[classn == classification_up] = classn0
 
@@ -375,7 +375,6 @@ def add_attributes(tile_name, output_file, time_intervals=10, k=range(4, 50), ra
     lm.lpinteraction.attr(tile_name, output_file, config=cf)
 
 
-
 def add_classification(input_file, output_file):
     inFile = File(input_file)
 
@@ -446,7 +445,7 @@ def add_classification(input_file, output_file):
             v1 = 1 * inFile.eig21[IND]
             v2 = 1 * inFile.eig22[IND]
         condition = ((v0 >= 0) & (v1 < 0) & (v2 < 0)) | ((v1 >= 0) & (v2 < 0) & (v0 < 0)) | (
-                    (v2 >= 0) & (v0 < 0) & (v1 < 0)) | ((v0 < 0) & (v1 < 0) & (v2 < 0))
+                (v2 >= 0) & (v0 < 0) & (v1 < 0)) | ((v0 < 0) & (v1 < 0) & (v2 < 0))
         v0[condition] = -v0[condition]
         v1[condition] = -v1[condition]
         v2[condition] = -v2[condition]
@@ -486,7 +485,7 @@ def add_classification(input_file, output_file):
             v1 = 1 * inFile.eig11[IND]
             v2 = 1 * inFile.eig12[IND]
         condition = ((v0 >= 0) & (v1 < 0) & (v2 < 0)) | ((v1 >= 0) & (v2 < 0) & (v0 < 0)) | (
-                    (v2 >= 0) & (v0 < 0) & (v1 < 0)) | ((v0 < 0) & (v1 < 0) & (v2 < 0))
+                (v2 >= 0) & (v0 < 0) & (v1 < 0)) | ((v0 < 0) & (v1 < 0) & (v2 < 0))
         v0[condition] = -v0[condition]
         v1[condition] = -v1[condition]
         v2[condition] = -v2[condition]
@@ -552,7 +551,8 @@ def add_classification(input_file, output_file):
     outFile.points = inFile.points
     outFile.classification = classn[INV]
     outFile.close()
-    
+
+
 def conductor_matters_1(infile, epsilon=2.5, classification_in=0, classification_up=1,
                         distance_ground=7, length_threshold=4):
     """
@@ -581,11 +581,15 @@ def conductor_matters_1(infile, epsilon=2.5, classification_in=0, classification
             'Y': y[cond],
             'Z': z[cond],
             'H': hag[cond]
-
+        }
+        df = pd.DataFrame(frame)
+        maxs = (df.groupby('A').max()).values
+        mins = (df.groupby('A').min()).values
         lq = (df.groupby('A').quantile(0.5)).values
         unq, ind, inv, cnt = np.unique(labels, return_index=True, return_inverse=True, return_counts=True)
         lengths = \
-        np.sqrt((maxs[:, 0] - mins[:, 0]) ** 2 + (maxs[:, 1] - mins[:, 1]) ** 2 + (maxs[:, 2] - mins[:, 2]) ** 2)[inv]
+            np.sqrt((maxs[:, 0] - mins[:, 0]) ** 2 + (maxs[:, 1] - mins[:, 1]) ** 2 + (maxs[:, 2] - mins[:, 2]) ** 2)[
+                inv]
         hags = lq[inv, 3]
         lengths[labels == -1] = 0
         classn1 = classn[cond]
@@ -624,7 +628,7 @@ def veg_risk(infile, classification_in=1, classification_veg=3, classification_i
 
     infile.classification = classn
 
-    
+
 def sd_merge(input_files, output_file):
     """
     Merge array of file into one las file.
@@ -660,5 +664,3 @@ def sd_merge(input_files, output_file):
             DAT[~mask] = dat2
         outFile.writer.set_dimension(dim, DAT)
     outFile.close()
-
-
