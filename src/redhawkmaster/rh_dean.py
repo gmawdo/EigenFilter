@@ -2,9 +2,9 @@ import numpy as np
 from laspy.file import File
 from sklearn.cluster import DBSCAN
 from sklearn.neighbors import NearestNeighbors
-import pandas as pd
 from redhawkmaster import lasmaster as lm
 import pandas as pd
+import os
 
 
 def point_id(infile, tile_name, point_id_name="slpid", start_value=0, inc_step=1):
@@ -664,3 +664,51 @@ def sd_merge(input_files, output_file):
             DAT[~mask] = dat2
         outFile.writer.set_dimension(dim, DAT)
     outFile.close()
+
+
+def finish_tile(pair, output_file):
+    tile, original = pair[0], pair[1]
+    ogFile = File(original)
+    inFile = File(tile)
+    hag = inFile.hag
+    hd = ogFile.header
+
+    outFile = File(output_file, mode="w", header=hd)
+
+    args = np.argsort(inFile.slpid)
+
+    classn = 1 * inFile.classification
+    classn0 = classn == 0
+    classn1 = classn == 1
+    classn2 = classn == 2
+    classn3 = classn == 3
+    classn4 = classn == 4
+    classn5 = classn == 5
+    classn6 = classn == 6
+    classn[classn0] = 0
+    classn[classn1] = 14
+    classn[classn2] = 6
+    classn[classn3] = 5
+    classn[classn4] = 5
+    classn[classn5] = 15
+    classn[classn6] = 2
+    lo = (0.5 < hag) & (hag <= 2)
+    med = (2 < hag) & (hag <= 5)
+    hi = (5 < hag)
+    veg = classn3
+    classn[veg] = 0
+    classn[lo & veg] = 3
+    classn[med & veg] = 4
+    classn[hi & veg] = 5
+    classn[(classn == 15) & (hag < 2)] = 0
+    classn[classn == 7] = 0
+    # classn[(hag < 0.5) & (classn != 6)] = 2
+    classn[(classn == 14) & (hag < 2)] = 0
+    classn[(hag < 0.5) & (classn == 0)] = 2
+
+    for spec in ogFile.point_format:
+        outFile.writer.set_dimension(spec.name, inFile.reader.get_dimension(spec.name)[args])
+    outFile.classification = classn[args]
+    outFile.x = inFile.x[args]
+    outFile.y = inFile.y[args]
+    outFile.z = inFile.z[args]
