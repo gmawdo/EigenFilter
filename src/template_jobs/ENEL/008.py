@@ -9,32 +9,33 @@ from redhawkmaster.rh_io import las_input
 
 assert pathmagic
 
-input_file = 'T000_bbox_out_tool3.las'
+input_file = 'T000_bbox_in.las'
 # Name of the output file
-output_file = 'T000_bbox_out_tool4.las'
+output_file = 'T000_bbox_out_008.las'
 
 
 infile = rh_io.las_input(input_file, mode='r')
 outfile = rh_io.las_output(output_file, infile)
 
-# classn = bbox_rectangle(infile,
-#                         outfile,
-#                         classification_in=2,
-#                         accuracy=1000)
+bbox_rectangle(infile,
+               outfile,
+               classification_in=2,
+               accuracy=1000)
+corridor_2d(outfile,
+            distance_threshold=1,
+            angle_threshold=0.2,
+            classification_cond=1,
+            classification_pyl=5,
+            classification_up=0)
 
-# voxel_2d(outfile,
-#          height_threshold=5,
-#          classification_in=5,
-#          classification_un=0)
+voxel_2d(outfile,
+         height_threshold=5,
+         classification_in=5,
+         classification_up=0)
 
 recover_un(outfile,
-           classification_un=0,
-           classification_pyl=5)
-
-
-
-
+           accuracy=1000,
+           classification_up=0,
+           classification_in=5)
 
 outfile.close()
-
-# bbox(input_file, output_file)
