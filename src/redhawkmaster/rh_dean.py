@@ -680,7 +680,7 @@ def conductor_matters_1(infile, epsilon=2.5, classification_in=0, classification
 def veg_risk(infile, classification_in=1, classification_veg=3, classification_inter=4, distance_veg=3):
     """
 
-    :param infile:
+    :param infile:ok
     :param classification_in:
     :param classification_veg:
     :param classification_inter:
@@ -810,6 +810,7 @@ def run_pdal_ground(tile, output_file):
     inFile.classification = classn
     inFile.close()
 
+
 def delaunay_triangulation(tile, output_file,
                            classifications_to_triangulate,
                            classifications_to_search,
@@ -884,3 +885,39 @@ def delaunay_triangulation(tile, output_file,
     classn[tree] = classification_out
     outFile.classification = classn
     outFile.close()
+
+def cluster_labels(tile,
+                   output_file,
+                   classification_to_cluster,
+                   tolerance,
+                   min_pts):
+    """
+    :param tile:
+    :param output_file:
+    :param classification_to_cluster:
+    :param tolerance: see min_pts
+    :param min_pts: minimum number of points each point must have in a radius of size "tolerance"
+    :return:
+    """
+    inFile = File(tile, mode="r")
+    x = inFile.x
+    y = inFile.y
+    z = inFile.z
+    classn = inFile.classification
+    labels_allpts = np.zeros(len(inFile), dtype = int)
+    labels_allpts[classn != classification_to_cluster] = -2
+    coords = np.stack((x, y, z), axis=1)
+    clustering = DBSCAN(eps=tolerance, min_samples=min_pts).fit(coords)
+    labels = clustering.labels_
+    labels_allpts[classn == classification_to_cluster] = labels
+    outfile = File(output_file, mode="w", header=header)
+    dimensions = [spec.name for spec in in_file.point_format]
+    if "labels" not in dimensions:
+        outfile.define_new_dimension(name=labels, data_type=6, description="clustering labels")
+        # add pre-existing point records
+    for dimension in dimensions:
+        dat = infile.reader.get_dimension(dimension)
+        outfile.writer.set_dimension(dimension, dat)
+    outfile.labels = labels_allpts
+
+
