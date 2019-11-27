@@ -2,6 +2,7 @@ import numpy as np
 from laspy.file import File
 from sklearn.cluster import DBSCAN
 from sklearn.neighbors import NearestNeighbors
+from scipy.spatial import Delaunay
 from redhawkmaster import lasmaster as lm
 import pandas as pd
 import os
@@ -808,3 +809,78 @@ def run_pdal_ground(tile, output_file):
     classn[~ground] = 0
     inFile.classification = classn
     inFile.close()
+
+def delaunay_triangulation(tile, output_file,
+                           classifications_to_triangulate,
+                           classifications_to_search,
+                           classification_out,
+                           tolerance,
+                           min_samples):
+    # check descriptors with Ilija
+    # add description
+    """
+    :param tile:
+    :param output_file:
+    :param classification_to_triangulate:
+    :param classifications_to_search:
+    :param classification_out:
+    :param tolerance:
+    :param min_num_pts:
+    :return:
+    """
+    from plyfile import PlyData, PlyElement
+    inFile = File(tile, mode="r")
+    x = inFile.x
+    y = inFile.y
+    z = inFile.z
+    classn = inFile.classification
+
+    if isinstance(classifications_to_triangulate, int):
+        classifications_to_triangulate = [classifications_to_triangulate]
+    if isinstance(classifications_to_search, int):
+        classifications_to_search = [classifications_to_search]
+
+    coords = np.stack((x, y, z), axis=1)
+    tree = np.zeros(len(inFile), dtype=bool)
+    for item in classifications_to_triangulate:
+        tree[classn == item] = True
+
+    if tree.any():
+        clustering = DBSCAN(eps=tolerance, min_samples=min_samples).fit(coords[tree, :])
+        labels = clustering.labels_
+        for i in np.unique(labels):
+            condition = np.zeros(len(inFile), dtype=bool)
+            condition_tree = condition[tree]
+            condition_tree[labels == i] = True
+            condition[tree] = condition_tree
+            if condition[condition].size >= 5:
+                tri = Delaunay(coords[condition, :])
+                simp = tri.find_simplex(coords)
+                include = np.zeros(len(inFile), dtype=bool)
+                for k in classifications_to_search:
+                    include[classn == k] = True
+                classn[(simp != -1) & include] = 3
+                v = tri.simplices
+                ply_header = f"ply\n"
+                ply_header += "format ascii 1.0\n"
+                ply_header += f"element vertex {coords[condition,:].shape[-2]}\n"
+                ply_header += "property float32 x\n"
+                ply_header += "property float32 y\n"
+                ply_header += "property float32 z\n"
+                ply_header += f"element face {v.shape[-2]}\n"
+                ply_header += "property list uint8 int32 vertex_indices\n"
+                ply_header += "end_header"
+                for row in coords[condition,:]:
+                    ply_header += f"\n{row[0]} {row[1]} {row[2]}"
+                for row in v:
+                    ply_header += f"\n{4} {row[0]} {row[1]} {row[2]} {row[3]}"
+                plyobject = open(tile[:-4]+f'_ply{i}.ply', mode = 'w')
+                plyobject.write(ply_header)
+                plyobject.close()
+                print(i)
+
+    outFile = File(output_file, mode="w", header=inFile.header)
+    outFile.points = inFile.points
+    classn[tree] = classification_out
+    outFile.classification = classn
+    outFile.close()
