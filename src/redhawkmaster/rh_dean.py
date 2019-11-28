@@ -815,18 +815,18 @@ def delaunay_triangulation(tile, output_file,
                            classifications_to_triangulate,
                            classifications_to_search,
                            classification_out,
-                           tolerance,
-                           min_samples):
+                           min_samples,
+                           tolerance):
     # check descriptors with Ilija
     # add description
     """
-    :param tile:
-    :param output_file:
-    :param classification_to_triangulate:
-    :param classifications_to_search:
-    :param classification_out:
-    :param tolerance:
-    :param min_num_pts:
+    :param tile: input tile name
+    :param output_file: output tile name
+    :param classification_to_triangulate: classification of points we want to triangulate
+    :param classifications_to_search: classification in which to search for interior
+    :param classification_out: classification of interior
+    :param tolerance: tolerance used for clustering
+    :param min_num_pts: number of points which core samples must have within distance "tolerance"
     :return:
     """
     from plyfile import PlyData, PlyElement
@@ -892,13 +892,17 @@ def cluster_labels(tile,
                    tolerance,
                    min_pts):
     """
-    :param tile:
-    :param output_file:
-    :param classification_to_cluster:
+    Inputs a file and a classification to cluster. Outputs a file with cluster labels. Clusters with label -2 are points
+    outside of that classification. Clusters with label -1 are non-core points, i.e. points without "min_pts" within
+    "tolerance" (see DBSCAN documentation).
+    :param tile: input tile name
+    :param output_file: output tile name
+    :param classification_to_cluster: which points do we want to cluster
     :param tolerance: see min_pts
     :param min_pts: minimum number of points each point must have in a radius of size "tolerance"
     :return:
     """
+    # we shouldn't use las_modules.cluster function because it acts on a file, not on a family of points
     inFile = File(tile, mode="r")
     x = inFile.x
     y = inFile.y
@@ -907,17 +911,18 @@ def cluster_labels(tile,
     labels_allpts = np.zeros(len(inFile), dtype = int)
     labels_allpts[classn != classification_to_cluster] = -2
     coords = np.stack((x, y, z), axis=1)
-    clustering = DBSCAN(eps=tolerance, min_samples=min_pts).fit(coords)
+    clustering = DBSCAN(eps=tolerance, min_samples=min_pts).fit(coords[classn == classification_to_cluster])
     labels = clustering.labels_
     labels_allpts[classn == classification_to_cluster] = labels
-    outfile = File(output_file, mode="w", header=header)
-    dimensions = [spec.name for spec in in_file.point_format]
+    outfile = File(output_file, mode="w", header=inFile.header)
+    dimensions = [spec.name for spec in inFile.point_format]
     if "labels" not in dimensions:
-        outfile.define_new_dimension(name=labels, data_type=6, description="clustering labels")
-        # add pre-existing point records
+        outfile.define_new_dimension(name="labels", data_type=6, description="clustering labels")
+    # add pre-existing point records
     for dimension in dimensions:
-        dat = infile.reader.get_dimension(dimension)
+        dat = inFile.reader.get_dimension(dimension)
         outfile.writer.set_dimension(dimension, dat)
     outfile.labels = labels_allpts
+
 
 
