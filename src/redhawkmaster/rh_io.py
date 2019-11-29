@@ -1,7 +1,7 @@
 from laspy.file import File
 import numpy as np
 import os
-
+import argparse
 
 def las_input(input_name, mode):
     """
@@ -72,3 +72,12 @@ def merge(array_input, output):
 
     # Run the command
     os.system(command+' --writers.las.extra_dims="all"')
+
+
+def script_params():
+    parser = argparse.ArgumentParser()
+    parser.add_argument('-i', '--input', help='Location of the input las file.', required=True)
+    parser.add_argument('-o', '--output', help='Location of the output las file.', required=True)
+    args = parser.parse_args()
+
+    return args
