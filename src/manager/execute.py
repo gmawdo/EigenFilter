@@ -122,13 +122,13 @@ def parallel(args):
                 in_files = get_in_files(line, count, fil)
                 count += 1
 
-                command = 'echo "=====   Job no.'+line[-1].strip()+' for tile '+fil+' start   ====="  >'\
+                command = 'echo "=====   Job no.'+line[-1].strip()+' for tile '+fil+' start   ===== $(date)"  >>'\
                           + args.results + '/logs/log' + str(process_count-1).zfill(3) + '.out &&' \
                           ' docker run -v ' + args.code + ':/code -v ' + args.data + ':/data ' \
                           '-v ' + args.results + ':/results redhawk python3 /code/template_jobs/' + \
                           args.template + '/' + line[-1].strip() + '.py ' + in_files + out_files + \
                           ' >> ' + args.results + '/logs/log' + str(process_count-1).zfill(3) + '.out '\
-                          '&& echo "=====   Job no.'+line[-1].strip()+' for tile '+fil+' end     =====" >> '\
+                          '&& echo "=====   Job no.'+line[-1].strip()+' for tile '+fil+' end     ===== $(date)" >> '\
                           + args.results + '/logs/log' + str(process_count-1).zfill(3) + '.out'
 
                 result.append(command)
