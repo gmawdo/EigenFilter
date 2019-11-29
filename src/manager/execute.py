@@ -1,3 +1,4 @@
+import pathmagic
 import os
 import argparse
 import time
@@ -7,15 +8,19 @@ import shlex
 
 from multiprocessing.pool import ThreadPool
 
+from redhawkmaster.rh_big_guns import rh_tiling_gps_equal_filesize
+
+assert pathmagic
+
 parser = argparse.ArgumentParser()
 parser.add_argument('-c', '--code', help='Location where is your redhawk code.', required=True)
+parser.add_argument('-b', '--bigfile', help='Location where the big file is it.', required=True)
 parser.add_argument('-d', '--data', help='Location where is the data you need to run.', required=True)
 parser.add_argument('-r', '--results', help='Location where the result data to be.', required=True)
 parser.add_argument('-f', '--flow', help='Location where the flow of the jobs is.', required=True)
 parser.add_argument('-t', '--template', help='Which template jobs to use.', required=True)
+parser.add_argument('-n', '--number', help='Number of tiles to tile the big file.', required=True)
 args = parser.parse_args()
-
-start = time.time()
 
 
 def call_proc(cmd):
@@ -39,11 +44,11 @@ def get_out_files(line, fil):
             break
 
         if count_out > 1 and l.strip() is not line[-1].strip() and l is not line[0]:
-            out_files += '/results/'+fil+'/'+fil+'_' + l.strip() + '.las '
+            out_files += '/results/' + fil + '/' + fil + '_' + l.strip() + '.las '
         i += 1
 
     if count_out == 1:
-        out_files += '/results/'+fil+'/'+fil+'_' + line[-1].strip() + '.las '
+        out_files += '/results/' + fil + '/' + fil + '_' + line[-1].strip() + '.las '
 
     return out_files
 
@@ -54,7 +59,7 @@ def get_in_files(line, count, fil):
     in_files = '-i '
 
     if count == 0:
-        in_files += '/data/'+fil+'.las '
+        in_files += '/data/' + fil + '.las '
         return in_files
 
     for l in line:
@@ -64,66 +69,94 @@ def get_in_files(line, count, fil):
 
     if count_in == 1:
         for i in range(0, len(line) - 1):
-            in_files += '/results/'+fil+'/'+fil+'_' + line[i].strip() + '.las '
+            in_files += '/results/' + fil + '/' + fil + '_' + line[i].strip() + '.las '
     else:
-        in_files += '/results/'+fil+'/'+fil+'_' + line[0].strip() + '.las '
+        in_files += '/results/' + fil + '/' + fil + '_' + line[0].strip() + '.las '
 
     return in_files
 
 
 def run_process(cmd):
-
+    #f = open(args.results + "/logs/log" + cmd[0].split(' ')[12].split('/')[2].split('_')[2].split('Tile')[1] + '.out',
+    #         "a")
     for cm in cmd:
+
+        # f.write("=====   Job no." + cm.split(' ')[10].split('/')[-1].split('.')[0] + " for tile " +
+        #        cm.split(' ')[-4].split('/')[2] + " start   =====\n")
+
         os.system(cm)
 
+        #f.write("=====   Job no." + cm.split(' ')[10].split('/')[-1].split('.')[0] + " for tile " +
+        #        cm.split(' ')[-4].split('/')[2] + "      =====\n")
+    #f.close()
 
-pool = ThreadPool(multiprocessing.cpu_count())
-results = []
 
-if not os.path.exists(args.results):
-    os.mkdir(args.results)
+def parallel(args):
+    results = []
 
-process_count = 0
-with open(args.flow) as f:
-    data = f.readlines()
+    if not os.path.exists(args.results):
+        os.mkdir(args.results)
 
-    for fil in os.listdir(args.data):
-        result = []
-        fil = fil.split('.')[0]
-        if not os.path.exists(args.results+'/'+fil):
-            os.mkdir(args.results+'/'+fil)
-        count = 0
-        process_count += 1
-        for line in data:
-            line = line.split(',')
+    if not os.path.exists(args.results + '/logs'):
+        os.mkdir(args.results + '/logs')
+    else:
+        os.system('rm '+args.results + '/logs/*')
 
-            out_files = get_out_files(line, fil)
+    process_count = 0
+    with open(args.flow) as f:
+        data = f.readlines()
 
-            in_files = get_in_files(line, count, fil)
-            count += 1
+        for fil in os.listdir(args.data):
+            result = []
+            fil = fil.split('.')[0]
+            if not os.path.exists(args.results + '/' + fil):
+                os.mkdir(args.results + '/' + fil)
+            count = 0
+            process_count += 1
 
-            command = 'docker run -v ' + args.code + ':/code ' \
-                      '-v ' + args.data + ':/data ' \
-                      '-v ' + args.results + ':/results ' \
-                      'redhawk python3 /code/template_jobs/' + \
-                      args.template + '/' + \
-                      line[-1].strip() + '.py ' \
-                      + in_files + out_files
+            for line in data:
+                line = line.split(',')
 
-            result.append(command)
+                out_files = get_out_files(line, fil)
 
-        results.append(result)
+                in_files = get_in_files(line, count, fil)
+                count += 1
 
-print(results)
-print(process_count)
+                command = 'echo "=====   Job no.'+line[-1].strip()+' for tile '+fil+' start   ====="  >'\
+                          + args.results + '/logs/log' + str(process_count-1).zfill(3) + '.out &&' \
+                          ' docker run -v ' + args.code + ':/code -v ' + args.data + ':/data ' \
+                          '-v ' + args.results + ':/results redhawk python3 /code/template_jobs/' + \
+                          args.template + '/' + line[-1].strip() + '.py ' + in_files + out_files + \
+                          ' >> ' + args.results + '/logs/log' + str(process_count-1).zfill(3) + '.out '\
+                          '&& echo "=====   Job no.'+line[-1].strip()+' for tile '+fil+' end     =====" >> '\
+                          + args.results + '/logs/log' + str(process_count-1).zfill(3) + '.out'
 
-# python3 execute.py -c /home/mcus/workspace/redhawk-pure-python/src -d
-# /home/mcus/Downloads/ENEL_data -r /home/mcus/workspace/RESULTS
-# -f /home/mcus/workspace/redhawk-pure-python/src/manager/ENEL_flow -t ENEL
+                result.append(command)
 
-pool = multiprocessing.Pool(processes=4)
-pool.map(run_process, results)
+            results.append(result)
 
-end = time.time()
+    # python3 execute.py -c /home/mcus/workspace/redhawk-pure-python/src
+    # -b None
+    # -d /home/mcus/Downloads/ENEL_data
+    # -r /home/mcus/workspace/RESULTS
+    # -f /home/mcus/workspace/redhawk-pure-python/src/manager/ENEL_flow
+    # -t ENEL
+    # -n 10
 
-print("Time: " + str(end - start))
+    pool = multiprocessing.Pool(processes=multiprocessing.cpu_count())
+    pool.map(run_process, results)
+    pool.close()
+
+
+if __name__ == '__main__':
+    start = time.time()
+
+    if args.bigfile != 'None':
+        print("===== Tiling Start =====")
+        rh_tiling_gps_equal_filesize(args.bigfile, args.data + '/', no_tiles=args.number)
+        print("===== Tiling End   =====")
+    print("===== Processing Start =====")
+    parallel(args)
+    print("===== Processing End   =====")
+    end = time.time()
+    print("Time: " + str(end - start))

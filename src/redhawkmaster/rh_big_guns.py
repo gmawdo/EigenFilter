@@ -89,7 +89,7 @@ def rh_tiling_gps_equal_time(filename, no_tiles=10):
     pool.close()
 
 
-def init_equal_filesize(bigFile, ss):
+def init_equal_filesize(bigFile, ss, output_location):
     """
     Function to initialize few global arguments for each process
     of the multiprocessing for the tiling with equal file sizes.
@@ -100,9 +100,10 @@ def init_equal_filesize(bigFile, ss):
     :param ss: digits on which to tile upon on
     :type ss: int array
     """
-    global infile, digits
+    global infile, digits, out_loc
     infile = bigFile
     digits = ss
+    out_loc = output_location
 
 
 def tile_equal_filesize(item):
@@ -115,17 +116,17 @@ def tile_equal_filesize(item):
     :return: writes a tile to the system
     """
     mask = (digits == item)
-
-    outFile = rh_io.las_output(infile.filename.split('/')[-1].split('.las')[0]+"_Tile"+str(item).zfill(3)+".las",
+    outFile = rh_io.las_output(out_loc+infile.filename.split('/')[-1].split('.las')[0]+"_Tile"+str(item).zfill(3)+"_000.las",
                                infile, mask)
     outFile.close()
 
  
-def rh_tiling_gps_equal_filesize(filename, no_tiles=10):
+def rh_tiling_gps_equal_filesize(filename, output_location, no_tiles=10):
     """
     Starting the multiprocessing pool of threads that are going to
     split the big tile.
 
+    :param output_location: where to output the tiles
     :param filename: File name which needs to be tiled.
     :type filename: string
     :param no_tiles: Number of tiles in which the file will be tiled
@@ -147,7 +148,7 @@ def rh_tiling_gps_equal_filesize(filename, no_tiles=10):
     # Same as previous
     pool_size = cpu_count() * 2
 
-    pool = Pool(processes=pool_size, initializer=init_equal_filesize, initargs=(bigFile, digits))
+    pool = Pool(processes=pool_size, initializer=init_equal_filesize, initargs=(bigFile, digits, output_location))
     pool.map(tile_equal_filesize, range(no_tiles))
     pool.close()
 
