@@ -11,7 +11,7 @@ from redhawkmaster.las_modules import las_range
 from multiprocessing import cpu_count, Pool
 
 
-def init_equal_time(bigFile, ss, ee):
+def init_equal_time(bigFile, ss, ee, output_location):
     """
     Function to initialize few global arguments for each process
     of the multiprocessing for the tiling with equal gps times.
@@ -28,6 +28,7 @@ def init_equal_time(bigFile, ss, ee):
     infile = bigFile
     start = ss
     end = ee
+    out_loc = output_location
 
 
 def tile_equal_time(i):
@@ -41,12 +42,12 @@ def tile_equal_time(i):
     """
     mask = las_range(infile.gps_time, start[i], end[i])
 
-    outFile = rh_io.las_output(infile.filename.split('/')[-1].split('.las')[0]+"_Tile"+str(i).zfill(3)+".las",
+    outFile = rh_io.las_output(out_loc+infile.filename.split('/')[-1].split('.las')[0]+"_Tile"+str(i).zfill(3)+".las",
                                infile, mask)
     outFile.close()
 
 
-def rh_tiling_gps_equal_time(filename, no_tiles=10):
+def rh_tiling_gps_equal_time(filename, output_location, no_tiles=10):
     """
     Starting the multiprocessing pool of threads that are going to
     split the big tile.
@@ -83,7 +84,7 @@ def rh_tiling_gps_equal_time(filename, no_tiles=10):
         g_time = g_time + step
 
     # Init the pool of processes
-    pool = Pool(processes=pool_size, initializer=init_equal_time, initargs=(bigFile, start_arr, end_arr))
+    pool = Pool(processes=pool_size, initializer=init_equal_time, initargs=(bigFile, start_arr, end_arr, output_location))
     # Map the processes from the pool
     pool.map(tile_equal_time, range(no_tiles))
     pool.close()
