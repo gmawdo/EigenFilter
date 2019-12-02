@@ -11,7 +11,8 @@ job = '002'
 input_file = 'ILIJA_FlightlineTest.las'
 output_file = 'ILIJA_FlightlineTest_job002.las'
 
-f001 = rh_io.las_input(input_file, mode='r')
+f001 = rh_io.las_input(input_file,
+                       mode='r')
 point_id = np.arange(len(f001))
 
 # Select everything that IS classification 10
