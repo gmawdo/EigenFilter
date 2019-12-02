@@ -568,7 +568,7 @@ def add_classification(input_file, output_file):
             v0 = 1 * inFile.eig20[IND]
             v1 = 1 * inFile.eig21[IND]
             v2 = 1 * inFile.eig22[IND]
-        line_of_best_fit_direction = np.stack((v0, v1, v2), axis=1)  # np.sqrt(v0 ** 2 + v1 ** 2 + v2 ** 2)[:, None]
+        line_of_best_fit_direction = np.stack((v0, v1, v2), axis=1)
         labels = eigen_clustering(coords[mask], line_of_best_fit_direction[mask], 0.5, 5, 2, 1)
         classn_mask = classn[mask]
         classn_mask[:] = 1
@@ -614,8 +614,7 @@ def add_classification(input_file, output_file):
         classn[(distances[:, 0] < 0.5) & (classn != 7) & (classn != 1) & (classn != 2)] = 3
 
     if ((classn != 0) & (classn != 7)).any():
-        nhbrs = NearestNeighbors(n_neighbors=1, algorithm="kd_tree").fit(
-            coords[(classn != 0) & (classn != 7), :])
+        nhbrs = NearestNeighbors(n_neighbors=1, algorithm="kd_tree").fit(coords[(classn != 0) & (classn != 7), :])
         distances, indices = nhbrs.kneighbors(coords[classn == 0, :])
         classn0 = classn[classn == 0]
         classn0[(distances[:, 0] < 0.5)] = (classn[(classn != 0) & (classn != 7)])[indices[(distances[:, 0] < 0.5), 0]]
@@ -811,22 +810,19 @@ def run_pdal_ground(tile, output_file):
     inFile.close()
 
 
-def delaunay_triangulation(tile, output_file,
-                           classifications_to_triangulate,
+def delaunay_triangulation(tile,
+                           output_file,
                            classifications_to_search,
                            classification_out,
-                           min_samples,
-                           tolerance):
-    # check descriptors with Ilija
-    # add description
+                           cluster_attribute):
+    # triangulates clusters as dictated by cluster_attribute
+    # produces a ply file for each tile
     """
     :param tile: input tile name
     :param output_file: output tile name
-    :param classification_to_triangulate: classification of points we want to triangulate
     :param classifications_to_search: classification in which to search for interior
     :param classification_out: classification of interior
-    :param tolerance: tolerance used for clustering
-    :param min_num_pts: number of points which core samples must have within distance "tolerance"
+    :param cluster_attribute: name of attribute holding clustering labels
     :return:
     """
     from plyfile import PlyData, PlyElement
@@ -835,25 +831,17 @@ def delaunay_triangulation(tile, output_file,
     y = inFile.y
     z = inFile.z
     classn = inFile.classification
-
-    if isinstance(classifications_to_triangulate, int):
-        classifications_to_triangulate = [classifications_to_triangulate]
-    if isinstance(classifications_to_search, int):
-        classifications_to_search = [classifications_to_search]
-
+    labels = inFile.reader.get_dimension(cluster_attribute)
     coords = np.stack((x, y, z), axis=1)
-    tree = np.zeros(len(inFile), dtype=bool)
-    for item in classifications_to_triangulate:
-        tree[classn == item] = True
-
+    tree = labels > 0
+    v = 0
+    f = 0
+    t = 0
+    ply_body_v=""
+    ply_body_f=""
     if tree.any():
-        clustering = DBSCAN(eps=tolerance, min_samples=min_samples).fit(coords[tree, :])
-        labels = clustering.labels_
-        for i in np.unique(labels):
-            condition = np.zeros(len(inFile), dtype=bool)
-            condition_tree = condition[tree]
-            condition_tree[labels == i] = True
-            condition[tree] = condition_tree
+        for i in np.unique(labels[tree]):
+            condition = labels == i
             if condition[condition].size >= 5:
                 tri = Delaunay(coords[condition, :])
                 simp = tri.find_simplex(coords)
@@ -861,24 +849,27 @@ def delaunay_triangulation(tile, output_file,
                 for k in classifications_to_search:
                     include[classn == k] = True
                 classn[(simp != -1) & include] = 3
-                v = tri.simplices
-                ply_header = f"ply\n"
-                ply_header += "format ascii 1.0\n"
-                ply_header += f"element vertex {coords[condition,:].shape[-2]}\n"
-                ply_header += "property float32 x\n"
-                ply_header += "property float32 y\n"
-                ply_header += "property float32 z\n"
-                ply_header += f"element face {v.shape[-2]}\n"
-                ply_header += "property list uint8 int32 vertex_indices\n"
-                ply_header += "end_header"
+                vertices = tri.simplices
                 for row in coords[condition,:]:
-                    ply_header += f"\n{row[0]} {row[1]} {row[2]}"
-                for row in v:
-                    ply_header += f"\n{4} {row[0]} {row[1]} {row[2]} {row[3]}"
-                plyobject = open(tile[:-4]+f'_ply{i}.ply', mode = 'w')
-                plyobject.write(ply_header)
-                plyobject.close()
-                print(i)
+                    ply_body_v += f"\n{row[0]} {row[1]} {row[2]}"
+                    v += 1
+                for row in vertices:
+                    ply_body_f += f"\n{4} {row[0]+t} {row[1]+t} {row[2]+t} {row[3]+t}"
+                    f += 1
+            t += condition[condition].size
+
+    ply_header = "ply\n"
+    ply_header += "format ascii 1.0\n"
+    ply_header += f"element vertex {v}\n"
+    ply_header += "property float32 x\n"
+    ply_header += "property float32 y\n"
+    ply_header += "property float32 z\n"
+    ply_header += f"element face {f}\n"
+    ply_header += "property list uint8 int32 vertex_indices\n"
+    ply_header += "end_header"
+    plyobject = open(tile[:-4]+cluster_attribute+'.ply', mode = 'w')
+    plyobject.write(ply_header+ply_body_v+ply_body_f)
+    plyobject.close()
 
     outFile = File(output_file, mode="w", header=inFile.header)
     outFile.points = inFile.points
@@ -890,7 +881,8 @@ def cluster_labels(tile,
                    output_file,
                    classification_to_cluster,
                    tolerance,
-                   min_pts):
+                   min_pts,
+                   cluster_attribute):
     """
     Inputs a file and a classification to cluster. Outputs a file with cluster labels. Clusters with label -2 are points
     outside of that classification. Clusters with label -1 are non-core points, i.e. points without "min_pts" within
@@ -900,6 +892,7 @@ def cluster_labels(tile,
     :param classification_to_cluster: which points do we want to cluster
     :param tolerance: see min_pts
     :param min_pts: minimum number of points each point must have in a radius of size "tolerance"
+    :param cluster_attribute: the name given to the clustering labels
     :return:
     """
     # we shouldn't use las_modules.cluster function because it acts on a file, not on a family of points
@@ -909,20 +902,20 @@ def cluster_labels(tile,
     z = inFile.z
     classn = inFile.classification
     labels_allpts = np.zeros(len(inFile), dtype = int)
-    labels_allpts[classn != classification_to_cluster] = -2
     coords = np.stack((x, y, z), axis=1)
     clustering = DBSCAN(eps=tolerance, min_samples=min_pts).fit(coords[classn == classification_to_cluster])
-    labels = clustering.labels_
+    labels = clustering.labels_+1
     labels_allpts[classn == classification_to_cluster] = labels
     outfile = File(output_file, mode="w", header=inFile.header)
     dimensions = [spec.name for spec in inFile.point_format]
-    if "labels" not in dimensions:
-        outfile.define_new_dimension(name="labels", data_type=6, description="clustering labels")
+    if cluster_attribute not in dimensions:
+        outfile.define_new_dimension(name=cluster_attribute, data_type=6, description="clustering labels")
     # add pre-existing point records
     for dimension in dimensions:
         dat = inFile.reader.get_dimension(dimension)
         outfile.writer.set_dimension(dimension, dat)
-    outfile.labels = labels_allpts
+    outfile.writer.set_dimension(cluster_attribute, labels_allpts)
+    outfile.close()
 
 
 
