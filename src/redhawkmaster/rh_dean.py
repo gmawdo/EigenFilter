@@ -831,9 +831,15 @@ def delaunay_triangulation(tile,
     y = inFile.y
     z = inFile.z
     classn = inFile.classification
+    # get the cluster labels for the clusters we want to triangulate
     labels = inFile.reader.get_dimension(cluster_attribute)
+    # get point positions
     coords = np.stack((x, y, z), axis=1)
+    # find the points which come from actual clusters - I called this condition "tree" because it was our first
+    # feel free to change
     tree = labels > 0
+
+    # write the ply file
     v = 0
     f = 0
     t = 0
@@ -857,7 +863,6 @@ def delaunay_triangulation(tile,
                     ply_body_f += f"\n{4} {row[0]+t} {row[1]+t} {row[2]+t} {row[3]+t}"
                     f += 1
             t += condition[condition].size
-
     ply_header = "ply\n"
     ply_header += "format ascii 1.0\n"
     ply_header += f"element vertex {v}\n"
@@ -871,6 +876,7 @@ def delaunay_triangulation(tile,
     plyobject.write(ply_header+ply_body_v+ply_body_f)
     plyobject.close()
 
+    # write the new file with points inside the triangles reclassified
     outFile = File(output_file, mode="w", header=inFile.header)
     outFile.points = inFile.points
     classn[tree] = classification_out
@@ -884,9 +890,9 @@ def cluster_labels(tile,
                    min_pts,
                    cluster_attribute):
     """
-    Inputs a file and a classification to cluster. Outputs a file with cluster labels. Clusters with label -2 are points
-    outside of that classification. Clusters with label -1 are non-core points, i.e. points without "min_pts" within
-    "tolerance" (see DBSCAN documentation).
+    Inputs a file and a classification to cluster. Outputs a file with cluster labels.
+    Clusters with label 0 are non-core points, i.e. points without "min_pts" within
+    "tolerance" (see DBSCAN documentation), or points outside the classification to cluster.
     :param tile: input tile name
     :param output_file: output tile name
     :param classification_to_cluster: which points do we want to cluster
@@ -901,21 +907,56 @@ def cluster_labels(tile,
     y = inFile.y
     z = inFile.z
     classn = inFile.classification
+    # make a vector to store labels
     labels_allpts = np.zeros(len(inFile), dtype = int)
+    # get the point positions
     coords = np.stack((x, y, z), axis=1)
+    # make the clusters
     clustering = DBSCAN(eps=tolerance, min_samples=min_pts).fit(coords[classn == classification_to_cluster])
+    # find our labels (DBSCAN starts at -1 and we want to start at 0, so add 1)
     labels = clustering.labels_+1
+    # assign the target classification's labels
     labels_allpts[classn == classification_to_cluster] = labels
+    # make the output file
     outfile = File(output_file, mode="w", header=inFile.header)
     dimensions = [spec.name for spec in inFile.point_format]
+    # add new dimension
     if cluster_attribute not in dimensions:
         outfile.define_new_dimension(name=cluster_attribute, data_type=6, description="clustering labels")
     # add pre-existing point records
     for dimension in dimensions:
         dat = inFile.reader.get_dimension(dimension)
         outfile.writer.set_dimension(dimension, dat)
+    # set new dimension to labels
     outfile.writer.set_dimension(cluster_attribute, labels_allpts)
     outfile.close()
 
 
+def count(tile,
+          output_file,
+          attribute):
+    """
+    adds a number to each point reflecting the number of points with the same value for chosen attribute
+    :param tile: an input tile
+    :param output_file: name for output tile
+    :param attribute: attribute to be counted
+    :return:
+    """
+    # read the file and make the new one
+    inFile = File(tile, mode="r")
+    outfile = File(output_file, mode="w", header=inFile.header)
+    dimensions = [spec.name for spec in inFile.point_format]
+    # add in the new count attribute
+    if attribute+"count" not in dimensions:
+        outfile.define_new_dimension(name=attribute+"count", data_type=5, description=attribute+"count")
+    # add pre-existing point records
+    for dimension in dimensions:
+        if dimension != attribute+"count":
+            dat = inFile.reader.get_dimension(dimension)
+            outfile.writer.set_dimension(dimension, dat)
+    # count the attribute using numpy unique
+    unq, inv, cnt = np.unique(outfile.reader.get_dimension(attribute), return_index=False, return_inverse=True, return_counts=True)
+    # set the counts to the new attribute
+    outfile.writer.set_dimension(attribute+"count", cnt[inv])
+    outfile.close()
 

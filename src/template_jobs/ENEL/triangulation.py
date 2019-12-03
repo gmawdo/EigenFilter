@@ -1,6 +1,6 @@
 import pathmagic
 
-from redhawkmaster.rh_dean import delaunay_triangulation, cluster_labels
+from redhawkmaster.rh_dean import delaunay_triangulation, cluster_labels, count
 
 assert pathmagic
 
@@ -32,3 +32,10 @@ cluster_labels(input_file,
                tolerance=0.5,
                min_pts=1,
                cluster_attribute="userdefinedname")
+
+input_file = 'T000_013.las'
+output_file = 'T000_014.las'
+
+count(input_file,
+      output_file,
+      attribute="userdefinedname")
