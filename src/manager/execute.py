@@ -145,7 +145,7 @@ def parallel(args):
     # -t ENEL
     # -n 10
 
-    pool = multiprocessing.ThreadPool(processes=int(args.core_limit))
+    pool = multiprocessing.Pool(processes=int(args.core_limit))
     pool.map(run_process, results)
     pool.close()
 

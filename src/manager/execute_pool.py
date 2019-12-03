@@ -146,7 +146,7 @@ def parallel(args):
     # -n 10
 
     pool = ThreadPool(int(args.core_limit))
-    pool.map(run_process, results)
+    pool.map(run_process, [results[0]])
     pool.close()
 
 

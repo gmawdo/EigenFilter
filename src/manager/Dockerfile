@@ -8,6 +8,7 @@ sklearn \
 pandas \
 laspy \
 matplotlib \
+numba \
 numpy==1.16.2 --upgrade && \
 apt-get autoremove -y && \
     apt-get clean
