@@ -416,7 +416,7 @@ def corridor(coords, eigenvectors, mask, R, S):
     return condition
 
 
-def dimension(inFile):
+def point_dimension(inFile):
     """
     Dimensions for each point of a las file.
 
@@ -429,6 +429,28 @@ def dimension(inFile):
     dims = 1 + np.argmax(lps, axis=1)
 
     return dims
+
+
+def dimension1d2d3d_v01_0(infile,
+                          outfile):
+    """
+    Adds dimension 1, 2 or 3 to each point.
+    :param infile: name of infile
+    :param outfile: name of outfile
+    :return: nothing, just writes new file
+    """
+    in_file = File(infile)
+    out_file = File(outfile, mode = "w", header=in_file.header)
+    # add dimension
+    dimensions = [spec.name for spec in in_file.point_format if spec.name != "dim"]
+    out_file.define_new_dimension(name="dimension1d2d3d", data_type=6, description="dimension")
+    # add pre-existing point records
+    for dimension in dimensions:
+        dat = in_file.reader.get_dimension(dimension)
+        out_file.writer.set_dimension(dimension, dat)
+    # add new dimension
+    out_file.writer.set_dimension("dimension1d2d3d", point_dimension(in_file))
+    out_file.close()
 
 
 def eigen_clustering(coords, eigenvector, tolerance, eigenvector_scale, max_length, min_pts):
@@ -534,7 +556,7 @@ def add_classification(input_file, output_file):
         coords = np.stack((x, y, z), axis=1)
     # build the probabilistic dimension
 
-    dims = dimension(inFile)[IND]
+    dims = point_dimension(inFile)[IND]
 
     classn = 1*inFile.classification[IND]
     classn[:] = 0
