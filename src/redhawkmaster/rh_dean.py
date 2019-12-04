@@ -434,6 +434,7 @@ def point_dimension(inFile):
 def dimension1d2d3d_v01_0(infile,
                           outfile):
     """
+    Adds dimension 1, 2 or 3 to each point.
     :param infile: name of infile
     :param outfile: name of outfile
     :return: nothing, just writes new file
@@ -442,13 +443,13 @@ def dimension1d2d3d_v01_0(infile,
     out_file = File(outfile, mode = "w", header=in_file.header)
     # add dimension
     dimensions = [spec.name for spec in in_file.point_format if spec.name != "dim"]
-    out_file.define_new_dimension(name="dim", data_type=6, description="dimension")
+    out_file.define_new_dimension(name="dimension1d2d3d", data_type=6, description="dimension")
     # add pre-existing point records
     for dimension in dimensions:
-        dat = infile.reader.get_dimension(dimension)
+        dat = in_file.reader.get_dimension(dimension)
         out_file.writer.set_dimension(dimension, dat)
     # add new dimension
-    out_file.writer.set_dimension("dim", point_dimension(in_file))
+    out_file.writer.set_dimension("dimension1d2d3d", point_dimension(in_file))
     out_file.close()
 
 
