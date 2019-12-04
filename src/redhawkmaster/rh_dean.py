@@ -534,46 +534,24 @@ def add_classification(input_file, output_file):
 
     dims = dimension(inFile)[IND]
 
-    # here we decide whether 4 dimensions were run
-    found_dimension = False
-    d = 1
-    L = [spec.name for spec in inFile.point_format]
-    while not found_dimension:
-        if f"dim{d}" in L:
-            d += 1
-        else:
-            found_dimension = True
-            d -= 1
-
-    if d == 3:
-        dims[eig2 <= 0] = 0
-    if d == 4:
-        eig3 = inFile.eig3[IND]
-        dims[eig3 <= 0] = 0
-
     classn = 1*inFile.classification[IND]
     classn[:] = 0
-    noise = dims == 0
+    noise = eig2 < 0
     dim1 = dims == 1
     dim2 = dims == 2
     dim3 = dims == 3
 
     mask = dim1
     if mask.any():
-        if d == 4:
-            v0 = 1 * inFile.eig30[IND]
-            v1 = 1 * inFile.eig31[IND]
-            v2 = 1 * inFile.eig32[IND]
-        if d == 3:
-            v0 = 1 * inFile.eig20[IND]
-            v1 = 1 * inFile.eig21[IND]
-            v2 = 1 * inFile.eig22[IND]
+        v0 = 1 * inFile.eig20[IND]
+        v1 = 1 * inFile.eig21[IND]
+        v2 = 1 * inFile.eig22[IND]
         line_of_best_fit_direction = np.stack((v0, v1, v2), axis=1)
         labels = eigen_clustering(coords[mask], line_of_best_fit_direction[mask], 0.5, 5, 2, 1)
-        classn_mask = classn[mask]
-        classn_mask[:] = 1
-        classn_mask[labels == -1] = 0
-        classn[mask] = classn_mask
+        class_mask = classn[mask]
+        class_mask[:] = 1
+        class_mask[labels == -1] = 0
+        classn[mask] = class_mask
 
         conductor = corridor(coords, line_of_best_fit_direction[classn == 1], classn == 1, R=0.5, S=2)
         classn[conductor] = 1
@@ -581,20 +559,15 @@ def add_classification(input_file, output_file):
 
     mask = dim2 & (~ noise) & (classn != 1)
     if mask.any():
-        if d == 4:
-            v0 = 1 * inFile.eig20[IND]
-            v1 = 1 * inFile.eig21[IND]
-            v2 = 1 * inFile.eig22[IND]
-        if d == 3:
-            v0 = 1 * inFile.eig10[IND]
-            v1 = 1 * inFile.eig11[IND]
-            v2 = 1 * inFile.eig12[IND]
+        v0 = 1 * inFile.eig10[IND]
+        v1 = 1 * inFile.eig11[IND]
+        v2 = 1 * inFile.eig12[IND]
         plane_of_best_fit_direction = np.stack((v0, v1, v2), axis=1)  # np.sqrt(v0 ** 2 + v1 ** 2 + v2 ** 2)[:, None]
         labels = eigen_clustering(coords[mask], plane_of_best_fit_direction[mask], 0.5, 5, 2, 1)
-        classn_mask = classn[mask]
-        classn_mask[:] = 2
-        classn_mask[labels == -1] = 0
-        classn[mask] = classn_mask
+        class_mask = classn[mask]
+        class_mask[:] = 2
+        class_mask[labels == -1] = 0
+        classn[mask] = class_mask
         if (classn == 2).any():
             nhbrs = NearestNeighbors(n_neighbors=1, algorithm="kd_tree").fit(coords[classn == 2])
             distances, indices = nhbrs.kneighbors(coords)
@@ -603,10 +576,10 @@ def add_classification(input_file, output_file):
     mask = dim3 & (~ noise) & (classn != 1) & (classn != 2)
     if mask.any():
         labels = clustering(coords[mask], 0.5, 2, 1)
-        classn_mask = classn[mask]
-        classn_mask[:] = 3
-        classn_mask[labels == -1] = 0
-        classn[mask] = classn_mask
+        class_mask = classn[mask]
+        class_mask[:] = 3
+        class_mask[labels == -1] = 0
+        classn[mask] = class_mask
 
     if (classn == 3).any():
         nhbrs = NearestNeighbors(n_neighbors=1, algorithm="kd_tree").fit(coords[classn == 3])
@@ -810,11 +783,12 @@ def run_pdal_ground(tile, output_file):
     inFile.close()
 
 
-def delaunay_triangulation(tile,
+def delaunay_triangulation_v01_0(tile,
                            output_file,
                            classifications_to_search,
                            classification_out,
-                           cluster_attribute):
+                           cluster_attribute,
+                           output_ply):
     # triangulates clusters as dictated by cluster_attribute
     # produces a ply file for each tile
     """
@@ -823,6 +797,7 @@ def delaunay_triangulation(tile,
     :param classifications_to_search: classification in which to search for interior
     :param classification_out: classification of interior
     :param cluster_attribute: name of attribute holding clustering labels
+    :param output_ply: boolean (True/False) to dictate whether or not to write a file
     :return:
     """
     from plyfile import PlyData, PlyElement
@@ -840,41 +815,42 @@ def delaunay_triangulation(tile,
     tree = labels > 0
 
     # write the ply file
-    v = 0
-    f = 0
-    t = 0
-    ply_body_v=""
-    ply_body_f=""
-    if tree.any():
-        for i in np.unique(labels[tree]):
-            condition = labels == i
-            if condition[condition].size >= 5:
-                tri = Delaunay(coords[condition, :])
-                simp = tri.find_simplex(coords)
-                include = np.zeros(len(inFile), dtype=bool)
-                for k in classifications_to_search:
-                    include[classn == k] = True
-                classn[(simp != -1) & include] = 3
-                vertices = tri.simplices
-                for row in coords[condition,:]:
-                    ply_body_v += f"\n{row[0]} {row[1]} {row[2]}"
-                    v += 1
-                for row in vertices:
-                    ply_body_f += f"\n{4} {row[0]+t} {row[1]+t} {row[2]+t} {row[3]+t}"
-                    f += 1
-            t += condition[condition].size
-    ply_header = "ply\n"
-    ply_header += "format ascii 1.0\n"
-    ply_header += f"element vertex {v}\n"
-    ply_header += "property float32 x\n"
-    ply_header += "property float32 y\n"
-    ply_header += "property float32 z\n"
-    ply_header += f"element face {f}\n"
-    ply_header += "property list uint8 int32 vertex_indices\n"
-    ply_header += "end_header"
-    plyobject = open(tile[:-4]+cluster_attribute+'.ply', mode = 'w')
-    plyobject.write(ply_header+ply_body_v+ply_body_f)
-    plyobject.close()
+    if output_ply:
+        v = 0
+        f = 0
+        t = 0
+        ply_body_v=""
+        ply_body_f=""
+        if tree.any():
+            for i in np.unique(labels[tree]):
+                condition = labels == i
+                if condition[condition].size >= 5:
+                    tri = Delaunay(coords[condition, :])
+                    simp = tri.find_simplex(coords)
+                    include = np.zeros(len(inFile), dtype=bool)
+                    for k in classifications_to_search:
+                        include[classn == k] = True
+                    classn[(simp != -1) & include] = 3
+                    vertices = tri.simplices
+                    for row in coords[condition,:]:
+                        ply_body_v += f"\n{row[0]} {row[1]} {row[2]}"
+                        v += 1
+                    for row in vertices:
+                        ply_body_f += f"\n{4} {row[0]+t} {row[1]+t} {row[2]+t} {row[3]+t}"
+                        f += 1
+                t += condition[condition].size
+        ply_header = "ply\n"
+        ply_header += "format ascii 1.0\n"
+        ply_header += f"element vertex {v}\n"
+        ply_header += "property float32 x\n"
+        ply_header += "property float32 y\n"
+        ply_header += "property float32 z\n"
+        ply_header += f"element face {f}\n"
+        ply_header += "property list uint8 int32 vertex_indices\n"
+        ply_header += "end_header"
+        plyobject = open(output_file[:-4]+'.ply', mode = 'w')
+        plyobject.write(ply_header+ply_body_v+ply_body_f)
+        plyobject.close()
 
     # write the new file with points inside the triangles reclassified
     outFile = File(output_file, mode="w", header=inFile.header)
@@ -934,7 +910,7 @@ def cluster_labels_v01_0(infile,
 
 
 
-def count(tile,
+def count_v01_0(tile,
           output_file,
           attribute):
     """
