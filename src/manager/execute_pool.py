@@ -78,19 +78,10 @@ def get_in_files(line, count, fil):
 
 
 def run_process(cmd):
-    #f = open(args.results + "/logs/log" + cmd[0].split(' ')[12].split('/')[2].split('_')[2].split('Tile')[1] + '.out',
-    #         "a")
+
     for cm in cmd:
-
-        # f.write("=====   Job no." + cm.split(' ')[10].split('/')[-1].split('.')[0] + " for tile " +
-        #        cm.split(' ')[-4].split('/')[2] + " start   =====\n")
-        # print(cm)
         subprocess.call(cm, shell=True)
-        #os.system(cm)
-
-        #f.write("=====   Job no." + cm.split(' ')[10].split('/')[-1].split('.')[0] + " for tile " +
-        #        cm.split(' ')[-4].split('/')[2] + "      =====\n")
-    #f.close()
+        # os.system(cm)
 
 
 def parallel(args):
@@ -157,9 +148,10 @@ if __name__ == '__main__':
         print("===== Tiling Start =====")
         rh_tiling_gps_equal_filesize(args.bigfile, args.data + '/', no_tiles=args.number)
         print("===== Tiling End   =====")
+
     print("===== Processing Start =====")
-    #print(call_proc("ls ls"))
     parallel(args)
     print("===== Processing End   =====")
+
     end = time.time()
     print("Time: " + str(end - start))

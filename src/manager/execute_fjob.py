@@ -116,7 +116,7 @@ with open(args.flow) as f:
 print(results)
 print(process_count)
 
-# python3 execute.py -c /home/mcus/workspace/redhawk-pure-python/src -d
+# python3 execute_fjob.py -c /home/mcus/workspace/redhawk-pure-python/src -d
 # /home/mcus/Downloads/ENEL_data -r /home/mcus/workspace/RESULTS
 # -f /home/mcus/workspace/redhawk-pure-python/src/manager/ENEL_flow -t ENEL
 
