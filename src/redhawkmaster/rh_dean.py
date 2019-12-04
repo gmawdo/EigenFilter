@@ -2,9 +2,10 @@ import numpy as np
 from laspy.file import File
 from sklearn.cluster import DBSCAN
 from sklearn.neighbors import NearestNeighbors
-import pandas as pd
+from scipy.spatial import Delaunay
 from redhawkmaster import lasmaster as lm
 import pandas as pd
+import os
 
 
 def point_id(infile, tile_name, point_id_name="slpid", start_value=0, inc_step=1):
@@ -374,175 +375,247 @@ def add_attributes(tile_name, output_file, time_intervals=10, k=range(4, 50), ra
     # Call the lasmaster
     lm.lpinteraction.attr(tile_name, output_file, config=cf)
 
+def corridor(coords, eigenvectors, mask, R, S):
+    """
+    Find a cylindrical corridor around a family of points.
+
+    This function takes a family of points, encoded in a numpy array coords; coords.shape == (n, d) where
+    n is the number of points and d is the number of dimensions. Note that eigenvectors.shape == coords[mask,:].shape
+    :param coords: all the points you want to drive the corridor through
+    :param eigenvectors: the eigenvectors of points you want to drive the corridor around
+    :param mask: the mask describing the points you want to drive the corridor around
+    :param R: the radius of the corridor
+    :param S: the extension of the corridor
+    :return: the mask of the points in the corridor
+    """
+    # apply the mask to the coordinates to get the points we are interested in drawing a corridor around
+    # The next uncommented line would be needed to match the original demo, but it shouldn't really have been used
+    # in the first place!
+    # coords = 0.05*np.floor(coords/0.05)
+    coord_mask = coords[mask, :]
+    # find nearest neighbours from each point to the points of interest
+    nhbrs = NearestNeighbors(n_neighbors=1, algorithm="kd_tree").fit(coord_mask)
+    distances, indices = nhbrs.kneighbors(coords)
+    nearest_nbrs = indices[:, 0]
+
+    # find direction from each point to point of interest, project onto eigenvector
+    v = eigenvectors[nearest_nbrs]
+    u = coords - coords[mask][nearest_nbrs]
+    scale = u[:, 0]*v[:, 0] + u[:, 1]*v[:, 1] + u[:, 2]*v[:, 2] # np.sum(u * v, axis=1)
+    # find coprojection
+    w = u - scale[:, None] * v
+
+    # find distance to line formed by eigenvector
+    w_norms = np.sqrt(w[:, 0]**2 + w[:, 1]**2 + w[:, 2]**2) #np.sqrt(np.sum(w ** 2, axis=1))
+
+    # return condition for the corridor
+    condition = (w_norms < R) & (np.absolute(scale) < S)
+
+    return condition
+
+
+def dimension(inFile):
+    """
+    Dimensions for each point of a las file.
+
+    :param inFile: las file with dim1, dim2 and dim3 attributes.
+    :return: Dimensions for each point
+    """
+    # gather the three important attributes into an array
+    lps = np.stack((inFile.dim1, inFile.dim2, inFile.dim3), axis=1)
+    # compute dimensions
+    dims = 1 + np.argmax(lps, axis=1)
+
+    return dims
+
+
+def eigen_clustering(coords, eigenvector, tolerance, eigenvector_scale, max_length, min_pts):
+    """
+    ADD DESCRIPTION Eigenvectors should have unit length.
+    :param coords: points_to_cluster.
+    :param eigenvector: eigenvectors for each point
+    :param tolerance: tolerance - how close do two points have to be in order to be in same cluster?
+    :param eigenvector_scale:
+    :param max_length: how long can a cluster be?
+    :param min_pts: how many points must a cluster have?
+    :return: labels
+    """
+
+    x = coords[:, 0]
+    y = coords[:, 1]
+    z = coords[:, 2]
+    v0 = eigenvector_scale * eigenvector[:, 0]
+    v1 = eigenvector_scale * eigenvector[:, 1]
+    v2 = eigenvector_scale * eigenvector[:, 2]
+    condition = ((v0 >= 0) & (v1 < 0) & (v2 < 0)) | ((v1 >= 0) & (v2 < 0) & (v0 < 0)) | (
+            (v2 >= 0) & (v0 < 0) & (v1 < 0)) | ((v0 < 0) & (v1 < 0) & (v2 < 0))
+    v0[condition] = -v0[condition]
+    v1[condition] = -v1[condition]
+    v2[condition] = -v2[condition]
+    clusterable = np.stack((v0, v1, v2, x, y, z), axis=1)
+    clustering = DBSCAN(eps=tolerance, min_samples=min_pts).fit(clusterable)
+    labels = clustering.labels_
+    frame = {
+        'A': labels,
+        'X': x,
+        'Y': y,
+        'Z': z,
+    }
+    df = pd.DataFrame(frame)
+    maxs = (df.groupby('A').max()).values
+    mins = (df.groupby('A').min()).values
+    unq, ind, inv, cnt = np.unique(labels, return_index=True, return_inverse=True, return_counts=True)
+    lengths = np.sqrt((maxs[inv, 0] - mins[inv, 0]) ** 2 + (maxs[inv, 1] - mins[inv, 1]) ** 2)
+    labels[lengths < max_length] = -1
+
+    return labels
+
+
+def clustering(coords, tolerance, max_length, min_pts):
+    """
+    :param coords: points to cluster.
+    :param tolerance: how close do two points have to be in order to be in same cluster?
+    :param max_length: how long can a cluster be?
+    :param min_pts: how many points must a cluster have?
+    :return:
+    """
+    x = coords[:, 0]
+    y = coords[:, 1]
+    z = coords[:, 2]
+    clustering = DBSCAN(eps=tolerance, min_samples=min_pts).fit(coords)
+    labels = clustering.labels_
+    frame = {
+        'A': labels,
+        'X': x,
+        'Y': y,
+        'Z': z,
+    }
+    df = pd.DataFrame(frame)
+    maxs = (df.groupby('A').max()).values
+    mins = (df.groupby('A').min()).values
+    unq, ind, inv, cnt = np.unique(labels, return_index=True, return_inverse=True, return_counts=True)
+    lengths = np.sqrt((maxs[inv, 0] - mins[inv, 0]) ** 2 + (maxs[inv, 1] - mins[inv, 1]) ** 2)
+    labels[lengths < max_length] = -1
+
+    return labels
+
 
 def add_classification(input_file, output_file):
+    """
+    :param filename:
+    :return:
+    """
+    # load the voxel numbers - they will be only one (0) if no voxelisation happened
     inFile = File(input_file)
-
-    def corridor(c, d, conductor_condition, R=1, S=2):
-        if d == 4:
-            v0 = 1 * inFile.eig31[IND]
-            v1 = 1 * inFile.eig32[IND]
-            v2 = 1 * inFile.eig33[IND]
-        if d == 3:
-            v0 = 1 * inFile.eig20[IND]
-            v1 = 1 * inFile.eig21[IND]
-            v2 = 1 * inFile.eig22[IND]
-        cRestrict = c[:, conductor_condition]
-        nhbrs = NearestNeighbors(n_neighbors=1, algorithm="kd_tree").fit(np.transpose(cRestrict))
-        distances, indices = nhbrs.kneighbors(np.transpose(c))
-        nns = indices[:, 0]
-        v = np.vstack((v0, v1, v2))[:, conductor_condition][:, nns]  # (3,N)
-        u = c[:, :] - c[:, conductor_condition][:, nns]
-        scale = (u[0, :] * v[0, :] + u[1, :] * v[1, :] + u[2, :] * v[2, :])
-        w = u - scale * v
-        w_norms = np.sqrt(w[0, :] ** 2 + w[1, :] ** 2 + w[2, :] ** 2)
-        condition = (w_norms < R) & (np.absolute(scale) < S)
-
-        return condition
-
+    # find how to map each point onto each voxel
     voxel = inFile.vox
+    # find how to map each point onto each voxel
     UNQ, IND, INV, CNT = np.unique(voxel, return_index=True, return_inverse=True, return_counts=True)
-    if (inFile.vox == 0).all():
+    # determine by number of voxel numbers whether decimation occured
+    decimated = IND.size > 1
+    # if no decimation occured this mapping must be trivial:
+    if not decimated:
         IND = np.arange(len(inFile))
         INV = IND
-    u = 0.0 * IND + 0.05
+
+    # grab the attributes we need - but only on decimated points
     x = inFile.x[IND]
     y = inFile.y[IND]
     z = inFile.z[IND]
-    dim1 = inFile.dim1[IND]
-    dim2 = inFile.dim2[IND]
-    dim3 = inFile.dim3[IND]
-    eig0 = inFile.eig0[IND]
-    eig1 = inFile.eig1[IND]
     eig2 = inFile.eig2[IND]
 
-    classification = inFile.classification[IND]
-    Coords = u[None, :] * np.floor(np.stack((x / u, y / u, z / u), axis=0))
-    LPS = np.stack((dim1, dim2, dim3), axis=1)
-    dims = 1 + np.argmax(LPS, axis=1)
-    classn = 0 * classification
-    try:
-        dim4 = inFile.dim4[IND]
-        d = 4
-    except AttributeError:
-        d = 3
+    # scale down coordinates
+    if decimated:
+        u = inFile.dec
+        coords = u[:, None] * np.floor(np.stack((x / u, y / u, z / u), axis=1))
+    else:
+        coords = np.stack((x, y, z), axis=1)
+    # build the probabilistic dimension
 
-    if d == 4:
-        eig3 = inFile.eig3
+    dims = dimension(inFile)[IND]
+
+    # here we decide whether 4 dimensions were run
+    found_dimension = False
+    d = 1
+    L = [spec.name for spec in inFile.point_format]
+    while not found_dimension:
+        if f"dim{d}" in L:
+            d += 1
+        else:
+            found_dimension = True
+            d -= 1
 
     if d == 3:
-        dims[eig2 <= 0] = 7
+        dims[eig2 <= 0] = 0
     if d == 4:
-        dims[eig3 <= 0] = 7
+        eig3 = inFile.eig3[IND]
+        dims[eig3 <= 0] = 0
 
-    if (dims == 1).any():
+    classn = 1*inFile.classification[IND]
+    classn[:] = 0
+    noise = dims == 0
+    dim1 = dims == 1
+    dim2 = dims == 2
+    dim3 = dims == 3
+
+    mask = dim1
+    if mask.any():
         if d == 4:
-            v0 = 1 * inFile.eig31[IND]
-            v1 = 1 * inFile.eig32[IND]
-            v2 = 1 * inFile.eig33[IND]
+            v0 = 1 * inFile.eig30[IND]
+            v1 = 1 * inFile.eig31[IND]
+            v2 = 1 * inFile.eig32[IND]
         if d == 3:
             v0 = 1 * inFile.eig20[IND]
             v1 = 1 * inFile.eig21[IND]
             v2 = 1 * inFile.eig22[IND]
-        condition = ((v0 >= 0) & (v1 < 0) & (v2 < 0)) | ((v1 >= 0) & (v2 < 0) & (v0 < 0)) | (
-                (v2 >= 0) & (v0 < 0) & (v1 < 0)) | ((v0 < 0) & (v1 < 0) & (v2 < 0))
-        v0[condition] = -v0[condition]
-        v1[condition] = -v1[condition]
-        v2[condition] = -v2[condition]
-        v = np.vstack((5 * v0, 5 * v1, 5 * v2, x, y, z))
-        clustering = DBSCAN(eps=0.5, min_samples=1).fit((v[:, dims == 1]).transpose(1, 0))
-        labels = clustering.labels_
-        frame = {
-            'A': labels,
-            'X': x[dims == 1],
-            'Y': y[dims == 1],
-            'Z': z[dims == 1]
-        }
-        df = pd.DataFrame(frame)
-        maxs = (df.groupby('A').max()).values
-        mins = (df.groupby('A').min()).values
+        line_of_best_fit_direction = np.stack((v0, v1, v2), axis=1)
+        labels = eigen_clustering(coords[mask], line_of_best_fit_direction[mask], 0.5, 5, 2, 1)
+        classn_mask = classn[mask]
+        classn_mask[:] = 1
+        classn_mask[labels == -1] = 0
+        classn[mask] = classn_mask
 
-        unq, ind, inv, cnt = np.unique(labels, return_index=True, return_inverse=True, return_counts=True)
-        lengths = (np.sqrt((maxs[:, 0] - mins[:, 0]) ** 2 + (maxs[:, 1] - mins[:, 1]) ** 2))[inv]
-        lengths[labels == -1] = 0
-        classn1 = classn[dims == 1]
-        classn1[:] = 1
-        classn1[lengths <= 2] = 0
-        classn[dims == 1] = classn1
-        if (classn == 1).any():
-            conductor = corridor(Coords, d, classn == 1, R=0.5, S=2)
-            classn[conductor] = 1
-        classn[dims == 7] = 7
+        conductor = corridor(coords, line_of_best_fit_direction[classn == 1], classn == 1, R=0.5, S=2)
+        classn[conductor] = 1
+        classn[noise] = 7
 
-    prepylon = (dims == 2) & (classn != 1)
-    if prepylon.any():
+    mask = dim2 & (~ noise) & (classn != 1)
+    if mask.any():
         if d == 4:
-            v0 = 1 * inFile.eig21[IND]
-            v1 = 1 * inFile.eig22[IND]
-            v2 = 1 * inFile.eig23[IND]
+            v0 = 1 * inFile.eig20[IND]
+            v1 = 1 * inFile.eig21[IND]
+            v2 = 1 * inFile.eig22[IND]
         if d == 3:
             v0 = 1 * inFile.eig10[IND]
             v1 = 1 * inFile.eig11[IND]
             v2 = 1 * inFile.eig12[IND]
-        condition = ((v0 >= 0) & (v1 < 0) & (v2 < 0)) | ((v1 >= 0) & (v2 < 0) & (v0 < 0)) | (
-                (v2 >= 0) & (v0 < 0) & (v1 < 0)) | ((v0 < 0) & (v1 < 0) & (v2 < 0))
-        v0[condition] = -v0[condition]
-        v1[condition] = -v1[condition]
-        v2[condition] = -v2[condition]
-        v = np.vstack((5 * v0, 5 * v1, 5 * v2, x, y, z))
-        clustering = DBSCAN(eps=0.5, min_samples=1).fit((v[:, prepylon]).transpose(1, 0))
-        labels = clustering.labels_
-        frame = {
-            'A': labels,
-            'X': x[prepylon],
-            'Y': y[prepylon],
-            'Z': z[prepylon],
-        }
-        df = pd.DataFrame(frame)
-        maxs = (df.groupby('A').max()).values
-        mins = (df.groupby('A').min()).values
-        unq, ind, inv, cnt = np.unique(labels, return_index=True, return_inverse=True, return_counts=True)
-        lengths = (np.sqrt((maxs[:, 0] - mins[:, 0]) ** 2 + (maxs[:, 1] - mins[:, 1]) ** 2))[inv]
-        lengths[labels == -1] = 0
-        classn2 = classn[prepylon]
-        classn2[:] = 2
-        classn2[lengths <= 2] = 0
-        classn[prepylon] = classn2
+        plane_of_best_fit_direction = np.stack((v0, v1, v2), axis=1)  # np.sqrt(v0 ** 2 + v1 ** 2 + v2 ** 2)[:, None]
+        labels = eigen_clustering(coords[mask], plane_of_best_fit_direction[mask], 0.5, 5, 2, 1)
+        classn_mask = classn[mask]
+        classn_mask[:] = 2
+        classn_mask[labels == -1] = 0
+        classn[mask] = classn_mask
         if (classn == 2).any():
-            nhbrs = NearestNeighbors(n_neighbors=1, algorithm="kd_tree").fit(np.transpose(Coords[:, classn == 2]))
-            distances, indices = nhbrs.kneighbors(np.transpose(Coords))
+            nhbrs = NearestNeighbors(n_neighbors=1, algorithm="kd_tree").fit(coords[classn == 2])
+            distances, indices = nhbrs.kneighbors(coords)
             classn[(distances[:, 0] < 0.5) & (classn != 7) & (classn != 1)] = 2
 
-    preveg = (dims == 3) & (classn != 2) & (classn != 1)
-    if preveg.any():
-        v = np.vstack((x, y, z))
-        clustering = DBSCAN(eps=0.5, min_samples=1).fit((v[:, preveg]).transpose(1, 0))
-        labels = clustering.labels_
-        frame = {
-            'A': labels,
-            'X': x[preveg],
-            'Y': y[preveg],
-            'Z': z[preveg],
-        }
-        df = pd.DataFrame(frame)
-        maxs = (df.groupby('A').max()).values
-        mins = (df.groupby('A').min()).values
-        unq, ind, inv, cnt = np.unique(labels, return_index=True, return_inverse=True, return_counts=True)
-        lengths = (np.sqrt((maxs[:, 0] - mins[:, 0]) ** 2 + (maxs[:, 1] - mins[:, 1]) ** 2))[inv]
-        lengths[labels == -1] = 0
-        classn3 = classn[preveg]
-        classn3[:] = 3
-        classn3[lengths < 2] = 0
-        classn[preveg] = classn3
-        if (classn == 3).any():
-            nhbrs = NearestNeighbors(n_neighbors=1, algorithm="kd_tree").fit(np.transpose(Coords[:, classn == 3]))
-            distances, indices = nhbrs.kneighbors(np.transpose(Coords))
-            classn[(distances[:, 0] < 0.5) & (classn != 7) & (classn != 1) & (classn != 2)] = 3
+    mask = dim3 & (~ noise) & (classn != 1) & (classn != 2)
+    if mask.any():
+        labels = clustering(coords[mask], 0.5, 2, 1)
+        classn_mask = classn[mask]
+        classn_mask[:] = 3
+        classn_mask[labels == -1] = 0
+        classn[mask] = classn_mask
+
+    if (classn == 3).any():
+        nhbrs = NearestNeighbors(n_neighbors=1, algorithm="kd_tree").fit(coords[classn == 3])
+        distances, indices = nhbrs.kneighbors(coords)
+        classn[(distances[:, 0] < 0.5) & (classn != 7) & (classn != 1) & (classn != 2)] = 3
 
     if ((classn != 0) & (classn != 7)).any():
-        nhbrs = NearestNeighbors(n_neighbors=1, algorithm="kd_tree").fit(
-            np.transpose(Coords[:, (classn != 0) & (classn != 7)]))
-        distances, indices = nhbrs.kneighbors(np.transpose(Coords[:, classn == 0]))
+        nhbrs = NearestNeighbors(n_neighbors=1, algorithm="kd_tree").fit(coords[(classn != 0) & (classn != 7), :])
+        distances, indices = nhbrs.kneighbors(coords[classn == 0, :])
         classn0 = classn[classn == 0]
         classn0[(distances[:, 0] < 0.5)] = (classn[(classn != 0) & (classn != 7)])[indices[(distances[:, 0] < 0.5), 0]]
         classn[(classn == 0)] = classn0
@@ -606,7 +679,7 @@ def conductor_matters_1(infile, epsilon=2.5, classification_in=0, classification
 def veg_risk(infile, classification_in=1, classification_veg=3, classification_inter=4, distance_veg=3):
     """
 
-    :param infile:
+    :param infile:ok
     :param classification_in:
     :param classification_veg:
     :param classification_inter:
@@ -664,3 +737,228 @@ def sd_merge(input_files, output_file):
             DAT[~mask] = dat2
         outFile.writer.set_dimension(dim, DAT)
     outFile.close()
+
+
+def finish_tile(pair, output_file):
+    tile, original = pair[0], pair[1]
+    ogFile = File(original)
+    inFile = File(tile)
+    hag = inFile.hag
+    hd = ogFile.header
+
+    outFile = File(output_file, mode="w", header=hd)
+
+    args = np.argsort(inFile.slpid)
+
+    classn = 1 * inFile.classification
+    classn0 = classn == 0
+    classn1 = classn == 1
+    classn2 = classn == 2
+    classn3 = classn == 3
+    classn4 = classn == 4
+    classn5 = classn == 5
+    classn6 = classn == 6
+    classn[classn0] = 0
+    classn[classn1] = 14
+    classn[classn2] = 6
+    classn[classn3] = 5
+    classn[classn4] = 5
+    classn[classn5] = 15
+    classn[classn6] = 2
+    lo = (0.5 < hag) & (hag <= 2)
+    med = (2 < hag) & (hag <= 5)
+    hi = (5 < hag)
+    veg = classn3
+    classn[veg] = 0
+    classn[lo & veg] = 3
+    classn[med & veg] = 4
+    classn[hi & veg] = 5
+    classn[(classn == 15) & (hag < 2)] = 0
+    classn[classn == 7] = 0
+    # classn[(hag < 0.5) & (classn != 6)] = 2
+    classn[(classn == 14) & (hag < 2)] = 0
+    classn[(hag < 0.5) & (classn == 0)] = 2
+
+    for spec in ogFile.point_format:
+        outFile.writer.set_dimension(spec.name, inFile.reader.get_dimension(spec.name)[args])
+    outFile.classification = classn[args]
+    outFile.x = inFile.x[args]
+    outFile.y = inFile.y[args]
+    outFile.z = inFile.z[args]
+
+
+def run_pdal_ground(tile, output_file):
+    # ground_command = "pdal ground --initial_distance 1.0 --writers.las.extra_dims=all -i {} -o {}"
+    ground_command = "pdal translate " \
+                     "--readers.las.extra_dims=\"slpid=uint64\" " \
+                     "--writers.las.extra_dims=all {} {} smrf" \
+        # " --filters.smrf.slope={} " \
+    # "--filters.smrf.cut={} " \
+    # "--filters.smrf.window={} " \
+    # "--filters.smrf.cell={} " \
+    # "--filters.smrf.scalar={} " \
+    "--filters.smrf.threshold=1.0"
+    command = ground_command.format(tile, output_file)
+    # command = ground_command.format(tile, "ground_"+tile)
+    os.system(command)
+    inFile = File(output_file, mode="rw")
+    ground = inFile.classification == 2
+    classn = 1 * inFile.classification
+    classn[ground] = 6
+    classn[~ground] = 0
+    inFile.classification = classn
+    inFile.close()
+
+
+def delaunay_triangulation(tile,
+                           output_file,
+                           classifications_to_search,
+                           classification_out,
+                           cluster_attribute):
+    # triangulates clusters as dictated by cluster_attribute
+    # produces a ply file for each tile
+    """
+    :param tile: input tile name
+    :param output_file: output tile name
+    :param classifications_to_search: classification in which to search for interior
+    :param classification_out: classification of interior
+    :param cluster_attribute: name of attribute holding clustering labels
+    :return:
+    """
+    from plyfile import PlyData, PlyElement
+    inFile = File(tile, mode="r")
+    x = inFile.x
+    y = inFile.y
+    z = inFile.z
+    classn = inFile.classification
+    # get the cluster labels for the clusters we want to triangulate
+    labels = inFile.reader.get_dimension(cluster_attribute)
+    # get point positions
+    coords = np.stack((x, y, z), axis=1)
+    # find the points which come from actual clusters - I called this condition "tree" because it was our first
+    # feel free to change
+    tree = labels > 0
+
+    # write the ply file
+    v = 0
+    f = 0
+    t = 0
+    ply_body_v=""
+    ply_body_f=""
+    if tree.any():
+        for i in np.unique(labels[tree]):
+            condition = labels == i
+            if condition[condition].size >= 5:
+                tri = Delaunay(coords[condition, :])
+                simp = tri.find_simplex(coords)
+                include = np.zeros(len(inFile), dtype=bool)
+                for k in classifications_to_search:
+                    include[classn == k] = True
+                classn[(simp != -1) & include] = 3
+                vertices = tri.simplices
+                for row in coords[condition,:]:
+                    ply_body_v += f"\n{row[0]} {row[1]} {row[2]}"
+                    v += 1
+                for row in vertices:
+                    ply_body_f += f"\n{4} {row[0]+t} {row[1]+t} {row[2]+t} {row[3]+t}"
+                    f += 1
+            t += condition[condition].size
+    ply_header = "ply\n"
+    ply_header += "format ascii 1.0\n"
+    ply_header += f"element vertex {v}\n"
+    ply_header += "property float32 x\n"
+    ply_header += "property float32 y\n"
+    ply_header += "property float32 z\n"
+    ply_header += f"element face {f}\n"
+    ply_header += "property list uint8 int32 vertex_indices\n"
+    ply_header += "end_header"
+    plyobject = open(tile[:-4]+cluster_attribute+'.ply', mode = 'w')
+    plyobject.write(ply_header+ply_body_v+ply_body_f)
+    plyobject.close()
+
+    # write the new file with points inside the triangles reclassified
+    outFile = File(output_file, mode="w", header=inFile.header)
+    outFile.points = inFile.points
+    classn[tree] = classification_out
+    outFile.classification = classn
+    outFile.close()
+
+
+def cluster_labels_v01_0(infile,
+                         outfile,
+                         classification_to_cluster,
+                         tolerance,
+                         min_pts,
+                         cluster_attribute):
+    """
+    Inputs a file and a classification to cluster. Outputs a file with cluster labels.
+    Clusters with label 0 are non-core points, i.e. points without "min_pts" within
+    "tolerance" (see DBSCAN documentation), or points outside the classification to cluster.
+    :param infile: input file name
+    :param outfile: output file name
+    :param classification_to_cluster: which points do we want to cluster
+    :param tolerance: see min_pts
+    :param min_pts: minimum number of points each point must have in a radius of size "tolerance"
+    :param cluster_attribute: the name given to the clustering labels
+    :return:
+    """
+    # we shouldn't use las_modules.cluster function because it acts on a file, not on a family of points
+    infile = File(infile, mode="r")
+    x = infile.x
+    y = infile.y
+    z = infile.z
+    classn = infile.classification
+    # make a vector to store labels
+    labels_allpts = np.zeros(len(infile), dtype = int)
+    # get the point positions
+    coords = np.stack((x, y, z), axis=1)
+    # make the clusters
+    clustering = DBSCAN(eps=tolerance, min_samples=min_pts).fit(coords[classn == classification_to_cluster])
+    # find our labels (DBSCAN starts at -1 and we want to start at 0, so add 1)
+    labels = clustering.labels_+1
+    # assign the target classification's labels
+    labels_allpts[classn == classification_to_cluster] = labels
+    # make the output file
+    out_file = File(outfile, mode="w", header=infile.header)
+    dimensions = [spec.name for spec in infile.point_format]
+    # add new dimension
+    if cluster_attribute not in dimensions:
+        out_file.define_new_dimension(name=cluster_attribute, data_type=6, description="clustering labels")
+    # add pre-existing point records
+    for dimension in dimensions:
+        dat = infile.reader.get_dimension(dimension)
+        out_file.writer.set_dimension(dimension, dat)
+    # set new dimension to labels
+    out_file.writer.set_dimension(cluster_attribute, labels_allpts)
+    out_file.close()
+
+
+
+def count(tile,
+          output_file,
+          attribute):
+    """
+    adds a number to each point reflecting the number of points with the same value for chosen attribute
+    :param tile: an input tile
+    :param output_file: name for output tile
+    :param attribute: attribute to be counted
+    :return:
+    """
+    # read the file and make the new one
+    inFile = File(tile, mode="r")
+    outfile = File(output_file, mode="w", header=inFile.header)
+    dimensions = [spec.name for spec in inFile.point_format]
+    # add in the new count attribute
+    if attribute+"count" not in dimensions:
+        outfile.define_new_dimension(name=attribute+"count", data_type=5, description=attribute+"count")
+    # add pre-existing point records
+    for dimension in dimensions:
+        if dimension != attribute+"count":
+            dat = inFile.reader.get_dimension(dimension)
+            outfile.writer.set_dimension(dimension, dat)
+    # count the attribute using numpy unique
+    unq, inv, cnt = np.unique(outfile.reader.get_dimension(attribute), return_index=False, return_inverse=True, return_counts=True)
+    # set the counts to the new attribute
+    outfile.writer.set_dimension(attribute+"count", cnt[inv])
+    outfile.close()
+
