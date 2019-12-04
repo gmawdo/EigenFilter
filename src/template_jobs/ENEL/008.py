@@ -3,7 +3,7 @@ import pathmagic
 from redhawkmaster import rh_io
 from redhawkmaster.rh_big_guns import pdal_smrf
 
-from redhawkmaster.rh_dean import bbox, bbox_rectangle, corridor_2d, voxel_2d, recover_un
+from redhawkmaster.rh_dean import bbox, bbox_rectangle, corridor_2d, voxel_2d, recover_un, count
 
 from redhawkmaster.rh_io import las_input, script_params
 
