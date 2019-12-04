@@ -1,34 +1,28 @@
 import pathmagic
 import numpy as np
 from redhawkmaster import rh_io
-from redhawkmaster.rh_big_guns import pdal_smrf
-from redhawkmaster.rh_dean import point_id
+from redhawkmaster.acqusitionQC import polygon_select
+from redhawkmaster.las_modules import las_range, rh_assign
 assert pathmagic
 
-# Input las file
-infile = rh_io.las_input('T000.las',
-                         mode='r')
+input_file = '<input>.las'
+output_file = '<output>.las'
 
-outfile = point_id(infile, tile_name="T000_pid.las",
-                   point_id_name="slpid",
-                   start_value=0,
-                   inc_step=1)
+infile = rh_io.las_input(input_file, mode='r')
+outfile = rh_io.las_output(output_file, infile)
 
-# Run the extract ground with all parameters
-outfile = pdal_smrf(outfile,
-                    outname='T000_ground_withextra.las',
-                    extra_dims=[('slpid', 'uint64')],
-                    ground_classification=2,
-                    above_ground_classification=4,
-                    slope=0.1,
-                    cut=0.0,
-                    window=18,
-                    cell=1.0,
-                    scalar=0.5,
-                    threshold=0.5)
+point_id = np.arange(len(outfile))
 
-# Output the extra dimensions to see if it is through
-print(outfile.slpid)
+point_id_12 = las_range(dimension=outfile.classification,
+                        start=12, end=13,
+                        reverse=False,
+                        point_id_mask=point_id)
 
-# Close the file
-outfile.close()
+outfile.classification = rh_assign(dimension=outfile.classification,
+                                   value=9,
+                                   mask=point_id_12)
+
+polygon_select(infile,
+               resolution=10,
+               classif=15,
+               classed='polygon')

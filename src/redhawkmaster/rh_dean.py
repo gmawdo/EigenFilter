@@ -1,3 +1,5 @@
+import os
+
 import numpy as np
 from laspy.file import File
 from sklearn.cluster import DBSCAN
@@ -760,18 +762,18 @@ def finish_tile(pair, output_file):
     outFile.z = inFile.z[args]
 
 
-def run_pdal_ground(tile, output_file):
-    # ground_command = "pdal ground --initial_distance 1.0 --writers.las.extra_dims=all -i {} -o {}"
+def pdal_enel(input_file, output_file):
+    #	ground_command = "pdal ground --initial_distance 1.0 --writers.las.extra_dims=all -i {} -o {}"
     ground_command = "pdal translate " \
                      "--readers.las.extra_dims=\"slpid=uint64\" " \
                      "--writers.las.extra_dims=all {} {} smrf" \
-        # " --filters.smrf.slope={} " \
-    # "--filters.smrf.cut={} " \
-    # "--filters.smrf.window={} " \
-    # "--filters.smrf.cell={} " \
-    # "--filters.smrf.scalar={} " \
+        #	" --filters.smrf.slope={} " \
+    #	"--filters.smrf.cut={} " \
+    #	"--filters.smrf.window={} " \
+    #	"--filters.smrf.cell={} " \
+    #	"--filters.smrf.scalar={} " \
     "--filters.smrf.threshold=1.0"
-    command = ground_command.format(tile, output_file)
+    command = ground_command.format(input_file, output_file)
     # command = ground_command.format(tile, "ground_"+tile)
     os.system(command)
     inFile = File(output_file, mode="rw")

@@ -1,10 +1,15 @@
 import pathmagic
 
 from redhawkmaster.rh_dean import add_classification
+from redhawkmaster.rh_io import script_params
+
 assert pathmagic
-input_file = 'T000_004.las'
+
+args = script_params()
+
+input_file = args.input[0]
 
 # Name of the output file
-output_file ='T000_005.las'
+output_file = args.output[0]
 
 add_classification(input_file, output_file)

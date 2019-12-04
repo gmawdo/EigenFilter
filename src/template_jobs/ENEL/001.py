@@ -1,12 +1,14 @@
 import pathmagic
 from redhawkmaster.rh_dean import point_id
-from redhawkmaster.rh_io import las_input
+from redhawkmaster.rh_io import las_input, script_params
 assert pathmagic
 
+args = script_params()
+
 # Name of the input file
-input_file = 'T000.las'
+input_file = args.input[0]
 # Name of the output file
-output_file = 'T000_001.las'
+output_file = args.output[0]
 
 # Read the input file
 infile = las_input(input_file,

@@ -2,11 +2,15 @@ import pathmagic
 
 from redhawkmaster import rh_io
 from redhawkmaster.rh_dean import conductor_matters_1, veg_risk
+from redhawkmaster.rh_io import script_params
 
 assert pathmagic
-input_file = 'T000_008.las'
+
+args = script_params()
+
+input_file = args.input[0]
 # Name of the output file
-output_file = 'T000_009.las'
+output_file = args.output[0]
 
 infile = rh_io.las_input(input_file, mode='r')
 outfile = rh_io.las_output(output_file, infile)
