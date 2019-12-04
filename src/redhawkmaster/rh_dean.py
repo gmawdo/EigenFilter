@@ -883,18 +883,19 @@ def delaunay_triangulation(tile,
     outFile.classification = classn
     outFile.close()
 
-def cluster_labels(tile,
-                   output_file,
-                   classification_to_cluster,
-                   tolerance,
-                   min_pts,
-                   cluster_attribute):
+
+def cluster_labels_v01_0(infile,
+                         outfile,
+                         classification_to_cluster,
+                         tolerance,
+                         min_pts,
+                         cluster_attribute):
     """
     Inputs a file and a classification to cluster. Outputs a file with cluster labels.
     Clusters with label 0 are non-core points, i.e. points without "min_pts" within
     "tolerance" (see DBSCAN documentation), or points outside the classification to cluster.
-    :param tile: input tile name
-    :param output_file: output tile name
+    :param infile: input file name
+    :param outfile: output file name
     :param classification_to_cluster: which points do we want to cluster
     :param tolerance: see min_pts
     :param min_pts: minimum number of points each point must have in a radius of size "tolerance"
@@ -902,13 +903,13 @@ def cluster_labels(tile,
     :return:
     """
     # we shouldn't use las_modules.cluster function because it acts on a file, not on a family of points
-    inFile = File(tile, mode="r")
-    x = inFile.x
-    y = inFile.y
-    z = inFile.z
-    classn = inFile.classification
+    infile = File(infile, mode="r")
+    x = infile.x
+    y = infile.y
+    z = infile.z
+    classn = infile.classification
     # make a vector to store labels
-    labels_allpts = np.zeros(len(inFile), dtype = int)
+    labels_allpts = np.zeros(len(infile), dtype = int)
     # get the point positions
     coords = np.stack((x, y, z), axis=1)
     # make the clusters
@@ -918,18 +919,19 @@ def cluster_labels(tile,
     # assign the target classification's labels
     labels_allpts[classn == classification_to_cluster] = labels
     # make the output file
-    outfile = File(output_file, mode="w", header=inFile.header)
-    dimensions = [spec.name for spec in inFile.point_format]
+    out_file = File(outfile, mode="w", header=infile.header)
+    dimensions = [spec.name for spec in infile.point_format]
     # add new dimension
     if cluster_attribute not in dimensions:
-        outfile.define_new_dimension(name=cluster_attribute, data_type=6, description="clustering labels")
+        out_file.define_new_dimension(name=cluster_attribute, data_type=6, description="clustering labels")
     # add pre-existing point records
     for dimension in dimensions:
-        dat = inFile.reader.get_dimension(dimension)
-        outfile.writer.set_dimension(dimension, dat)
+        dat = infile.reader.get_dimension(dimension)
+        out_file.writer.set_dimension(dimension, dat)
     # set new dimension to labels
-    outfile.writer.set_dimension(cluster_attribute, labels_allpts)
-    outfile.close()
+    out_file.writer.set_dimension(cluster_attribute, labels_allpts)
+    out_file.close()
+
 
 
 def count(tile,
