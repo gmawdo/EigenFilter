@@ -974,8 +974,8 @@ def eigencluster_labels_v01_0(infile,
 
     coords = np.stack((x, y, z, v0, v1, v2), axis=1)
     # make the cluster labels
-    labels = 1 + eigen_clustering(coords[classn == classification_to_cluster], eigenvector, tolerance, 5, np.inf, min_pts)
-
+    labels = 1 + eigen_clustering(coords[classn == classification_to_cluster], eigenvector, tolerance, 5, np.inf,
+                                  min_pts)
 
     # assign the target classification's labels
     labels_allpts[classn == classification_to_cluster] = labels
@@ -1022,3 +1022,15 @@ def count_v01_0(tile,
     # set the counts to the new attribute
     outfile.writer.set_dimension(attribute + "count", cnt[inv])
     outfile.close()
+
+
+def ferry(infile, outfile, attribute1, attribute2):
+    """
+    :param infile: file name to read
+    :param outfile: file name to write
+    :param attribute1: attribute whose values will be inserted into attributeB
+    :param attribute2: attribute to be overwritten by attribute A
+    """
+    inFile = File(infile)
+    outFile = File(outfile, mode="w", header=inFile.header)
+    outFile.writer.set_dimension(attribute2, inFile.reader.get_dimension(attribute1))
