@@ -60,19 +60,23 @@ def dimension1d2d3d_clustering_testing():
     output_file = 'T000_014.las'
     eigencluster_labels_v01_0(input_file,
                               output_file,
-                              classification_to_cluster=2,
+                              classification_to_cluster=1,
                               tolerance=0.5,
                               min_pts=1,
                               cluster_attribute="eig2clusters",
-                              eigenvector_number=1,
+                              eigenvector_number=2,
                               minimum_length=2)
 
     input_file = 'T000_014.las'
     output_file = 'T000_015.las'
 
-
     ferry(input_file, output_file, 'eig2clusters', 'intensity', True)
 
+    input_file = 'torture.las'
+    output_file = '005eig2clusterQC.las'
 
-#triangulation_test()
+    ferry(input_file, output_file, 'clusters', 'intensity', True)
+
+
+# triangulation_test()
 dimension1d2d3d_clustering_testing()

@@ -585,12 +585,9 @@ def add_classification(input_file, output_file):
         for dimension in dimensions:
             dat = inFile.reader.get_dimension(dimension)
             qc.writer.set_dimension(dimension, dat)
-        LABELS = np.arange(len(inFile))
-        LABELS[mask] = labels
-        qc.writer.set_dimension('clusters', LABELS)
-
-
-
+        LABELS = np.zeros(IND.size)
+        LABELS[mask] = 1+labels
+        qc.writer.set_dimension('clusters', LABELS[INV])
 
         conductor = corridor(coords, line_of_best_fit_direction[classn == 1], classn == 1, R=0.5, S=2)
         classn[conductor] = 1
