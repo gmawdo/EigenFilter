@@ -377,6 +377,7 @@ def add_attributes(tile_name, output_file, time_intervals=10, k=range(4, 50), ra
     # Call the lasmaster
     lm.lpinteraction.attr(tile_name, output_file, config=cf)
 
+
 def corridor(coords, eigenvectors, mask, R, S):
     """
     Find a cylindrical corridor around a family of points.
@@ -403,12 +404,12 @@ def corridor(coords, eigenvectors, mask, R, S):
     # find direction from each point to point of interest, project onto eigenvector
     v = eigenvectors[nearest_nbrs]
     u = coords - coords[mask][nearest_nbrs]
-    scale = u[:, 0]*v[:, 0] + u[:, 1]*v[:, 1] + u[:, 2]*v[:, 2] # np.sum(u * v, axis=1)
+    scale = u[:, 0] * v[:, 0] + u[:, 1] * v[:, 1] + u[:, 2] * v[:, 2]  # np.sum(u * v, axis=1)
     # find coprojection
     w = u - scale[:, None] * v
 
     # find distance to line formed by eigenvector
-    w_norms = np.sqrt(w[:, 0]**2 + w[:, 1]**2 + w[:, 2]**2) #np.sqrt(np.sum(w ** 2, axis=1))
+    w_norms = np.sqrt(w[:, 0] ** 2 + w[:, 1] ** 2 + w[:, 2] ** 2)  # np.sqrt(np.sum(w ** 2, axis=1))
 
     # return condition for the corridor
     condition = (w_norms < R) & (np.absolute(scale) < S)
@@ -440,7 +441,7 @@ def dimension1d2d3d_v01_0(infile,
     :return: nothing, just writes new file
     """
     in_file = File(infile)
-    out_file = File(outfile, mode = "w", header=in_file.header)
+    out_file = File(outfile, mode="w", header=in_file.header)
     # add dimension
     dimensions = [spec.name for spec in in_file.point_format if spec.name != "dim"]
     out_file.define_new_dimension(name="dimension1d2d3d", data_type=6, description="dimension")
@@ -560,7 +561,7 @@ def add_classification(input_file, output_file):
 
     dims = point_dimension(inFile)[IND]
 
-    classn = 1*inFile.classification[IND]
+    classn = 1 * inFile.classification[IND]
     classn[:] = 0
     noise = eig2 < 0
     dim1 = dims == 1
@@ -810,11 +811,11 @@ def pdal_enel(input_file, output_file):
 
 
 def delaunay_triangulation_v01_0(tile,
-                           output_file,
-                           classifications_to_search,
-                           classification_out,
-                           cluster_attribute,
-                           output_ply):
+                                 output_file,
+                                 classifications_to_search,
+                                 classification_out,
+                                 cluster_attribute,
+                                 output_ply):
     # triangulates clusters as dictated by cluster_attribute
     # produces a ply file for each tile
     """
@@ -845,8 +846,8 @@ def delaunay_triangulation_v01_0(tile,
         v = 0
         f = 0
         t = 0
-        ply_body_v=""
-        ply_body_f=""
+        ply_body_v = ""
+        ply_body_f = ""
         if tree.any():
             for i in np.unique(labels[tree]):
                 condition = labels == i
@@ -858,11 +859,11 @@ def delaunay_triangulation_v01_0(tile,
                         include[classn == k] = True
                     classn[(simp != -1) & include] = 3
                     vertices = tri.simplices
-                    for row in coords[condition,:]:
+                    for row in coords[condition, :]:
                         ply_body_v += f"\n{row[0]} {row[1]} {row[2]}"
                         v += 1
                     for row in vertices:
-                        ply_body_f += f"\n{4} {row[0]+t} {row[1]+t} {row[2]+t} {row[3]+t}"
+                        ply_body_f += f"\n{4} {row[0] + t} {row[1] + t} {row[2] + t} {row[3] + t}"
                         f += 1
                 t += condition[condition].size
         ply_header = "ply\n"
@@ -874,8 +875,8 @@ def delaunay_triangulation_v01_0(tile,
         ply_header += f"element face {f}\n"
         ply_header += "property list uint8 int32 vertex_indices\n"
         ply_header += "end_header"
-        plyobject = open(output_file[:-4]+'.ply', mode = 'w')
-        plyobject.write(ply_header+ply_body_v+ply_body_f)
+        plyobject = open(output_file[:-4] + '.ply', mode='w')
+        plyobject.write(ply_header + ply_body_v + ply_body_f)
         plyobject.close()
 
     # write the new file with points inside the triangles reclassified
@@ -911,13 +912,12 @@ def cluster_labels_v01_0(infile,
     z = infile.z
     classn = infile.classification
     # make a vector to store labels
-    labels_allpts = np.zeros(len(infile), dtype = int)
+    labels_allpts = np.zeros(len(infile), dtype=int)
     # get the point positions
     coords = np.stack((x, y, z), axis=1)
-    # make the clusters
-    clustering = DBSCAN(eps=tolerance, min_samples=min_pts).fit(coords[classn == classification_to_cluster])
+
     # find our labels (DBSCAN starts at -1 and we want to start at 0, so add 1)
-    labels = clustering.labels_+1
+    labels = 1 + clustering(coords[classn == classification_to_cluster], tolerance, np.inf, min_pts)
     # assign the target classification's labels
     labels_allpts[classn == classification_to_cluster] = labels
     # make the output file
@@ -935,10 +935,68 @@ def cluster_labels_v01_0(infile,
     out_file.close()
 
 
+def eigencluster_labels_v01_0(infile,
+                              outfile,
+                              classification_to_cluster,
+                              tolerance,
+                              min_pts,
+                              cluster_attribute,
+                              eigenvector):
+    """
+    Inputs a file and a classification to cluster. Outputs a file with cluster labels.
+    Clusters with label 0 are non-core points, i.e. points without "min_pts" within
+    "tolerance" (see DBSCAN documentation), or points outside the classification to cluster.
+    :param infile: input file name
+    :param outfile: output file name
+    :param classification_to_cluster: which points do we want to cluster
+    :param tolerance: see min_pts
+    :param min_pts: minimum number of points each point must have in a radius of size "tolerance"
+    :param cluster_attribute: the name given to the clustering labels
+    :param eigenvector: 0, 1 or 2
+    :return:
+    """
+    # we shouldn't use las_modules.cluster function because it acts on a file, not on a family of points
+    infile = File(infile, mode="r")
+    x = infile.x
+    y = infile.y
+    z = infile.z
+
+    # extract the componenets of the desired eigenvector
+    v0 = infile.reader.get_dimension(f"eig{eigenvector}0")
+    v1 = infile.reader.get_dimension(f"eig{eigenvector}1")
+    v2 = infile.reader.get_dimension(f"eig{eigenvector}2")
+
+    eigenvector = np.stack((v0, v1, v2), axis=1)
+    classn = infile.classification
+    # make a vector to store labels
+    labels_allpts = np.zeros(len(infile), dtype=int)
+    # get the point positions
+
+    coords = np.stack((x, y, z, v0, v1, v2), axis=1)
+    # make the cluster labels
+    labels = 1 + eigen_clustering(coords[classn == classification_to_cluster], eigenvector, tolerance, 5, np.inf, min_pts)
+
+
+    # assign the target classification's labels
+    labels_allpts[classn == classification_to_cluster] = labels
+    # make the output file
+    out_file = File(outfile, mode="w", header=infile.header)
+    dimensions = [spec.name for spec in infile.point_format]
+    # add new dimension
+    if cluster_attribute not in dimensions:
+        out_file.define_new_dimension(name=cluster_attribute, data_type=6, description="clustering labels")
+    # add pre-existing point records
+    for dimension in dimensions:
+        dat = infile.reader.get_dimension(dimension)
+        out_file.writer.set_dimension(dimension, dat)
+    # set new dimension to labels
+    out_file.writer.set_dimension(cluster_attribute, labels_allpts)
+    out_file.close()
+
 
 def count_v01_0(tile,
-          output_file,
-          attribute):
+                output_file,
+                attribute):
     """
     adds a number to each point reflecting the number of points with the same value for chosen attribute
     :param tile: an input tile
@@ -951,15 +1009,16 @@ def count_v01_0(tile,
     outfile = File(output_file, mode="w", header=inFile.header)
     dimensions = [spec.name for spec in inFile.point_format]
     # add in the new count attribute
-    if attribute+"count" not in dimensions:
-        outfile.define_new_dimension(name=attribute+"count", data_type=5, description=attribute+"count")
+    if attribute + "count" not in dimensions:
+        outfile.define_new_dimension(name=attribute + "count", data_type=5, description=attribute + "count")
     # add pre-existing point records
     for dimension in dimensions:
-        if dimension != attribute+"count":
+        if dimension != attribute + "count":
             dat = inFile.reader.get_dimension(dimension)
             outfile.writer.set_dimension(dimension, dat)
     # count the attribute using numpy unique
-    unq, inv, cnt = np.unique(outfile.reader.get_dimension(attribute), return_index=False, return_inverse=True, return_counts=True)
+    unq, inv, cnt = np.unique(outfile.reader.get_dimension(attribute), return_index=False, return_inverse=True,
+                              return_counts=True)
     # set the counts to the new attribute
-    outfile.writer.set_dimension(attribute+"count", cnt[inv])
+    outfile.writer.set_dimension(attribute + "count", cnt[inv])
     outfile.close()
