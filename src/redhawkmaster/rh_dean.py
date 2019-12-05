@@ -963,27 +963,3 @@ def count_v01_0(tile,
     # set the counts to the new attribute
     outfile.writer.set_dimension(attribute+"count", cnt[inv])
     outfile.close()
-
-def clustering_v01_0(tile,
-          output_file,
-          attribute):
-    """
-
-    """
-    # read the file and make the new one
-    inFile = File(tile, mode="r")
-    outfile = File(output_file, mode="w", header=inFile.header)
-    dimensions = [spec.name for spec in inFile.point_format]
-    # add in the new count attribute
-    if attribute+"count" not in dimensions:
-        outfile.define_new_dimension(name=attribute+"count", data_type=5, description=attribute+"count")
-    # add pre-existing point records
-    for dimension in dimensions:
-        if dimension != attribute+"count":
-            dat = inFile.reader.get_dimension(dimension)
-            outfile.writer.set_dimension(dimension, dat)
-    # count the attribute using numpy unique
-    unq, inv, cnt = np.unique(outfile.reader.get_dimension(attribute), return_index=False, return_inverse=True, return_counts=True)
-    # set the counts to the new attribute
-    outfile.writer.set_dimension(attribute+"count", cnt[inv])
-    outfile.close()
