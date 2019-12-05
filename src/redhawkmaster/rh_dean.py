@@ -493,11 +493,10 @@ def eigen_clustering(coords, eigenvector, tolerance, eigenvector_scale, max_leng
     unq, ind, inv, cnt = np.unique(labels, return_index=True, return_inverse=True, return_counts=True)
     lengths = np.sqrt((maxs[inv, 0] - mins[inv, 0]) ** 2 + (maxs[inv, 1] - mins[inv, 1]) ** 2)
     labels[lengths < max_length] = -1
-
     return labels
 
 
-def clustering(coords, tolerance, max_length, min_pts):
+def clustering(coords, tolerance, min_length, min_pts):
     """
     THIS IS A PURE FUNCTION - NOT FOR USE BY END USER
     :param coords: points to cluster.
@@ -522,8 +521,7 @@ def clustering(coords, tolerance, max_length, min_pts):
     mins = (df.groupby('A').min()).values
     unq, ind, inv, cnt = np.unique(labels, return_index=True, return_inverse=True, return_counts=True)
     lengths = np.sqrt((maxs[inv, 0] - mins[inv, 0]) ** 2 + (maxs[inv, 1] - mins[inv, 1]) ** 2)
-    labels[lengths < max_length] = -1
-
+    labels[lengths < min_length] = -1
     return labels
 
 
@@ -579,6 +577,20 @@ def add_classification(input_file, output_file):
         class_mask[:] = 1
         class_mask[labels == -1] = 0
         classn[mask] = class_mask
+
+        qc = File("torture.las", mode="w", header=inFile.header)
+        qc.define_new_dimension(name="clusters", data_type=6, description="clustering labels")
+        # add pre-existing point records
+        dimensions = [spec.name for spec in inFile.point_format]
+        for dimension in dimensions:
+            dat = inFile.reader.get_dimension(dimension)
+            qc.writer.set_dimension(dimension, dat)
+        LABELS = np.arange(len(inFile))
+        LABELS[mask] = labels
+        qc.writer.set_dimension('clusters', LABELS)
+
+
+
 
         conductor = corridor(coords, line_of_best_fit_direction[classn == 1], classn == 1, R=0.5, S=2)
         classn[conductor] = 1
@@ -892,7 +904,8 @@ def cluster_labels_v01_0(infile,
                          classification_to_cluster,
                          tolerance,
                          min_pts,
-                         cluster_attribute):
+                         cluster_attribute,
+                         minimum_length):
     """
     Inputs a file and a classification to cluster. Outputs a file with cluster labels.
     Clusters with label 0 are non-core points, i.e. points without "min_pts" within
@@ -917,7 +930,7 @@ def cluster_labels_v01_0(infile,
     coords = np.stack((x, y, z), axis=1)
 
     # find our labels (DBSCAN starts at -1 and we want to start at 0, so add 1)
-    labels = 1 + clustering(coords[classn == classification_to_cluster], tolerance, np.inf, min_pts)
+    labels = 1 + clustering(coords[classn == classification_to_cluster], tolerance, minimum_length, min_pts)
     # assign the target classification's labels
     labels_allpts[classn == classification_to_cluster] = labels
     # make the output file
@@ -941,7 +954,8 @@ def eigencluster_labels_v01_0(infile,
                               tolerance,
                               min_pts,
                               cluster_attribute,
-                              eigenvector):
+                              eigenvector_number,
+                              minimum_length):
     """
     Inputs a file and a classification to cluster. Outputs a file with cluster labels.
     Clusters with label 0 are non-core points, i.e. points without "min_pts" within
@@ -962,21 +976,23 @@ def eigencluster_labels_v01_0(infile,
     z = infile.z
 
     # extract the componenets of the desired eigenvector
-    v0 = infile.reader.get_dimension(f"eig{eigenvector}0")
-    v1 = infile.reader.get_dimension(f"eig{eigenvector}1")
-    v2 = infile.reader.get_dimension(f"eig{eigenvector}2")
-
+    v0 = infile.reader.get_dimension(f"eig{eigenvector_number}0")
+    v1 = infile.reader.get_dimension(f"eig{eigenvector_number}1")
+    v2 = infile.reader.get_dimension(f"eig{eigenvector_number}2")
     eigenvector = np.stack((v0, v1, v2), axis=1)
     classn = infile.classification
     # make a vector to store labels
     labels_allpts = np.zeros(len(infile), dtype=int)
     # get the point positions
 
-    coords = np.stack((x, y, z, v0, v1, v2), axis=1)
+    coords = np.stack((x, y, z), axis=1)
     # make the cluster labels
-    labels = 1 + eigen_clustering(coords[classn == classification_to_cluster], eigenvector, tolerance, 5, np.inf,
+    labels = 1 + eigen_clustering(coords[classn == classification_to_cluster],
+                                  eigenvector[classn == classification_to_cluster],
+                                  tolerance,
+                                  5,
+                                  minimum_length,
                                   min_pts)
-
     # assign the target classification's labels
     labels_allpts[classn == classification_to_cluster] = labels
     # make the output file
@@ -1024,7 +1040,7 @@ def count_v01_0(tile,
     outfile.close()
 
 
-def ferry(infile, outfile, attribute1, attribute2):
+def ferry(infile, outfile, attribute1, attribute2, make_abstract):
     """
     :param infile: file name to read
     :param outfile: file name to write
@@ -1033,4 +1049,9 @@ def ferry(infile, outfile, attribute1, attribute2):
     """
     inFile = File(infile)
     outFile = File(outfile, mode="w", header=inFile.header)
-    outFile.writer.set_dimension(attribute2, inFile.reader.get_dimension(attribute1))
+    outFile.points = inFile.points
+    a = inFile.reader.get_dimension(attribute1)
+    if make_abstract:
+        unq, ind, inv = np.unique(a, return_index=True, return_inverse=True, return_counts=False)
+        a = np.arange(ind.size)[inv]
+    outFile.writer.set_dimension(attribute2, a)

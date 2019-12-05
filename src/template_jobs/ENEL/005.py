@@ -2,7 +2,7 @@ import pathmagic
 
 from redhawkmaster.rh_dean import add_classification
 from redhawkmaster.rh_io import script_params
-
+00
 assert pathmagic
 
 args = script_params()
