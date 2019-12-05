@@ -455,6 +455,7 @@ def dimension1d2d3d_v01_0(infile,
 
 def eigen_clustering(coords, eigenvector, tolerance, eigenvector_scale, max_length, min_pts):
     """
+    THIS IS A PURE FUNCTION - NOT FOR USE BY END USER
     ADD DESCRIPTION Eigenvectors should have unit length.
     :param coords: points_to_cluster.
     :param eigenvector: eigenvectors for each point
@@ -497,6 +498,7 @@ def eigen_clustering(coords, eigenvector, tolerance, eigenvector_scale, max_leng
 
 def clustering(coords, tolerance, max_length, min_pts):
     """
+    THIS IS A PURE FUNCTION - NOT FOR USE BY END USER
     :param coords: points to cluster.
     :param tolerance: how close do two points have to be in order to be in same cluster?
     :param max_length: how long can a cluster be?
@@ -962,3 +964,26 @@ def count_v01_0(tile,
     outfile.writer.set_dimension(attribute+"count", cnt[inv])
     outfile.close()
 
+def clustering_v01_0(tile,
+          output_file,
+          attribute):
+    """
+
+    """
+    # read the file and make the new one
+    inFile = File(tile, mode="r")
+    outfile = File(output_file, mode="w", header=inFile.header)
+    dimensions = [spec.name for spec in inFile.point_format]
+    # add in the new count attribute
+    if attribute+"count" not in dimensions:
+        outfile.define_new_dimension(name=attribute+"count", data_type=5, description=attribute+"count")
+    # add pre-existing point records
+    for dimension in dimensions:
+        if dimension != attribute+"count":
+            dat = inFile.reader.get_dimension(dimension)
+            outfile.writer.set_dimension(dimension, dat)
+    # count the attribute using numpy unique
+    unq, inv, cnt = np.unique(outfile.reader.get_dimension(attribute), return_index=False, return_inverse=True, return_counts=True)
+    # set the counts to the new attribute
+    outfile.writer.set_dimension(attribute+"count", cnt[inv])
+    outfile.close()
