@@ -578,17 +578,6 @@ def add_classification(input_file, output_file):
         class_mask[labels == -1] = 0
         classn[mask] = class_mask
 
-        qc = File("torture.las", mode="w", header=inFile.header)
-        qc.define_new_dimension(name="clusters", data_type=6, description="clustering labels")
-        # add pre-existing point records
-        dimensions = [spec.name for spec in inFile.point_format]
-        for dimension in dimensions:
-            dat = inFile.reader.get_dimension(dimension)
-            qc.writer.set_dimension(dimension, dat)
-        LABELS = np.zeros(IND.size)
-        LABELS[mask] = 1+labels
-        qc.writer.set_dimension('clusters', LABELS[INV])
-
         conductor = corridor(coords, line_of_best_fit_direction[classn == 1], classn == 1, R=0.5, S=2)
         classn[conductor] = 1
         classn[noise] = 7
