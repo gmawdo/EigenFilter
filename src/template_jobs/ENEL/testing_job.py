@@ -72,7 +72,7 @@ def dimension1d2d3d_clustering_testing():
 
     ferry(input_file, output_file, 'eig2clusters', 'intensity', True)
 
-    input_file = 'torture.las'
+    input_file = 'demoQC.las'
     output_file = '005eig2clusterQC.las'
 
     ferry(input_file, output_file, 'clusters', 'intensity', True)
