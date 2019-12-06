@@ -505,23 +505,26 @@ def clustering(coords, tolerance, min_length, min_pts):
     :param min_pts: how many points must a cluster have?
     :return:
     """
-    x = coords[:, 0]
-    y = coords[:, 1]
-    z = coords[:, 2]
-    clustering = DBSCAN(eps=tolerance, min_samples=min_pts).fit(coords)
-    labels = clustering.labels_
-    frame = {
-        'A': labels,
-        'X': x,
-        'Y': y,
-        'Z': z,
-    }
-    df = pd.DataFrame(frame)
-    maxs = (df.groupby('A').max()).values
-    mins = (df.groupby('A').min()).values
-    unq, ind, inv, cnt = np.unique(labels, return_index=True, return_inverse=True, return_counts=True)
-    lengths = np.sqrt((maxs[inv, 0] - mins[inv, 0]) ** 2 + (maxs[inv, 1] - mins[inv, 1]) ** 2)
-    labels[lengths < min_length] = -1
+    if coords.shape[0] >= 1:
+        x = coords[:, 0]
+        y = coords[:, 1]
+        z = coords[:, 2]
+        clustering = DBSCAN(eps=tolerance, min_samples=min_pts).fit(coords)
+        labels = clustering.labels_
+        frame = {
+            'A': labels,
+            'X': x,
+            'Y': y,
+            'Z': z,
+        }
+        df = pd.DataFrame(frame)
+        maxs = (df.groupby('A').max()).values
+        mins = (df.groupby('A').min()).values
+        unq, ind, inv, cnt = np.unique(labels, return_index=True, return_inverse=True, return_counts=True)
+        lengths = np.sqrt((maxs[inv, 0] - mins[inv, 0]) ** 2 + (maxs[inv, 1] - mins[inv, 1]) ** 2)
+        labels[lengths < min_length] = -1
+    else:
+        labels = np.zeros(coords.shape[0], dtype = int)
     return labels
 
 
@@ -934,6 +937,59 @@ def cluster_labels_v01_0(infile,
     out_file.close()
 
 
+def cluster_labels_v01_1(infile,
+                         outfile,
+                         attribute,
+                         range_to_cluster,
+                         distance,
+                         min_pts,
+                         cluster_attribute,
+                         minimum_length):
+    """
+    Inputs a file and a classification to cluster. Outputs a file with cluster labels.
+    Clusters with label 0 are non-core points, i.e. points without "min_pts" within
+    "tolerance" (see DBSCAN documentation), or points outside the classification to cluster.
+    :param infile: input file name
+    :param outfile: output file name
+    :param attribute: the attribute which you want to use to select a range from
+    :param range_to_cluster: python list of values to cluster e.g. for classification [3,4,5] for the three types of veg
+    :param distance: how close must two points be to be put in the same cluster
+    :param min_pts: minimum number of points each point must have in a radius of size "distance"
+    :param cluster_attribute: the name given to the clustering labels
+    :param minimum_length: the minimum length of a cluster
+    """
+    # we shouldn't use las_modules.cluster function because it acts on a file, not on a family of points
+    infile = File(infile, mode="r")
+    x = infile.x
+    y = infile.y
+    z = infile.z
+    # make a vector to store labels
+    labels_allpts = np.zeros(len(infile), dtype=int)
+    # get the point positions
+    coords = np.stack((x, y, z), axis=1)
+    # make the clusters
+    mask = np.zeros(len(infile), dtype=bool)
+    for item in range_to_cluster:
+        mask[(infile.reader.get_dimension(attribute) >= item[0]) & (
+                infile.reader.get_dimension(attribute) <= item[-1])] = True
+    labels = 1 + clustering(coords[mask], distance, minimum_length, min_pts)
+    # assign the target classification's labels
+    labels_allpts[mask] = labels  # find our labels (DBSCAN starts at -1 and we want to start at 0, so add 1)
+    # make the output file
+    out_file = File(outfile, mode="w", header=infile.header)
+    dimensions = [spec.name for spec in infile.point_format]
+    # add new dimension
+    if cluster_attribute not in dimensions:
+        out_file.define_new_dimension(name=cluster_attribute, data_type=6, description="clustering labels")
+    # add pre-existing point records
+    for dimension in dimensions:
+        dat = infile.reader.get_dimension(dimension)
+        out_file.writer.set_dimension(dimension, dat)
+    # set new dimension to labels
+    out_file.writer.set_dimension(cluster_attribute, labels_allpts)
+    out_file.close()
+
+
 def eigencluster_labels_v01_0(infile,
                               outfile,
                               classification_to_cluster,
@@ -996,6 +1052,74 @@ def eigencluster_labels_v01_0(infile,
     out_file.close()
 
 
+def eigencluster_labels_v01_1(infile,
+                              outfile,
+                              eigenvector_number,
+                              attribute,
+                              range_to_cluster,
+                              distance,
+                              min_pts,
+                              cluster_attribute,
+                              minimum_length):
+    """
+    Input a file and select an eigenvector and attribute range to cluster. Outputs a file with cluster labels.
+    Clusters with label 0 are non-core points, i.e. points without "min_pts" within
+    "distance" (see DBSCAN documentation), or points outside the classification to cluster.
+    :param infile: input file name
+    :param outfile: output file name
+    :param eigenvector_number: 0, 1 or 2
+    :param attribute: the attribute which you want to use to select a range from
+    :param range_to_cluster: python list of values to cluster e.g. for classification [3,4,5] for the three types of veg
+    :param distance: how close must two points be to be put in the same cluster
+    :param min_pts: minimum number of points each point must have in a radius of size "distance"
+    :param cluster_attribute: the name given to the clustering labels
+    :param minimum_length: the minimum length of a cluster
+    :return:
+    """
+    # we shouldn't use las_modules.cluster function because it acts on a file, not on a family of points
+    infile = File(infile, mode="r")
+    x = infile.x
+    y = infile.y
+    z = infile.z
+
+    # extract the componenets of the desired eigenvector
+    v0 = infile.reader.get_dimension(f"eig{eigenvector_number}0")
+    v1 = infile.reader.get_dimension(f"eig{eigenvector_number}1")
+    v2 = infile.reader.get_dimension(f"eig{eigenvector_number}2")
+    eigenvector = np.stack((v0, v1, v2), axis=1)
+    # make a vector to store labels
+    labels_allpts = np.zeros(len(infile), dtype=int)
+    # get the point positions
+
+    coords = np.stack((x, y, z), axis=1)
+    # make the cluster labels
+    mask = np.zeros(len(infile), dtype=bool)
+    for item in range_to_cluster:
+        mask[(infile.reader.get_dimension(attribute) >= item[0]) & (
+                infile.reader.get_dimension(attribute) <= item[-1])] = True
+    labels = 1 + eigen_clustering(coords[mask],
+                                  eigenvector[mask],
+                                  distance,
+                                  5,
+                                  minimum_length,
+                                  min_pts)
+    # assign the target classification's labels
+    labels_allpts[mask] = labels
+    # make the output file
+    out_file = File(outfile, mode="w", header=infile.header)
+    dimensions = [spec.name for spec in infile.point_format]
+    # add new dimension
+    if cluster_attribute not in dimensions:
+        out_file.define_new_dimension(name=cluster_attribute, data_type=6, description="clustering labels")
+    # add pre-existing point records
+    for dimension in dimensions:
+        dat = infile.reader.get_dimension(dimension)
+        out_file.writer.set_dimension(dimension, dat)
+    # set new dimension to labels
+    out_file.writer.set_dimension(cluster_attribute, labels_allpts)
+    out_file.close()
+
+
 def count_v01_0(tile,
                 output_file,
                 attribute):
@@ -1026,18 +1150,20 @@ def count_v01_0(tile,
     outfile.close()
 
 
-def ferry(infile, outfile, attribute1, attribute2, make_abstract):
+def ferry_v01_0(infile, outfile, attribute1, attribute2, renumber, start=0):
     """
     :param infile: file name to read
     :param outfile: file name to write
-    :param attribute1: attribute whose values will be inserted into attributeB
-    :param attribute2: attribute to be overwritten by attribute A
+    :param attribute1: attribute whose values will be inserted into attribute2
+    :param attribute2: attribute to be overwritten by attribute1
+    :param renumber: True/False to renumber as consecutive integers
+    :param start: what to renumber from (ignored if renumber is False)
     """
     inFile = File(infile)
     outFile = File(outfile, mode="w", header=inFile.header)
     outFile.points = inFile.points
     a = inFile.reader.get_dimension(attribute1)
-    if make_abstract:
+    if renumber:
         unq, ind, inv = np.unique(a, return_index=True, return_inverse=True, return_counts=False)
-        a = np.arange(ind.size)[inv]
+        a = np.arange(ind.size)[inv] + start
     outFile.writer.set_dimension(attribute2, a)
