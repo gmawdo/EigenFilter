@@ -933,13 +933,15 @@ def cluster_labels_v01_0(infile,
     out_file.writer.set_dimension(cluster_attribute, labels_allpts)
     out_file.close()
 
+
 def cluster_labels_v01_1(infile,
                          outfile,
                          attribute,
                          range_to_cluster,
                          distance,
                          min_pts,
-                         cluster_attribute):
+                         cluster_attribute,
+                         minimum_length):
     """
     Inputs a file and a classification to cluster. Outputs a file with cluster labels.
     Clusters with label 0 are non-core points, i.e. points without "min_pts" within
@@ -964,9 +966,11 @@ def cluster_labels_v01_1(infile,
     # make the clusters
     mask = np.zeros(len(infile), dtype=bool)
     for item in range_to_cluster:
-        mask[attribute == item] = True
-    clustering = DBSCAN(eps=distance, min_samples=min_pts).fit(coords[mask])
-    # find our labels (DBSCAN starts at -1 and we want to start at 0, so add 1)
+        mask[infile.reader.get_dimension(attribute) == item] = True
+    labels = 1 + clustering(coords[mask], distance, minimum_length, min_pts)
+    # assign the target classification's labels
+    labels_allpts[
+        classn == classification_to_cluster] = labels  # find our labels (DBSCAN starts at -1 and we want to start at 0, so add 1)
     labels = clustering.labels_ + 1
     # assign the target classification's labels
     labels_allpts[mask] = labels
@@ -1046,6 +1050,7 @@ def eigencluster_labels_v01_0(infile,
     out_file.writer.set_dimension(cluster_attribute, labels_allpts)
     out_file.close()
 
+
 def eigencluster_labels_v01_1(infile,
                               outfile,
                               attribute,
@@ -1088,7 +1093,7 @@ def eigencluster_labels_v01_1(infile,
     # make the cluster labels
     mask = np.zeros(len(infile), dtype=bool)
     for item in range_to_cluster:
-        mask[attribute == item] = True
+        mask[infile.reader.get_dimension(attribute) == item] = True
     labels = 1 + eigen_clustering(coords[mask],
                                   eigenvector[mask],
                                   distance,
