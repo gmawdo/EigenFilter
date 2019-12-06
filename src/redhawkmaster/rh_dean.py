@@ -953,6 +953,7 @@ def cluster_labels_v01_1(infile,
     :param distance: how close must two points be to be put in the same cluster
     :param min_pts: minimum number of points each point must have in a radius of size "distance"
     :param cluster_attribute: the name given to the clustering labels
+    :param minimum_length: the minimum length of a cluster
     """
     # we shouldn't use las_modules.cluster function because it acts on a file, not on a family of points
     infile = File(infile, mode="r")
@@ -1067,6 +1068,7 @@ def eigencluster_labels_v01_1(infile,
     :param distance: how close must two points be to be put in the same cluster
     :param min_pts: minimum number of points each point must have in a radius of size "distance"
     :param cluster_attribute: the name given to the clustering labels
+    :param minimum_length: the minimum length of a cluster
     :param eigenvector_number: 0, 1 or 2
     :return:
     """
