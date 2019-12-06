@@ -59,14 +59,15 @@ def dimension1d2d3d_clustering_testing():
     input_file = 'T000_013.las'
     output_file = 'T000_014.las'
 
-    cluster_labels_v01_1(input_file,
-                         output_file,
-                         'intensity',
-                         range(1000),
-                         0.5,
-                         1,
-                         "whatever",
-                         0.5)
+    eigencluster_labels_v01_1(input_file,
+                              output_file,
+                              'intensity',
+                              range(1000, 2000),
+                              0.5,
+                              1,
+                              "whatever",
+                              0,
+                              2)
 
     input_file = 'T000_014.las'
     output_file = 'T000_015.las'

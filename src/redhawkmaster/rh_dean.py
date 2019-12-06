@@ -969,11 +969,7 @@ def cluster_labels_v01_1(infile,
         mask[infile.reader.get_dimension(attribute) == item] = True
     labels = 1 + clustering(coords[mask], distance, minimum_length, min_pts)
     # assign the target classification's labels
-    labels_allpts[
-        classn == classification_to_cluster] = labels  # find our labels (DBSCAN starts at -1 and we want to start at 0, so add 1)
-    labels = clustering.labels_ + 1
-    # assign the target classification's labels
-    labels_allpts[mask] = labels
+    labels_allpts[mask] = labels  # find our labels (DBSCAN starts at -1 and we want to start at 0, so add 1)
     # make the output file
     out_file = File(outfile, mode="w", header=infile.header)
     dimensions = [spec.name for spec in infile.point_format]
@@ -1058,8 +1054,8 @@ def eigencluster_labels_v01_1(infile,
                               distance,
                               min_pts,
                               cluster_attribute,
-                              eigenvector_number,
-                              minimum_length):
+                              minimum_length,
+                              eigenvector_number):
     """
     Inputs a file and a classification to cluster. Outputs a file with cluster labels.
     Clusters with label 0 are non-core points, i.e. points without "min_pts" within
@@ -1071,7 +1067,7 @@ def eigencluster_labels_v01_1(infile,
     :param distance: how close must two points be to be put in the same cluster
     :param min_pts: minimum number of points each point must have in a radius of size "distance"
     :param cluster_attribute: the name given to the clustering labels
-    :param eigenvector: 0, 1 or 2
+    :param eigenvector_number: 0, 1 or 2
     :return:
     """
     # we shouldn't use las_modules.cluster function because it acts on a file, not on a family of points
