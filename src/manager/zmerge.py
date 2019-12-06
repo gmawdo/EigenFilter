@@ -64,18 +64,19 @@ def las_zip(laz_location, las_location, move_location, tile_name, unzip=True):
         print(run_command(command))
 
 
-def merge_job(las_tile_location, tile_results, job_number):
+def merge_job(las_tile_location, out_location, tile_results, job_number, compressed=True):
     """
     Merge a job  into one tile.
+    :param compressed: If true it returns a laz. If false it returns a las.
+    :param out_location: Location where the merged file will be.
     :param las_tile_location: location of the las tiles produced.
     :param tile_results: location of the tiles results
     :param job_number: which job to merge
     :return:
     """
 
-    count = 3
     while 1:
-        time.sleep(5)
+        time.sleep(2)
 
         result = run_command("ls {}/* | grep _{}.las | wc -l".format(tile_results, job_number)).strip()
         no_tiles = run_command("ls {} | wc -l".format(las_tile_location)).strip()
@@ -84,14 +85,18 @@ def merge_job(las_tile_location, tile_results, job_number):
                                   " sed s/'{}'/' -i \/data'/g | tr '\\n' ' '".
                                   format(tile_results, job_number, tile_results.replace("/", "\/"))).strip()
 
-        print(result, no_tiles, merge_files)
+        print(result, no_tiles)
         if result == no_tiles:
             out_name = run_command("ls {}/*/*_{}.las | sed s/'_Tile'/'  '/g |"
                                    " sed s/'\/'/' '/g | awk '{}' | tail -1".
                                    format(tile_results, job_number, "{print $(NF-1)}")).strip()
+            method = "laz"
+            if not compressed:
+                method = "las"
 
-            docker_merge = "docker run -v {}:/data pointscene/lastools lasmerge {} -o /data/{}_{}.las".\
-                format(tile_results, merge_files, out_name, job_number)
+            docker_merge = "docker run -v {}:/data -v {}:/data_out pointscene/lastools" \
+                           " lasmerge {} -o /data_out/{}_{}.{}". \
+                format(tile_results,out_location, merge_files, out_name, job_number, method)
             print(run_command(docker_merge))
             print("Equal")
             break
@@ -105,4 +110,6 @@ if __name__ == '__main__':
     #         unzip=True)
     merge_job(las_tile_location='/home/mcus/Downloads/ENEL_data',
               tile_results='/home/mcus/workspace/RESULTS',
-              job_number='003_1')
+              out_location='/home/mcus/workspace',
+              job_number='003_1',
+              compressed=False)
