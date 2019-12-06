@@ -1050,26 +1050,26 @@ def eigencluster_labels_v01_0(infile,
 
 def eigencluster_labels_v01_1(infile,
                               outfile,
+                              eigenvector_number,
                               attribute,
                               range_to_cluster,
                               distance,
                               min_pts,
                               cluster_attribute,
-                              minimum_length,
-                              eigenvector_number):
+                              minimum_length):
     """
     Inputs a file and a classification to cluster. Outputs a file with cluster labels.
     Clusters with label 0 are non-core points, i.e. points without "min_pts" within
     "tolerance" (see DBSCAN documentation), or points outside the classification to cluster.
     :param infile: input file name
     :param outfile: output file name
+    :param eigenvector_number: 0, 1 or 2
     :param attribute: the attribute which you want to use to select a range from
     :param range_to_cluster: python list of values to cluster e.g. for classification [3,4,5] for the three types of veg
     :param distance: how close must two points be to be put in the same cluster
     :param min_pts: minimum number of points each point must have in a radius of size "distance"
     :param cluster_attribute: the name given to the clustering labels
     :param minimum_length: the minimum length of a cluster
-    :param eigenvector_number: 0, 1 or 2
     :return:
     """
     # we shouldn't use las_modules.cluster function because it acts on a file, not on a family of points
@@ -1145,18 +1145,20 @@ def count_v01_0(tile,
     outfile.close()
 
 
-def ferry(infile, outfile, attribute1, attribute2, make_abstract):
+def ferry(infile, outfile, attribute1, attribute2, renumber, start=0):
     """
     :param infile: file name to read
     :param outfile: file name to write
     :param attribute1: attribute whose values will be inserted into attributeB
     :param attribute2: attribute to be overwritten by attribute A
+    :param renumber: True/False to renumber as consecutive integers
+    :param start: what to renumber from (ignored if renumber == False)
     """
     inFile = File(infile)
     outFile = File(outfile, mode="w", header=inFile.header)
     outFile.points = inFile.points
     a = inFile.reader.get_dimension(attribute1)
-    if make_abstract:
+    if renumber:
         unq, ind, inv = np.unique(a, return_index=True, return_inverse=True, return_counts=False)
-        a = np.arange(ind.size)[inv]
+        a = np.arange(ind.size)[inv] + start
     outFile.writer.set_dimension(attribute2, a)

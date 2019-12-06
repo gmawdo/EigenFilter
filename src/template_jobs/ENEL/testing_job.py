@@ -51,23 +51,15 @@ def dimension1d2d3d_clustering_testing():
     dimension1d2d3d_v01_0(input_file,
                           output_file)
 
-    input_file = 'T000_011.las'
-    output_file = 'T000_013.las'
-
-    ferry(input_file, output_file, 'dimension1d2d3d', 'raw_classification', False)
-
-    input_file = 'T000_013.las'
-    output_file = 'T000_014.las'
-
-    eigencluster_labels_v01_1(input_file,
-                              output_file,
-                              'intensity',
-                              range(1000, 2000),
-                              0.5,
-                              1,
-                              "whatever",
-                              0,
-                              2)
+    eigencluster_labels_v01_1(infile='T000_011.las',
+                              outfile='T000_014.las',
+                              eigenvector_number=2,
+                              attribute='dimension1d2d3d',
+                              range_to_cluster=[1],
+                              distance=0.5,
+                              min_pts=1,
+                              cluster_attribute='whatever',
+                              minimum_length=2.0)
 
     input_file = 'T000_014.las'
     output_file = 'T000_015.las'
@@ -75,5 +67,34 @@ def dimension1d2d3d_clustering_testing():
     ferry(input_file, output_file, 'whatever', 'intensity', True)
 
 
+def cluster_labels_testing():
+    input_file = 'T000_004.las'
+    output_file = 'T000_011.las'
+
+    dimension1d2d3d_v01_0(input_file,
+                          output_file)
+
+    cluster_labels_v01_1(infile='T000_011.las',
+                         outfile='T000_014.las',
+                         attribute='dimension1d2d3d',
+                         range_to_cluster=[2, 3],
+                         distance=0.5,
+                         min_pts=1,
+                         cluster_attribute='whatever',
+                         minimum_length=10.0)
+
+    input_file = 'T000_014.las'
+    output_file = 'T000_015.las'
+
+    ferry(input_file, output_file, 'whatever', 'intensity', False)
+
+
+    input_file = 'T000_011.las'
+    output_file = 'T000_016.las'
+
+    ferry(input_file, output_file, 'dimension1d2d3d', 'intensity', False)
+
+
 # triangulation_test()
-dimension1d2d3d_clustering_testing()
+#dimension1d2d3d_clustering_testing()
+cluster_labels_testing()
