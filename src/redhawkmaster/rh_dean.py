@@ -505,23 +505,26 @@ def clustering(coords, tolerance, min_length, min_pts):
     :param min_pts: how many points must a cluster have?
     :return:
     """
-    x = coords[:, 0]
-    y = coords[:, 1]
-    z = coords[:, 2]
-    clustering = DBSCAN(eps=tolerance, min_samples=min_pts).fit(coords)
-    labels = clustering.labels_
-    frame = {
-        'A': labels,
-        'X': x,
-        'Y': y,
-        'Z': z,
-    }
-    df = pd.DataFrame(frame)
-    maxs = (df.groupby('A').max()).values
-    mins = (df.groupby('A').min()).values
-    unq, ind, inv, cnt = np.unique(labels, return_index=True, return_inverse=True, return_counts=True)
-    lengths = np.sqrt((maxs[inv, 0] - mins[inv, 0]) ** 2 + (maxs[inv, 1] - mins[inv, 1]) ** 2)
-    labels[lengths < min_length] = -1
+    if coords.shape[0] >= 1:
+        x = coords[:, 0]
+        y = coords[:, 1]
+        z = coords[:, 2]
+        clustering = DBSCAN(eps=tolerance, min_samples=min_pts).fit(coords)
+        labels = clustering.labels_
+        frame = {
+            'A': labels,
+            'X': x,
+            'Y': y,
+            'Z': z,
+        }
+        df = pd.DataFrame(frame)
+        maxs = (df.groupby('A').max()).values
+        mins = (df.groupby('A').min()).values
+        unq, ind, inv, cnt = np.unique(labels, return_index=True, return_inverse=True, return_counts=True)
+        lengths = np.sqrt((maxs[inv, 0] - mins[inv, 0]) ** 2 + (maxs[inv, 1] - mins[inv, 1]) ** 2)
+        labels[lengths < min_length] = -1
+    else:
+        labels = np.zeros(coords.shape[0], dtype = int)
     return labels
 
 
@@ -967,7 +970,8 @@ def cluster_labels_v01_1(infile,
     # make the clusters
     mask = np.zeros(len(infile), dtype=bool)
     for item in range_to_cluster:
-        mask[infile.reader.get_dimension(attribute) == item] = True
+        mask[(infile.reader.get_dimension(attribute) >= item[0]) & (
+                infile.reader.get_dimension(attribute) <= item[-1])] = True
     labels = 1 + clustering(coords[mask], distance, minimum_length, min_pts)
     # assign the target classification's labels
     labels_allpts[mask] = labels  # find our labels (DBSCAN starts at -1 and we want to start at 0, so add 1)
@@ -1058,9 +1062,9 @@ def eigencluster_labels_v01_1(infile,
                               cluster_attribute,
                               minimum_length):
     """
-    Inputs a file and a classification to cluster. Outputs a file with cluster labels.
+    Input a file and select an eigenvector and attribute range to cluster. Outputs a file with cluster labels.
     Clusters with label 0 are non-core points, i.e. points without "min_pts" within
-    "tolerance" (see DBSCAN documentation), or points outside the classification to cluster.
+    "distance" (see DBSCAN documentation), or points outside the classification to cluster.
     :param infile: input file name
     :param outfile: output file name
     :param eigenvector_number: 0, 1 or 2
@@ -1091,7 +1095,8 @@ def eigencluster_labels_v01_1(infile,
     # make the cluster labels
     mask = np.zeros(len(infile), dtype=bool)
     for item in range_to_cluster:
-        mask[infile.reader.get_dimension(attribute) == item] = True
+        mask[(infile.reader.get_dimension(attribute) >= item[0]) & (
+                infile.reader.get_dimension(attribute) <= item[-1])] = True
     labels = 1 + eigen_clustering(coords[mask],
                                   eigenvector[mask],
                                   distance,
@@ -1145,14 +1150,14 @@ def count_v01_0(tile,
     outfile.close()
 
 
-def ferry(infile, outfile, attribute1, attribute2, renumber, start=0):
+def ferry_v01_0(infile, outfile, attribute1, attribute2, renumber, start=0):
     """
     :param infile: file name to read
     :param outfile: file name to write
-    :param attribute1: attribute whose values will be inserted into attributeB
-    :param attribute2: attribute to be overwritten by attribute A
+    :param attribute1: attribute whose values will be inserted into attribute2
+    :param attribute2: attribute to be overwritten by attribute1
     :param renumber: True/False to renumber as consecutive integers
-    :param start: what to renumber from (ignored if renumber == False)
+    :param start: what to renumber from (ignored if renumber is False)
     """
     inFile = File(infile)
     outFile = File(outfile, mode="w", header=inFile.header)

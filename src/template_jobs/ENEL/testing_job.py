@@ -74,27 +74,36 @@ def cluster_labels_testing():
     dimension1d2d3d_v01_0(input_file,
                           output_file)
 
-    cluster_labels_v01_1(infile='T000_011.las',
+    eigencluster_labels_v01_1(infile='T000_011.las',
                          outfile='T000_014.las',
+                         eigenvector_number=2,
                          attribute='dimension1d2d3d',
-                         range_to_cluster=[2, 3],
+                         range_to_cluster=[[1]],
                          distance=0.5,
                          min_pts=1,
                          cluster_attribute='whatever',
-                         minimum_length=10.0)
+                         minimum_length=2)
 
     input_file = 'T000_014.las'
     output_file = 'T000_015.las'
 
-    ferry(input_file, output_file, 'whatever', 'intensity', False)
-
+    ferry_v01_0(infile=input_file,
+                outfile=output_file,
+                attribute1='whatever',
+                attribute2='intensity',
+                renumber=True,
+                start=0)
 
     input_file = 'T000_011.las'
     output_file = 'T000_016.las'
 
-    ferry(input_file, output_file, 'dimension1d2d3d', 'intensity', False)
+    ferry_v01_0(infile=input_file,
+                outfile=output_file,
+                attribute1='dimension1d2d3d',
+                attribute2='intensity',
+                renumber=False)
 
 
 # triangulation_test()
-#dimension1d2d3d_clustering_testing()
+# dimension1d2d3d_clustering_testing()
 cluster_labels_testing()
