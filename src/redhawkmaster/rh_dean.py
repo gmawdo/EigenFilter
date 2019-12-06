@@ -946,32 +946,30 @@ def cluster_labels_v01_1(infile,
     "tolerance" (see DBSCAN documentation), or points outside the classification to cluster.
     :param infile: input file name
     :param outfile: output file name
-    :param attribute: attribute to select from when clustering
-    :param range_to_cluster: range of values which should be clustered
-    :param classification_to_cluster: which points do we want to cluster
-    :param distance: see min_pts
-    :param min_pts: minimum number of points each point must have in a radius of size "tolerance"
+    :param attribute: the attribute which you want to use to select a range from
+    :param range_to_cluster: python list of values to cluster e.g. for classification [3,4,5] for the three types of veg
+    :param distance: how close must two points be to be put in the same cluster
+    :param min_pts: minimum number of points each point must have in a radius of size "distance"
     :param cluster_attribute: the name given to the clustering labels
-    :return:
     """
     # we shouldn't use las_modules.cluster function because it acts on a file, not on a family of points
     infile = File(infile, mode="r")
     x = infile.x
     y = infile.y
     z = infile.z
-    classn = infile.classification
     # make a vector to store labels
     labels_allpts = np.zeros(len(infile), dtype=int)
     # get the point positions
     coords = np.stack((x, y, z), axis=1)
     # make the clusters
     mask = np.zeros(len(infile), dtype=bool)
-
-    clustering = DBSCAN(eps=distance, min_samples=min_pts).fit(coords[classn == classification_to_cluster])
+    for item in range_to_cluster:
+        mask[attribute == item] = True
+    clustering = DBSCAN(eps=distance, min_samples=min_pts).fit(coords[mask])
     # find our labels (DBSCAN starts at -1 and we want to start at 0, so add 1)
     labels = clustering.labels_ + 1
     # assign the target classification's labels
-    labels_allpts[classn == classification_to_cluster] = labels
+    labels_allpts[mask] = labels
     # make the output file
     out_file = File(outfile, mode="w", header=infile.header)
     dimensions = [spec.name for spec in infile.point_format]
@@ -1034,6 +1032,71 @@ def eigencluster_labels_v01_0(infile,
                                   min_pts)
     # assign the target classification's labels
     labels_allpts[classn == classification_to_cluster] = labels
+    # make the output file
+    out_file = File(outfile, mode="w", header=infile.header)
+    dimensions = [spec.name for spec in infile.point_format]
+    # add new dimension
+    if cluster_attribute not in dimensions:
+        out_file.define_new_dimension(name=cluster_attribute, data_type=6, description="clustering labels")
+    # add pre-existing point records
+    for dimension in dimensions:
+        dat = infile.reader.get_dimension(dimension)
+        out_file.writer.set_dimension(dimension, dat)
+    # set new dimension to labels
+    out_file.writer.set_dimension(cluster_attribute, labels_allpts)
+    out_file.close()
+
+def eigencluster_labels_v01_1(infile,
+                              outfile,
+                              attribute,
+                              range_to_cluster,
+                              distance,
+                              min_pts,
+                              cluster_attribute,
+                              eigenvector_number,
+                              minimum_length):
+    """
+    Inputs a file and a classification to cluster. Outputs a file with cluster labels.
+    Clusters with label 0 are non-core points, i.e. points without "min_pts" within
+    "tolerance" (see DBSCAN documentation), or points outside the classification to cluster.
+    :param infile: input file name
+    :param outfile: output file name
+    :param attribute: the attribute which you want to use to select a range from
+    :param range_to_cluster: python list of values to cluster e.g. for classification [3,4,5] for the three types of veg
+    :param distance: how close must two points be to be put in the same cluster
+    :param min_pts: minimum number of points each point must have in a radius of size "distance"
+    :param cluster_attribute: the name given to the clustering labels
+    :param eigenvector: 0, 1 or 2
+    :return:
+    """
+    # we shouldn't use las_modules.cluster function because it acts on a file, not on a family of points
+    infile = File(infile, mode="r")
+    x = infile.x
+    y = infile.y
+    z = infile.z
+
+    # extract the componenets of the desired eigenvector
+    v0 = infile.reader.get_dimension(f"eig{eigenvector_number}0")
+    v1 = infile.reader.get_dimension(f"eig{eigenvector_number}1")
+    v2 = infile.reader.get_dimension(f"eig{eigenvector_number}2")
+    eigenvector = np.stack((v0, v1, v2), axis=1)
+    # make a vector to store labels
+    labels_allpts = np.zeros(len(infile), dtype=int)
+    # get the point positions
+
+    coords = np.stack((x, y, z), axis=1)
+    # make the cluster labels
+    mask = np.zeros(len(infile), dtype=bool)
+    for item in range_to_cluster:
+        mask[attribute == item] = True
+    labels = 1 + eigen_clustering(coords[mask],
+                                  eigenvector[mask],
+                                  distance,
+                                  5,
+                                  minimum_length,
+                                  min_pts)
+    # assign the target classification's labels
+    labels_allpts[mask] = labels
     # make the output file
     out_file = File(outfile, mode="w", header=infile.header)
     dimensions = [spec.name for spec in infile.point_format]
