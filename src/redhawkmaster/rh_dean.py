@@ -559,7 +559,7 @@ def add_classification(input_file, output_file):
     else:
         coords = np.stack((x, y, z), axis=1)
     # build the probabilistic dimension
-
+C
     dims = point_dimension(inFile)[IND]
 
     classn = 1 * inFile.classification[IND]
@@ -604,7 +604,7 @@ def add_classification(input_file, output_file):
     mask = dim3 & (~ noise) & (classn != 1) & (classn != 2)
     if mask.any():
         labels = clustering(coords[mask], 0.5, 2, 1)
-        class_mask = classn[mask]
+        class_mask = classn[mask]not
         class_mask[:] = 3
         class_mask[labels == -1] = 0
         classn[mask] = class_mask
@@ -1167,3 +1167,31 @@ def ferry_v01_0(infile, outfile, attribute1, attribute2, renumber, start=0):
         unq, ind, inv = np.unique(a, return_index=True, return_inverse=True, return_counts=False)
         a = np.arange(ind.size)[inv] + start
     outFile.writer.set_dimension(attribute2, a)
+
+def decimate_v01_0(infile, outfile, voxel_size):
+    """
+    @param infile:
+    @param outfile:
+    @param voxel_size: Voxel size
+    @return:
+    """
+    inFile = File(infile)
+    outFile = File(outfile, mode="w", header=inFile.header)
+    u = voxel_size
+    x = inFile.x
+    y = inFile.y
+    z = inFile.z
+    unq, ind, inv = np.unique(np.floor(np.stack((x, y, z), axis = 1)/u, axis = 0).astype(int), return_index=True, return_inverse=True, return_counts=False, axis = 0)
+    dimensions = [spec.name for spec in inFile.point_format if spec.name != "dim"]
+    # add dimension
+    outFile.define_new_dimension(name="vox", data_type=5, description="inverses for decimation")
+    outFile.define_new_dimension(name="dec", data_type=9, description="voxel size")
+    # add pre-existing point records
+    for dimension in dimensions:
+        dat = outFile.reader.get_dimension(dimension)
+        out_file.writer.set_dimension(dimension, dat)
+    # add new dimension
+    dat = np.zeros(len(inFile), dtype = float)
+    out_file.writer.set_dimension("inv", inv)
+    out_file.writer.set_dimension("indinv", ind[inv])
+    out_file.writer.set_dimension("dec", voxel_size + dat)
