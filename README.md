@@ -98,7 +98,7 @@ one job for all tiles and running them in parallel.
 
 Run the scripts like this:
 
-`python3 execute_process.py -c /home/mcus/workspace/redhawk-pure-python/src -b None -d /home/mcus/Downloads/ENEL_data -r /home/mcus/workspace/RESULTS -f /home/mcus/workspace/redhawk-pure-python/src/manager/ENEL_flow -t ENEL -n 10 -cl 20`
+`python3 execute_process.py -c /home/mcus/workspace/redhawk-pure-python/src -b /home/mcus/Downloads/ENEL_old/BIGFILE_ENEL.las -d /home/mcus/Downloads/ENEL_data -r /home/mcus/workspace/RESULTS -f /home/mcus/workspace/redhawk-pure-python/src/manager/ENEL_flow -t ENEL -mb 15 -cl 20`
 
 Explanation of the arguments:
 
