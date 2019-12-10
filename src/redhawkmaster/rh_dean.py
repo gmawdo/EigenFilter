@@ -417,12 +417,13 @@ def corridor(coords, eigenvectors, mask, R, S):
     return condition
 
 
-def eigenvector2_corridors(infile,
-                           outfile,
-                           class_to_cylinder,
-                           classification_of_cylinder,
-                           radius_of_cylinders,
-                           length_of_cylinders):
+def eigenvector_corridors(infile,
+                          outfile,
+                          attribute_to_corridor,
+                          value_to_corridor,
+                          classification_of_corridor,
+                          radius_of_cylinders,
+                          length_of_cylinders):
     """
 
     @param infile:
@@ -432,12 +433,18 @@ def eigenvector2_corridors(infile,
     @return:
     """
     inFile = File(infile)
+    classn = 1 * inFile.classification
     outFile = File(outfile, mode="w", header=inFile.header)
     outFile.points = inFile.points
+    attr = inFile.reader.get_dimension(attribute_to_corridor)
+    mask = attr > value_to_corridor
     coords = np.stack((inFile.x, inFile.y, inFile.z), axis=1)
-    eigenvectors = np.stack((inFile.eig20, inFile.eig21, inFile.eig22))[]
-    condition = corridor(coords, eigenvectors, inFile.classification == class_to_cylinder, radius_of_cylinders,
+    eigenvectors = np.stack((inFile.eig20, inFile.eig21, inFile.eig22), axis = 1)[mask,:]
+    condition = corridor(coords, eigenvectors, mask, radius_of_cylinders,
                          length_of_cylinders)
+    classn[condition] = classification_of_corridor
+    outFile.classification = classn
+    outFile.close()
 
 
 def point_dimension(inFile):

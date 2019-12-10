@@ -131,6 +131,17 @@ def decimation_testing():
                               cluster_attribute='whatever',
                               minimum_length=2.0)
 
+    infile = 'T002_007.las'
+    outfile = 'T002_008.las'
+
+    eigenvector_corridors(infile,
+                          outfile,
+                          attribute_to_corridor='whatever',
+                          value_to_corridor=0,
+                          classification_of_corridor=1,
+                          radius_of_cylinders=0.5,
+                          length_of_cylinders=2)
+
     infile_with_inv = 'T001_005.las'
     infile_decimated = 'T002_007.las'
     outfile = "T001_015.las"
@@ -139,23 +150,6 @@ def decimation_testing():
                      outfile,
                      inverter_attribute="inverter",
                      attributes_to_copy=["whatever", "dimension1d2d3d"])
-
-    infile = 'T001_015.las'
-    outfile = 'T001_016.las'
-    ferry_v01_0(infile,
-                outfile,
-                attribute1='whatever',
-                attribute2='intensity',
-                renumber=True,
-                start=0)
-
-    ferry_v01_0('T002_007.las',
-                'T002_007_relabelled.las',
-                attribute1='whatever',
-                attribute2='intensity',
-                renumber=True,
-                start=0)
-
 
 # triangulation_test()
 # dimension1d2d3d_clustering_testing()
