@@ -111,28 +111,51 @@ def decimation_testing():
     decimate_v01_0(infile,
                    outfile,
                    decimated_outfile,
-                   voxel_size=0.333,
+                   voxel_size=0.01,
                    inverter_attribute="inverter")
 
     infile = 'T002_005.las'
     outfile = 'T002_006.las'
+    dimension1d2d3d_v01_0(infile,
+                          outfile)
+
+    infile = 'T002_006.las'
+    outfile = 'T002_007.las'
     eigencluster_labels_v01_1(infile,
                               outfile,
                               eigenvector_number=2,
                               attribute='dimension1d2d3d',
-                              range_to_cluster=[1],
+                              range_to_cluster=[[1]],
                               distance=0.5,
                               min_pts=1,
                               cluster_attribute='whatever',
                               minimum_length=2.0)
 
     infile_with_inv = 'T001_005.las'
-    infile_decimated = 'T002_006.las'
+    infile_decimated = 'T002_007.las'
+    outfile = "T001_015.las"
     undecimate_v01_0(infile_with_inv,
                      infile_decimated,
                      outfile,
-                     inverter_attribute = "inverter",
-                     attributes_to_copy = ["whatever", "dimension1d2d3d"])
+                     inverter_attribute="inverter",
+                     attributes_to_copy=["whatever", "dimension1d2d3d"])
+
+    infile = 'T001_015.las'
+    outfile = 'T001_016.las'
+    ferry_v01_0(infile,
+                outfile,
+                attribute1='whatever',
+                attribute2='intensity',
+                renumber=True,
+                start=0)
+
+    ferry_v01_0('T002_007.las',
+                'T002_007_relabelled.las',
+                attribute1='whatever',
+                attribute2='intensity',
+                renumber=True,
+                start=0)
+
 
 # triangulation_test()
 # dimension1d2d3d_clustering_testing()

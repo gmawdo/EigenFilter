@@ -1187,17 +1187,16 @@ def decimate_v01_0(infile, outfile, decimated_outfile, voxel_size, inverter_attr
     x = inFile.x
     y = inFile.y
     z = inFile.z
-    unq, ind, inv = np.unique(np.floor(np.stack((x, y, z), axis=1) / u, axis=0).astype(int), return_index=True,
+    unq, ind, inv = np.unique(np.floor(np.stack((x, y, z), axis=1) / u).astype(int), return_index=True,
                               return_inverse=True, return_counts=False, axis=0)
     dimensions = [spec.name for spec in inFile.point_format]
     # add dimension
     outFile.define_new_dimension(name=inverter_attribute, data_type=5, description="inverses for decimation")
     # add pre-existing point records
     for dimension in dimensions:
-        dat = outFile.reader.get_dimension(dimension)
-        out_file.writer.set_dimension(dimension, dat)
+        dat = inFile.reader.get_dimension(dimension)
+        outFile.writer.set_dimension(dimension, dat)
     # add new dimension
-    dat = np.zeros(len(inFile), dtype=float)
     outFile.writer.set_dimension(inverter_attribute, inv)
     outFile.close()
     decFile = File(decimated_outfile, mode="w", header=inFile.header)
@@ -1207,10 +1206,10 @@ def decimate_v01_0(infile, outfile, decimated_outfile, voxel_size, inverter_attr
         dat = inFile.reader.get_dimension(dimension)
         decFile.writer.set_dimension(dimension, dat[ind])
     # add new x, y, z
-    outFile.x = u * unq[:, 0]
-    outFile.y = u * unq[:, 1]
-    outFile.z = u * unq[:, 2]
-    outFile.close()
+    decFile.x = u * unq[:, 0]
+    decFile.y = u * unq[:, 1]
+    decFile.z = u * unq[:, 2]
+    decFile.close()
 
 
 def undecimate_v01_0(infile_with_inv, infile_decimated, outfile, inverter_attribute, attributes_to_copy):
@@ -1237,6 +1236,4 @@ def undecimate_v01_0(infile_with_inv, infile_decimated, outfile, inverter_attrib
     for dimension in attributes_to_copy:
         dat = inFile2.reader.get_dimension(dimension)
         outFile.writer.set_dimension(dimension, dat[inv])
-    outFile.close()
-
     outFile.close()
