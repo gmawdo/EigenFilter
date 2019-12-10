@@ -524,7 +524,7 @@ def clustering(coords, tolerance, min_length, min_pts):
         lengths = np.sqrt((maxs[inv, 0] - mins[inv, 0]) ** 2 + (maxs[inv, 1] - mins[inv, 1]) ** 2)
         labels[lengths < min_length] = -1
     else:
-        labels = np.zeros(coords.shape[0], dtype = int)
+        labels = np.zeros(coords.shape[0], dtype=int)
     return labels
 
 
@@ -590,7 +590,8 @@ def add_classification(input_file, output_file):
         v0 = 1 * inFile.eig10[IND]
         v1 = 1 * inFile.eig11[IND]
         v2 = 1 * inFile.eig12[IND]
-        plane_of_best_fit_direction = np.stack((v0, v1, v2), axis=1)  # np.sqrt(v0 ** 2 + v1 ** 2 + v2 ** 2)[:, None]
+        plane_of_best_fit_direction = np.stack((v0, v1, v2),
+                                               axis=1)  # np.sqrt(v0 ** 2 + v1 ** 2 + v2 ** 2)[:, None]
         labels = eigen_clustering(coords[mask], plane_of_best_fit_direction[mask], 0.5, 5, 2, 1)
         class_mask = classn[mask]
         class_mask[:] = 2
@@ -618,7 +619,8 @@ def add_classification(input_file, output_file):
         nhbrs = NearestNeighbors(n_neighbors=1, algorithm="kd_tree").fit(coords[(classn != 0) & (classn != 7), :])
         distances, indices = nhbrs.kneighbors(coords[classn == 0, :])
         classn0 = classn[classn == 0]
-        classn0[(distances[:, 0] < 0.5)] = (classn[(classn != 0) & (classn != 7)])[indices[(distances[:, 0] < 0.5), 0]]
+        classn0[(distances[:, 0] < 0.5)] = (classn[(classn != 0) & (classn != 7)])[
+            indices[(distances[:, 0] < 0.5), 0]]
         classn[(classn == 0)] = classn0
 
     outFile = File(output_file, mode="w", header=inFile.header)
@@ -1167,3 +1169,70 @@ def ferry_v01_0(infile, outfile, attribute1, attribute2, renumber, start=0):
         unq, ind, inv = np.unique(a, return_index=True, return_inverse=True, return_counts=False)
         a = np.arange(ind.size)[inv] + start
     outFile.writer.set_dimension(attribute2, a)
+
+
+def decimate_v01_0(infile, outfile, decimated_outfile, voxel_size, inverter_attribute):
+    """
+    @param infile:
+    @param outfile:
+    @param decimated_outfile:
+    @param voxel_size:
+    @param inverter_attribute:
+    @return:
+    """
+    inFile = File(infile)
+    outFile = File(outfile, mode="w", header=inFile.header)
+    u = voxel_size
+    x = inFile.x
+    y = inFile.y
+    z = inFile.z
+    unq, ind, inv = np.unique(np.floor(np.stack((x, y, z), axis=1) / u).astype(int), return_index=True,
+                              return_inverse=True, return_counts=False, axis=0)
+    dimensions = [spec.name for spec in inFile.point_format]
+    # add dimension
+    outFile.define_new_dimension(name=inverter_attribute, data_type=5, description="inverses for decimation")
+    # add pre-existing point records
+    for dimension in dimensions:
+        dat = inFile.reader.get_dimension(dimension)
+        outFile.writer.set_dimension(dimension, dat)
+    # add new dimension
+    outFile.writer.set_dimension(inverter_attribute, inv)
+    outFile.close()
+    decFile = File(decimated_outfile, mode="w", header=inFile.header)
+    dimensions = [spec.name for spec in inFile.point_format]
+    # add pre-existing point records
+    for dimension in dimensions:
+        dat = inFile.reader.get_dimension(dimension)
+        decFile.writer.set_dimension(dimension, dat[ind])
+    # add new x, y, z
+    decFile.x = u * unq[:, 0]
+    decFile.y = u * unq[:, 1]
+    decFile.z = u * unq[:, 2]
+    decFile.close()
+
+
+def undecimate_v01_0(infile_with_inv, infile_decimated, outfile, inverter_attribute, attributes_to_copy):
+    """
+
+    @param infile_with_inv:
+    @param infile_decimated:
+    @param outfile:
+    @param inverter_attribute:
+    @param attributes_to_copy:
+    @return:
+    """
+    inFile1 = File(infile_with_inv)
+    inFile2 = File(infile_decimated)
+    outFile = File(outfile, mode="w", header=inFile2.header)
+    dimensions1 = [spec.name for spec in inFile1.point_format]
+    dimensions2 = [spec.name for spec in inFile2.point_format]
+    # add pre-existing point records
+    inv = inFile1.reader.get_dimension(inverter_attribute)
+    for dimension in dimensions2:
+        if dimension in dimensions1:
+            dat = inFile1.reader.get_dimension(dimension)
+            outFile.writer.set_dimension(dimension, dat)
+    for dimension in attributes_to_copy:
+        dat = inFile2.reader.get_dimension(dimension)
+        outFile.writer.set_dimension(dimension, dat[inv])
+    outFile.close()
