@@ -121,20 +121,30 @@ def tile_equal_filesize(item):
                                infile, mask)
     outFile.close()
 
- 
-def rh_tiling_gps_equal_filesize(filename, output_location, no_tiles=10):
+
+def file_size(file_path):
+    """
+    this function will return the file size
+    """
+    if os.path.isfile(file_path):
+        file_info = os.stat(file_path)
+        return file_info.st_size
+
+
+def rh_tiling_gps_equal_filesize(filename, output_location, filesize=30):
     """
     Starting the multiprocessing pool of threads that are going to
     split the big tile.
 
+    :param filesize: Size in MB for one tile
     :param output_location: where to output the tiles
     :param filename: File name which needs to be tiled.
     :type filename: string
-    :param no_tiles: Number of tiles in which the file will be tiled
-    :type no_tiles: int
     """
     # Input the big file
     bigFile = rh_io.las_input(filename, mode="r")
+
+    no_tiles = round(file_size(filename)/(filesize*1048576))
 
     # Extract the gps time
     gps_time = bigFile.gps_time

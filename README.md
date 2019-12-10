@@ -98,7 +98,7 @@ one job for all tiles and running them in parallel.
 
 Run the scripts like this:
 
-`python3 execute_process.py -c /home/mcus/workspace/redhawk-pure-python/src -b None -d /home/mcus/Downloads/ENEL_data -r /home/mcus/workspace/RESULTS -f /home/mcus/workspace/redhawk-pure-python/src/manager/ENEL_flow -t ENEL -n 10 -cl 20`
+`python3 execute_process.py -c /home/mcus/workspace/redhawk-pure-python/src -b /home/mcus/Downloads/ENEL_old/BIGFILE_ENEL.las -d /home/mcus/Downloads/ENEL_data -r /home/mcus/workspace/RESULTS -f /home/mcus/workspace/redhawk-pure-python/src/manager/ENEL_flow -t ENEL -mb 15 -cl 20`
 
 Explanation of the arguments:
 
@@ -108,7 +108,7 @@ Explanation of the arguments:
 4. **-r** is the location where the results of the jobs will be put in.
 5. **-f** is the location of the flow file.
 6. **-t** which template jobs we are going to use.
-7. **-n** how much tiles we have if -b is different then None
+7. **-mb** mb per tile if -b is different then None
 8. **-cl** is the core limit for **execute.py** and process count for **execute_process.py**
 
 Note: all of these arguments are required.

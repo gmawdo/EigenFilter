@@ -23,7 +23,7 @@ parser.add_argument('-d', '--data', help='Location where is the data you need to
 parser.add_argument('-r', '--results', help='Location where the result data to be.', required=True)
 parser.add_argument('-f', '--flow', help='Location where the flow of the jobs is.', required=True)
 parser.add_argument('-t', '--template', help='Which template jobs to use.', required=True)
-parser.add_argument('-n', '--number', help='Number of tiles to tile the big file.', required=True)
+parser.add_argument('-mb', '--mbpt', help='MB per tile.', required=True)
 parser.add_argument('-cl', '--core_limit', help='Number of cores to run the tiles through.', required=True)
 args = parser.parse_args()
 
@@ -244,13 +244,13 @@ if __name__ == '__main__':
 
     if args.bigfile != 'None':
         print("===== Tiling Start =====")
-        rh_tiling_gps_equal_filesize(args.bigfile, args.data + '/', no_tiles=args.number)
+        rh_tiling_gps_equal_filesize(args.bigfile, args.data + '/', filesize=float(args.mbpt))
         print("===== Tiling End   =====")
     print("===== Processing Start =====")
 
-    loop = asyncio.get_event_loop()
-    for res in parallel(args):
-        loop.run_until_complete(run_all_commands(res))
+    # loop = asyncio.get_event_loop()
+    # for res in parallel(args):
+    #     loop.run_until_complete(run_all_commands(res))
 
     print("===== Processing End   =====")
     end = time.time()
