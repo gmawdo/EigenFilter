@@ -143,13 +143,13 @@ def decimation_testing():
                           length_of_cylinders=2)
 
     infile_with_inv = 'T001_005.las'
-    infile_decimated = 'T002_007.las'
+    infile_decimated = 'T002_008.las'
     outfile = "T001_015.las"
     undecimate_v01_0(infile_with_inv,
                      infile_decimated,
                      outfile,
                      inverter_attribute="inverter",
-                     attributes_to_copy=["whatever", "dimension1d2d3d"])
+                     attributes_to_copy=["whatever", "dimension1d2d3d", "raw_classification"])
 
 # triangulation_test()
 # dimension1d2d3d_clustering_testing()
