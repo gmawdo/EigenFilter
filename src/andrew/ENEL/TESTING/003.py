@@ -1,18 +1,15 @@
 import pathmagic
 
 from redhawkmaster.las_modules import las_range
-from redhawkmaster.rh_io import las_input, las_output, script_params
+from redhawkmaster.rh_io import las_input, las_output
 
 assert pathmagic
 
-args = script_params()
-
-
-input_file = args.input[0]
+input_file = 'T000_002.las'
 # Name of the output file
-output_file1 = args.output[0]
+output_file1 = 'T000_003_ground.las'
 
-output_file2 = args.output[1]
+output_file2 = 'T000_003_non_ground.las'
 
 # Read the input file
 infile = las_input(input_file,

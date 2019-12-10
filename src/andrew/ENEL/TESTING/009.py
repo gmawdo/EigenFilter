@@ -2,15 +2,11 @@ import pathmagic
 
 from redhawkmaster import rh_io
 from redhawkmaster.rh_dean import conductor_matters_1, veg_risk
-from redhawkmaster.rh_io import script_params
 
 assert pathmagic
-
-args = script_params()
-
-input_file = args.input[0]
+input_file = 'T000_008.las'
 # Name of the output file
-output_file = args.output[0]
+output_file = 'T000_009.las'
 
 infile = rh_io.las_input(input_file, mode='r')
 outfile = rh_io.las_output(output_file, infile)
@@ -27,10 +23,5 @@ veg_risk(outfile,
          classification_veg=3,
          classification_inter=4,
          distance_veg=3)
-
-polygon_select(outfile,
-               resolution=10,
-               classif=15,
-               classed='polygon'):
 
 outfile.close()
