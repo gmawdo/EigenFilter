@@ -529,105 +529,104 @@ def clustering(coords, tolerance, min_length, min_pts):
 
 
 def add_classification(input_file, output_file):
-    def add_classification(input_file, output_file):
-        """
-        :param filename:
-        :return:
-        """
-        # load the voxel numbers - they will be only one (0) if no voxelisation happened
-        inFile = File(input_file)
-        # find how to map each point onto each voxel
-        voxel = inFile.vox
-        # find how to map each point onto each voxel
-        UNQ, IND, INV, CNT = np.unique(voxel, return_index=True, return_inverse=True, return_counts=True)
-        # determine by number of voxel numbers whether decimation occured
-        decimated = IND.size > 1
-        # if no decimation occured this mapping must be trivial:
-        if not decimated:
-            IND = np.arange(len(inFile))
-            INV = IND
+    """
+    :param filename:
+    :return:
+    """
+    # load the voxel numbers - they will be only one (0) if no voxelisation happened
+    inFile = File(input_file)
+    # find how to map each point onto each voxel
+    voxel = inFile.vox
+    # find how to map each point onto each voxel
+    UNQ, IND, INV, CNT = np.unique(voxel, return_index=True, return_inverse=True, return_counts=True)
+    # determine by number of voxel numbers whether decimation occured
+    decimated = IND.size > 1
+    # if no decimation occured this mapping must be trivial:
+    if not decimated:
+        IND = np.arange(len(inFile))
+        INV = IND
 
-        # grab the attributes we need - but only on decimated points
-        x = inFile.x[IND]
-        y = inFile.y[IND]
-        z = inFile.z[IND]
-        eig2 = inFile.eig2[IND]
+    # grab the attributes we need - but only on decimated points
+    x = inFile.x[IND]
+    y = inFile.y[IND]
+    z = inFile.z[IND]
+    eig2 = inFile.eig2[IND]
 
-        # scale down coordinates
-        if decimated:
-            u = inFile.dec
-            coords = u[:, None] * np.floor(np.stack((x / u, y / u, z / u), axis=1))
-        else:
-            coords = np.stack((x, y, z), axis=1)
-        # build the probabilistic dimension
+    # scale down coordinates
+    if decimated:
+        u = inFile.dec
+        coords = u[:, None] * np.floor(np.stack((x / u, y / u, z / u), axis=1))
+    else:
+        coords = np.stack((x, y, z), axis=1)
+    # build the probabilistic dimension
 
-        dims = point_dimension(inFile)[IND]
+    dims = point_dimension(inFile)[IND]
 
-        classn = 1 * inFile.classification[IND]
-        classn[:] = 0
-        noise = eig2 < 0
-        dim1 = dims == 1
-        dim2 = dims == 2
-        dim3 = dims == 3
+    classn = 1 * inFile.classification[IND]
+    classn[:] = 0
+    noise = eig2 < 0
+    dim1 = dims == 1
+    dim2 = dims == 2
+    dim3 = dims == 3
 
-        mask = dim1
-        if mask.any():
-            v0 = 1 * inFile.eig20[IND]
-            v1 = 1 * inFile.eig21[IND]
-            v2 = 1 * inFile.eig22[IND]
-            line_of_best_fit_direction = np.stack((v0, v1, v2), axis=1)
-            labels = eigen_clustering(coords[mask], line_of_best_fit_direction[mask], 0.5, 5, 2, 1)
-            class_mask = classn[mask]
-            class_mask[:] = 1
-            class_mask[labels == -1] = 0
-            classn[mask] = class_mask
+    mask = dim1
+    if mask.any():
+        v0 = 1 * inFile.eig20[IND]
+        v1 = 1 * inFile.eig21[IND]
+        v2 = 1 * inFile.eig22[IND]
+        line_of_best_fit_direction = np.stack((v0, v1, v2), axis=1)
+        labels = eigen_clustering(coords[mask], line_of_best_fit_direction[mask], 0.5, 5, 2, 1)
+        class_mask = classn[mask]
+        class_mask[:] = 1
+        class_mask[labels == -1] = 0
+        classn[mask] = class_mask
 
-            conductor = corridor(coords, line_of_best_fit_direction[classn == 1], classn == 1, R=0.5, S=2)
-            classn[conductor] = 1
-            classn[noise] = 7
+        conductor = corridor(coords, line_of_best_fit_direction[classn == 1], classn == 1, R=0.5, S=2)
+        classn[conductor] = 1
+        classn[noise] = 7
 
-        mask = dim2 & (~ noise) & (classn != 1)
-        if mask.any():
-            v0 = 1 * inFile.eig10[IND]
-            v1 = 1 * inFile.eig11[IND]
-            v2 = 1 * inFile.eig12[IND]
-            plane_of_best_fit_direction = np.stack((v0, v1, v2),
-                                                   axis=1)  # np.sqrt(v0 ** 2 + v1 ** 2 + v2 ** 2)[:, None]
-            labels = eigen_clustering(coords[mask], plane_of_best_fit_direction[mask], 0.5, 5, 2, 1)
-            class_mask = classn[mask]
-            class_mask[:] = 2
-            class_mask[labels == -1] = 0
-            classn[mask] = class_mask
-            if (classn == 2).any():
-                nhbrs = NearestNeighbors(n_neighbors=1, algorithm="kd_tree").fit(coords[classn == 2])
-                distances, indices = nhbrs.kneighbors(coords)
-                classn[(distances[:, 0] < 0.5) & (classn != 7) & (classn != 1)] = 2
-
-        mask = dim3 & (~ noise) & (classn != 1) & (classn != 2)
-        if mask.any():
-            labels = clustering(coords[mask], 0.5, 2, 1)
-            class_mask = classn[mask]
-            class_mask[:] = 3
-            class_mask[labels == -1] = 0
-            classn[mask] = class_mask
-
-        if (classn == 3).any():
-            nhbrs = NearestNeighbors(n_neighbors=1, algorithm="kd_tree").fit(coords[classn == 3])
+    mask = dim2 & (~ noise) & (classn != 1)
+    if mask.any():
+        v0 = 1 * inFile.eig10[IND]
+        v1 = 1 * inFile.eig11[IND]
+        v2 = 1 * inFile.eig12[IND]
+        plane_of_best_fit_direction = np.stack((v0, v1, v2),
+                                               axis=1)  # np.sqrt(v0 ** 2 + v1 ** 2 + v2 ** 2)[:, None]
+        labels = eigen_clustering(coords[mask], plane_of_best_fit_direction[mask], 0.5, 5, 2, 1)
+        class_mask = classn[mask]
+        class_mask[:] = 2
+        class_mask[labels == -1] = 0
+        classn[mask] = class_mask
+        if (classn == 2).any():
+            nhbrs = NearestNeighbors(n_neighbors=1, algorithm="kd_tree").fit(coords[classn == 2])
             distances, indices = nhbrs.kneighbors(coords)
-            classn[(distances[:, 0] < 0.5) & (classn != 7) & (classn != 1) & (classn != 2)] = 3
+            classn[(distances[:, 0] < 0.5) & (classn != 7) & (classn != 1)] = 2
 
-        if ((classn != 0) & (classn != 7)).any():
-            nhbrs = NearestNeighbors(n_neighbors=1, algorithm="kd_tree").fit(coords[(classn != 0) & (classn != 7), :])
-            distances, indices = nhbrs.kneighbors(coords[classn == 0, :])
-            classn0 = classn[classn == 0]
-            classn0[(distances[:, 0] < 0.5)] = (classn[(classn != 0) & (classn != 7)])[
-                indices[(distances[:, 0] < 0.5), 0]]
-            classn[(classn == 0)] = classn0
+    mask = dim3 & (~ noise) & (classn != 1) & (classn != 2)
+    if mask.any():
+        labels = clustering(coords[mask], 0.5, 2, 1)
+        class_mask = classn[mask]
+        class_mask[:] = 3
+        class_mask[labels == -1] = 0
+        classn[mask] = class_mask
 
-        outFile = File(output_file, mode="w", header=inFile.header)
-        outFile.points = inFile.points
-        outFile.classification = classn[INV]
-        outFile.close()
+    if (classn == 3).any():
+        nhbrs = NearestNeighbors(n_neighbors=1, algorithm="kd_tree").fit(coords[classn == 3])
+        distances, indices = nhbrs.kneighbors(coords)
+        classn[(distances[:, 0] < 0.5) & (classn != 7) & (classn != 1) & (classn != 2)] = 3
+
+    if ((classn != 0) & (classn != 7)).any():
+        nhbrs = NearestNeighbors(n_neighbors=1, algorithm="kd_tree").fit(coords[(classn != 0) & (classn != 7), :])
+        distances, indices = nhbrs.kneighbors(coords[classn == 0, :])
+        classn0 = classn[classn == 0]
+        classn0[(distances[:, 0] < 0.5)] = (classn[(classn != 0) & (classn != 7)])[
+            indices[(distances[:, 0] < 0.5), 0]]
+        classn[(classn == 0)] = classn0
+
+    outFile = File(output_file, mode="w", header=inFile.header)
+    outFile.points = inFile.points
+    outFile.classification = classn[INV]
+    outFile.close()
 
 
 def conductor_matters_1(infile, epsilon=2.5, classification_in=0, classification_up=1,
