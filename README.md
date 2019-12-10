@@ -108,7 +108,7 @@ Explanation of the arguments:
 4. **-r** is the location where the results of the jobs will be put in.
 5. **-f** is the location of the flow file.
 6. **-t** which template jobs we are going to use.
-7. **-n** how much tiles we have if -b is different then None
+7. **-mb** mb per tile if -b is different then None
 8. **-cl** is the core limit for **execute.py** and process count for **execute_process.py**
 
 Note: all of these arguments are required.

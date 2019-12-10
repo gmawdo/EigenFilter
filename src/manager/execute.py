@@ -187,7 +187,7 @@ if __name__ == '__main__':
 
     if args.bigfile != 'None':
         print("===== Tiling Start =====")
-        rh_tiling_gps_equal_filesize(args.bigfile, args.data + '/', filesize=int(args.mbpt))
+        rh_tiling_gps_equal_filesize(args.bigfile, args.data + '/', filesize=float(args.mbpt))
         print("===== Tiling End   =====")
 
     print("===== Processing Start =====")
