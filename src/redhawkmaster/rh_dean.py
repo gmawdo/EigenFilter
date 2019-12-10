@@ -89,22 +89,6 @@ def bbox(tile_name, output_file):
     classn = np.ones(len(inFile), dtype=int)
     classn[:] = inFile.classification[:]
 
-    classn_2_save = classn == 2
-    if (classn == 2).any():
-        clustering = DBSCAN(eps=0.5, min_samples=1).fit(np.stack((x, y, z), axis=1)[classn_2_save, :])
-        labels = clustering.labels_
-        L = np.unique(labels)
-        bldgs = np.empty((L.size, 6))
-        i = 0
-        for item in L:
-            predicate = np.zeros(len(inFile), dtype=bool)
-            predicate[classn_2_save] = labels == item
-            predicate_bb, area, x_min, x_max, y_min, y_max = bb(x, y, z, predicate, R)
-            classn[predicate_bb] = 2
-            bldgs[i] = [i, area, x_min, x_max, y_min, y_max]
-            i += 1
-            np.savetxt("buildings_" + tile_name[-4:] + ".csv", bldgs, delimiter=",",
-                       header="ID, Area, X_min, X_max, Y_min, Y_max")
     # ===== END ===== Bounding Box - Rectangle
 
     # ===== START ===== Corridor 2D
