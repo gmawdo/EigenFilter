@@ -417,6 +417,29 @@ def corridor(coords, eigenvectors, mask, R, S):
     return condition
 
 
+def eigenvector2_corridors(infile,
+                           outfile,
+                           class_to_cylinder,
+                           classification_of_cylinder,
+                           radius_of_cylinders,
+                           length_of_cylinders):
+    """
+
+    @param infile:
+    @param classification_to_corridor:
+    @param radius_of_cylinders:
+    @param length_of_cylinders:
+    @return:
+    """
+    inFile = File(infile)
+    outFile = File(outfile, mode="w", header=inFile.header)
+    outFile.points = inFile.points
+    coords = np.stack((inFile.x, inFile.y, inFile.z), axis=1)
+    eigenvectors = np.stack((inFile.eig20, inFile.eig21, inFile.eig22))[]
+    condition = corridor(coords, eigenvectors, inFile.classification == class_to_cylinder, radius_of_cylinders,
+                         length_of_cylinders)
+
+
 def point_dimension(inFile):
     """
     Dimensions for each point of a las file.
