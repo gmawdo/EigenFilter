@@ -74,15 +74,14 @@ def cluster_labels_testing():
     dimension1d2d3d_v01_0(input_file,
                           output_file)
 
-    eigencluster_labels_v01_1(infile='T000_011.las',
-                              outfile='T000_014.las',
-                              eigenvector_number=2,
-                              attribute='dimension1d2d3d',
-                              range_to_cluster=[[1]],
-                              distance=0.5,
-                              min_pts=1,
-                              cluster_attribute='whatever',
-                              minimum_length=2)
+    cluster_labels_v01_2(infile='T000_011.las',
+                          outfile='T000_014.las',
+                          attribute='dimension1d2d3d',
+                          range_to_cluster=[[...,-1],[3]],
+                          distance=0.5,
+                          min_pts=1,
+                          cluster_attribute='whatever',
+                          minimum_length=2)
 
     input_file = 'T000_014.las'
     output_file = 'T000_015.las'
@@ -137,10 +136,10 @@ def decimation_testing():
     eigenvector_corridors(infile,
                           outfile,
                           attribute_to_corridor='whatever',
-                          value_to_corridor=0,
+                          range_to_corridor=[(0, ...), (1, ...)],
                           classification_of_corridor=1,
                           radius_of_cylinders=0.5,
-                          length_of_cylinders=2)
+                          length_of_cylinders=2.0)
 
     infile_with_inv = 'T001_005.las'
     infile_decimated = 'T002_008.las'
@@ -151,7 +150,32 @@ def decimation_testing():
                      inverter_attribute="inverter",
                      attributes_to_copy=["whatever", "dimension1d2d3d", "raw_classification"])
 
+    infile = "T001_015.las"
+    outfile = "T001_016.las"
+    ferry_v01_0(infile=infile,
+                outfile=outfile,
+                attribute1='whatever',
+                attribute2='intensity',
+                renumber=True)
+
+    infile = "T001_015.las"
+    outfile = "T001_017.las"
+    ferry_v01_0(infile=infile,
+                outfile=outfile,
+                attribute1='raw_classification',
+                attribute2='intensity',
+                renumber=False)
+
+    infile = "T001_015.las"
+    outfile = "T001_018.las"
+    ferry_v01_0(infile=infile,
+                outfile=outfile,
+                attribute1='dimension1d2d3d',
+                attribute2='intensity',
+                renumber=False)
+
+
 # triangulation_test()
 # dimension1d2d3d_clustering_testing()
-# cluster_labels_testing()
-decimation_testing()
+cluster_labels_testing()
+# decimation_testing()
