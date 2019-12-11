@@ -83,6 +83,8 @@ def get_in_files(line, count, fil):
 
     # argument for the docker input files
     in_files = '-i '
+    if line[-1].strip() == 'cleanup':
+        in_files = ''
 
     # First call of the script we get from the data volume
     if count == 0:
@@ -163,19 +165,39 @@ def parallel(args):
                 count += 1
 
                 # Construct the command
-                command = 'echo "=====   Job no.'+line[-1].strip()+' for tile '+fil+' start   ===== $(date)"  >>'\
-                          + args.results + '/logs/log' + str(process_count-1).zfill(3) + '.out  &&' \
-                          ' docker run -it --rm -v ' + args.code + ':/code -v ' + args.data + ':/data ' \
-                          '-v ' + args.results + ':/results redhawk python3 /code/template_jobs/' + \
-                          args.template + '/' + line[-1].strip() + '.py ' + in_files + out_files + \
-                          ' >> ' + args.results + '/logs/log' + str(process_count-1).zfill(3) + '.out '\
-                          ' && echo "=====   Job no.'+line[-1].strip()+' for tile '+fil+' end     ===== $(date)" >> '\
-                          + args.results + '/logs/log' + str(process_count-1).zfill(3) + '.out '
+                command = 'echo "=====   Job no.{} for tile {} start   ===== $(date)"  >> {}/logs/log_{}.out && ' \
+                          'docker run -it --rm -v {}:/code -v {}:/data -v {}:/results ' \
+                          'redhawk python3 /code/template_jobs/{}/{}.py {} {} >> {}/logs/log_{}.out && ' \
+                          'echo "=====   Job no.{} for tile {} end     ===== $(date)" >> ' \
+                          '{}/logs/log_{}.out '
+                command = command.format(line[-1].strip(), fil, args.results, fil, args.code, args.data, args.results,
+                                         args.template, line[-1].strip(), in_files, out_files, args.results, fil,
+                                         line[-1].strip(), fil, args.results, fil)
+
+                if line[-1].strip() == 'cleanup':
+                    command = 'echo "=====   {} for tile {} start   ===== $(date)"  >> {}/logs/log_{}.out && ' \
+                              'docker run -it --rm -v {}:/data -v {}:/results ' \
+                              'redhawk rm {} >> {}/logs/log_{}.out && ' \
+                              'echo "=====   {} for tile {} end     ===== $(date)" >> ' \
+                              '{}/logs/log_{}.out '.format(line[-1].strip(), fil, args.results, fil, args.data,
+                                                           args.results,
+                                                           in_files, args.results, fil, line[-1].strip(), fil,
+                                                           args.results, fil)
+
+                # command = 'echo "=====   Job no.'+line[-1].strip()+' for tile '+fil+' start   ===== $(date)"  >>'\
+                #           + args.results + '/logs/log' + str(process_count-1).zfill(3) + '.out  &&' \
+                #           ' docker run -it --rm -v ' + args.code + ':/code -v ' + args.data + ':/data ' \
+                #           '-v ' + args.results + ':/results redhawk python3 /code/template_jobs/' + \
+                #           args.template + '/' + line[-1].strip() + '.py ' + in_files + out_files + \
+                #           ' >> ' + args.results + '/logs/log' + str(process_count-1).zfill(3) + '.out '\
+                #           ' && echo "=====   Job no.'+line[-1].strip()+' for tile '+fil+' end     ===== $(date)" >> '\
+                #           + args.results + '/logs/log' + str(process_count-1).zfill(3) + '.out '
 
                 result.append(command)
 
             results.append(result)
 
+    # print(results)
     # Open multiprocessing pool and run the jobs
     pool = multiprocessing.Pool(processes=int(args.core_limit))
     pool.map(run_process, results)
@@ -191,7 +213,7 @@ if __name__ == '__main__':
         print("===== Tiling End   =====")
 
     print("===== Processing Start =====")
-    # parallel(args)
+    parallel(args)
     print("===== Processing End   =====")
 
     end = time.time()
