@@ -105,6 +105,9 @@ def get_out_files(line, fil):
     # The argument for the output files.
     out_files = '-o '
 
+    if line[-1].strip() == 'cleanup':
+        return out_files + "' '"
+
     # We count the output files in the line based on:
     # if the final job in a line is consist in some other names
     # e.x. 002,003_1,003_2,003 -> 003 is consist in 003_1 and 003_2
@@ -144,6 +147,8 @@ def get_in_files(line, count, fil):
 
     # argument for the docker input files
     in_files = '-i '
+    if line[-1].strip() == 'cleanup':
+        in_files = ''
 
     # First call of the script we get from the data volume
     if count == 0:
@@ -230,6 +235,19 @@ def parallel(args):
                                          args.template, line[-1].strip(), in_files, out_files, args.results, fil,
                                          line[-1].strip(), fil, args.results, fil)
 
+                if line[-1].strip() == 'cleanup':
+                    command = 'echo "=====   {} for tile {} start   ===== $(date)"  >> {}/logs/log_{}.out && ' \
+                              'docker run -it --rm -v {}:/data -v {}:/results ' \
+                              'redhawk rm {} >> {}/logs/log_{}.out && ' \
+                              'echo "=====   {} for tile {} end     ===== $(date)" >> ' \
+                              '{}/logs/log_{}.out '.format(line[-1].strip(), fil, args.results, fil, args.data,
+                                                           args.results,
+                                                           in_files, args.results, fil, line[-1].strip(), fil,
+                                                           args.results, fil)
+
+                    # command.format(line[-1].strip(), fil, args.results, fil, args.data, args.results,
+                    #                in_files, args.results, fil, line[-1].strip(), fil, args.results, fil)
+
                 result.append(command)
 
             count += 1
@@ -248,9 +266,10 @@ if __name__ == '__main__':
         print("===== Tiling End   =====")
     print("===== Processing Start =====")
 
-    # loop = asyncio.get_event_loop()
-    # for res in parallel(args):
-    #     loop.run_until_complete(run_all_commands(res))
+    # print(parallel(args)[3])
+    loop = asyncio.get_event_loop()
+    for res in parallel(args):
+        loop.run_until_complete(run_all_commands(res))
 
     print("===== Processing End   =====")
     end = time.time()
