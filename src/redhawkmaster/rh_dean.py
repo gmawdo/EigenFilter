@@ -459,7 +459,7 @@ def corridor(coords, eigenvectors, mask, R, S):
         # return condition for the corridor
         condition = (w_norms < R) & (np.absolute(scale) < S)
     else:
-        condition = np.zeros(coords.shape[-2], dtype = bool)
+        condition = np.zeros(coords.shape[-2], dtype=bool)
 
     return condition
 
@@ -468,6 +468,8 @@ def eigenvector_corridors(infile,
                           outfile,
                           attribute_to_corridor,
                           range_to_corridor,
+                          protection_attribute,
+                          range_to_protect,
                           classification_of_corridor,
                           radius_of_cylinders,
                           length_of_cylinders):
@@ -483,13 +485,13 @@ def eigenvector_corridors(infile,
     classn = 1 * inFile.classification
     outFile = File(outfile, mode="w", header=inFile.header)
     outFile.points = inFile.points
-    attr = inFile.reader.get_dimension(attribute_to_corridor)
-    mask = uicondition2mask(range_to_corridor)(attr)
+    mask = uicondition2mask(range_to_corridor)(inFile.reader.get_dimension(attribute_to_corridor))
+    protect = uicondition2mask(range_to_protect)(inFile.reader.get_dimension(protection_attribute))
     coords = np.stack((inFile.x, inFile.y, inFile.z), axis=1)
     eigenvectors = np.stack((inFile.eig20, inFile.eig21, inFile.eig22), axis=1)[mask, :]
     condition = corridor(coords, eigenvectors, mask, radius_of_cylinders,
                          length_of_cylinders)
-    classn[condition] = classification_of_corridor
+    classn[condition & (~ protect)] = classification_of_corridor
     outFile.classification = classn
     outFile.close()
 
@@ -1068,6 +1070,7 @@ def cluster_labels_v01_1(infile,
     out_file.writer.set_dimension(cluster_attribute, labels_allpts)
     out_file.close()
 
+
 def cluster_labels_v01_2(infile,
                          outfile,
                          attribute,
@@ -1362,6 +1365,25 @@ def ferry_v01_0(infile, outfile, attribute1, attribute2, renumber, start=0):
         unq, ind, inv = np.unique(a, return_index=True, return_inverse=True, return_counts=False)
         a = np.arange(ind.size)[inv] + start
     outFile.writer.set_dimension(attribute2, a)
+
+
+def ferry_v01_1(infile, outfile, attribute1, attribute2, renumber, start=0, manipulate = lambda x: x):
+    """
+    :param infile: file name to read
+    :param outfile: file name to write
+    :param attribute1: attribute whose values will be inserted into attribute2
+    :param attribute2: attribute to be overwritten by attribute1
+    :param renumber: True/False to renumber as consecutive integers
+    :param start: what to renumber from (ignored if renumber is False)
+    """
+    inFile = File(infile)
+    outFile = File(outfile, mode="w", header=inFile.header)
+    outFile.points = inFile.points
+    a = inFile.reader.get_dimension(attribute1)
+    if renumber:
+        unq, ind, inv = np.unique(a, return_index=True, return_inverse=True, return_counts=False)
+        a = np.arange(ind.size)[inv] + start
+    outFile.writer.set_dimension(attribute2, manipulate(a))
 
 
 def decimate_v01_0(infile, outfile, decimated_outfile, voxel_size, inverter_attribute):

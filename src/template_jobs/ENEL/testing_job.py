@@ -120,15 +120,15 @@ def decimation_testing():
 
     infile = 'T002_006.las'
     outfile = 'T002_007.las'
-    eigencluster_labels_v01_1(infile,
+    eigencluster_labels_v01_2(infile,
                               outfile,
-                              eigenvector_number=2,
+                              eigenvector_number=0,
                               attribute='dimension1d2d3d',
-                              range_to_cluster=[[1]],
+                              range_to_cluster=[[2]],
                               distance=0.5,
                               min_pts=1,
                               cluster_attribute='whatever',
-                              minimum_length=2.0)
+                              minimum_length=2)
 
     infile = 'T002_007.las'
     outfile = 'T002_008.las'
@@ -136,7 +136,9 @@ def decimation_testing():
     eigenvector_corridors(infile,
                           outfile,
                           attribute_to_corridor='whatever',
-                          range_to_corridor=[(0, ...), (1, ...)],
+                          range_to_corridor=[[1, ...]],
+                          protection_attribute='dimension1d2d3d',
+                          range_to_protect=[[3]],
                           classification_of_corridor=1,
                           radius_of_cylinders=0.5,
                           length_of_cylinders=2.0)
@@ -174,8 +176,17 @@ def decimation_testing():
                 attribute2='intensity',
                 renumber=False)
 
+    infile = "T001_015.las"
+    outfile = "T001_019.las"
+    ferry_v01_1(infile=infile,
+                outfile=outfile,
+                attribute1='eig22',
+                attribute2='intensity',
+                renumber=False,
+                manipulate = lambda x: 500*(x+1))
+
 
 # triangulation_test()
 # dimension1d2d3d_clustering_testing()
-cluster_labels_testing()
-# decimation_testing()
+# cluster_labels_testing()
+decimation_testing()
