@@ -474,12 +474,19 @@ def eigenvector_corridors(infile,
                           radius_of_cylinders,
                           length_of_cylinders):
     """
-
-    @param infile:
-    @param classification_to_corridor:
-    @param radius_of_cylinders:
-    @param length_of_cylinders:
-    @return:
+    Select some points to put a corridor (=collection of cylinders) around, by using an attribute and range.
+    Select an attribute range to protect from change in classification.
+    Choose classification for points inside corridor, with radius and length of cylinders to define corridor.
+    @param infile: input file name
+    @param outfile: output file name
+    @param attribute_to_corridor: attribute used to select points
+    @param range_to_corridor: range of values to change
+    @param protection_attribute: attribute used to protect points from classification change
+    @param range_to_protect: range of values to protect
+    @param classification_of_corridor: classification of inside corridor
+    @param radius_of_cylinders: radius of cylinders which describe corridor
+    @param length_of_cylinders: length of cylinders which describe corridor
+    @return: file with selection reclassified
     """
     inFile = File(infile)
     classn = 1 * inFile.classification
@@ -1367,7 +1374,7 @@ def ferry_v01_0(infile, outfile, attribute1, attribute2, renumber, start=0):
     outFile.writer.set_dimension(attribute2, a)
 
 
-def ferry_v01_1(infile, outfile, attribute1, attribute2, renumber, start=0, manipulate = lambda x: x):
+def ferry_v01_1(infile, outfile, attribute1, attribute2, renumber, start=0, manipulate=lambda x: x):
     """
     :param infile: file name to read
     :param outfile: file name to write
@@ -1388,12 +1395,14 @@ def ferry_v01_1(infile, outfile, attribute1, attribute2, renumber, start=0, mani
 
 def decimate_v01_0(infile, outfile, decimated_outfile, voxel_size, inverter_attribute):
     """
-    @param infile:
-    @param outfile:
-    @param decimated_outfile:
-    @param voxel_size:
-    @param inverter_attribute:
-    @return:
+    Produces two new files. One is decimated with no extra attributes, another is not decimated which holds an attribute
+    to recover info from decimated file.
+    @param infile: file to decimate
+    @param outfile: the file with inverter attibute
+    @param decimated_outfile: the decimated file with fewer points
+    @param voxel_size: voxel side length
+    @param inverter_attribute: name of inverter attribute
+    @return: two files, one with inverter, one with fewer points
     """
     inFile = File(infile)
     outFile = File(outfile, mode="w", header=inFile.header)
@@ -1428,12 +1437,12 @@ def decimate_v01_0(infile, outfile, decimated_outfile, voxel_size, inverter_attr
 
 def undecimate_v01_0(infile_with_inv, infile_decimated, outfile, inverter_attribute, attributes_to_copy):
     """
-
-    @param infile_with_inv:
-    @param infile_decimated:
-    @param outfile:
-    @param inverter_attribute:
-    @param attributes_to_copy:
+    reverses decimation
+    @param infile_with_inv: file with inverter attribute
+    @param infile_decimated: decimated file with fewer points
+    @param outfile: new file with attributes recovered from decimation
+    @param inverter_attribute: name of inverter attribute on infile_with_inv
+    @param attributes_to_copy: attributes for recovery
     @return:
     """
     inFile1 = File(infile_with_inv)
