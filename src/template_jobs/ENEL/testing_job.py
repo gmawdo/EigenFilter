@@ -74,15 +74,14 @@ def cluster_labels_testing():
     dimension1d2d3d_v01_0(input_file,
                           output_file)
 
-    eigencluster_labels_v01_1(infile='T000_011.las',
-                              outfile='T000_014.las',
-                              eigenvector_number=2,
-                              attribute='dimension1d2d3d',
-                              range_to_cluster=[[1]],
-                              distance=0.5,
-                              min_pts=1,
-                              cluster_attribute='whatever',
-                              minimum_length=2)
+    cluster_labels_v01_2(infile='T000_011.las',
+                          outfile='T000_014.las',
+                          attribute='dimension1d2d3d',
+                          range_to_cluster=[[...,-1],[3]],
+                          distance=0.5,
+                          min_pts=1,
+                          cluster_attribute='whatever',
+                          minimum_length=2)
 
     input_file = 'T000_014.las'
     output_file = 'T000_015.las'
@@ -121,40 +120,70 @@ def decimation_testing():
 
     infile = 'T002_006.las'
     outfile = 'T002_007.las'
-    eigencluster_labels_v01_1(infile,
+    eigencluster_labels_v01_2(infile,
                               outfile,
-                              eigenvector_number=2,
+                              eigenvector_number=0,
                               attribute='dimension1d2d3d',
-                              range_to_cluster=[[1]],
+                              range_to_cluster=[[2]],
                               distance=0.5,
                               min_pts=1,
                               cluster_attribute='whatever',
-                              minimum_length=2.0)
+                              minimum_length=2)
+
+    infile = 'T002_007.las'
+    outfile = 'T002_008.las'
+
+    eigenvector_corridors(infile,
+                          outfile,
+                          attribute_to_corridor='whatever',
+                          range_to_corridor=[[1, ...]],
+                          protection_attribute='dimension1d2d3d',
+                          range_to_protect=[[3]],
+                          classification_of_corridor=1,
+                          radius_of_cylinders=0.5,
+                          length_of_cylinders=2.0)
 
     infile_with_inv = 'T001_005.las'
-    infile_decimated = 'T002_007.las'
+    infile_decimated = 'T002_008.las'
     outfile = "T001_015.las"
     undecimate_v01_0(infile_with_inv,
                      infile_decimated,
                      outfile,
                      inverter_attribute="inverter",
-                     attributes_to_copy=["whatever", "dimension1d2d3d"])
+                     attributes_to_copy=["whatever", "dimension1d2d3d", "raw_classification"])
 
-    infile = 'T001_015.las'
-    outfile = 'T001_016.las'
-    ferry_v01_0(infile,
-                outfile,
+    infile = "T001_015.las"
+    outfile = "T001_016.las"
+    ferry_v01_0(infile=infile,
+                outfile=outfile,
                 attribute1='whatever',
                 attribute2='intensity',
-                renumber=True,
-                start=0)
+                renumber=True)
 
-    ferry_v01_0('T002_007.las',
-                'T002_007_relabelled.las',
-                attribute1='whatever',
+    infile = "T001_015.las"
+    outfile = "T001_017.las"
+    ferry_v01_0(infile=infile,
+                outfile=outfile,
+                attribute1='raw_classification',
                 attribute2='intensity',
-                renumber=True,
-                start=0)
+                renumber=False)
+
+    infile = "T001_015.las"
+    outfile = "T001_018.las"
+    ferry_v01_0(infile=infile,
+                outfile=outfile,
+                attribute1='dimension1d2d3d',
+                attribute2='intensity',
+                renumber=False)
+
+    infile = "T001_015.las"
+    outfile = "T001_019.las"
+    ferry_v01_1(infile=infile,
+                outfile=outfile,
+                attribute1='eig22',
+                attribute2='intensity',
+                renumber=False,
+                manipulate = lambda x: 500*(x+1))
 
 
 # triangulation_test()

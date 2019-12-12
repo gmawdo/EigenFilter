@@ -362,6 +362,50 @@ def add_attributes(tile_name, output_file, time_intervals=10, k=range(4, 50), ra
     lm.lpinteraction.attr(tile_name, output_file, config=cf)
 
 
+def uicondition2mask(range):
+    """
+    The ui sometimes gives the user the option to enter a range. This looks something like
+    range = (0,1),(2,4),[-1,-0.5],[10,...], (...,-10)
+    This means that the we need to select points with:
+    0<x<1 or 2<x<4 or -1<=x<=0.5 or 10<=x or x<-10
+    We need to take the range and get a function of x which produces a mask. This is what this function does.
+    @param range: The range gotten from the UI
+    @return: A function we can apply to x (the vector to be ranged) which outputs a mask
+    """
+    f = lambda x: np.zeros(len(x), dtype=bool)
+    rh_or = lambda f, g: lambda x: (f(x) | g(x))
+    rh_and = lambda f, g: lambda x: (f(x) & g(x))
+
+    gt = lambda t: lambda x: x > t[0]
+    lt = lambda t: lambda x: x < t[-1]
+    geq = lambda t: lambda x: x >= t[0]
+    leq = lambda t: lambda x: x <= t[-1]
+
+    for item in range:
+        cond = lambda x: np.ones(len(x), dtype=bool)
+        if isinstance(item, list):
+            if item[0] is ...:
+                pass
+            else:
+                cond = rh_and(cond, geq(item))
+            if item[-1] is ...:
+                pass
+            else:
+                cond = rh_and(cond, leq(item))
+        if isinstance(item, tuple):
+            if item[0] is ...:
+                pass
+            else:
+                cond = rh_and(cond, gt(item))
+            if item[-1] is ...:
+                pass
+            else:
+                cond = rh_and(cond, lt(item))
+        f = rh_or(f, cond)
+
+    return f
+
+
 def corridor(coords, eigenvectors, mask, R, S):
     """
     Find a cylindrical corridor around a family of points.
@@ -379,26 +423,68 @@ def corridor(coords, eigenvectors, mask, R, S):
     # The next uncommented line would be needed to match the original demo, but it shouldn't really have been used
     # in the first place!
     # coords = 0.05*np.floor(coords/0.05)
-    coord_mask = coords[mask, :]
-    # find nearest neighbours from each point to the points of interest
-    nhbrs = NearestNeighbors(n_neighbors=1, algorithm="kd_tree").fit(coord_mask)
-    distances, indices = nhbrs.kneighbors(coords)
-    nearest_nbrs = indices[:, 0]
+    if mask.any():
+        coord_mask = coords[mask, :]
+        # find nearest neighbours from each point to the points of interest
+        nhbrs = NearestNeighbors(n_neighbors=1, algorithm="kd_tree").fit(coord_mask)
+        distances, indices = nhbrs.kneighbors(coords)
+        nearest_nbrs = indices[:, 0]
 
-    # find direction from each point to point of interest, project onto eigenvector
-    v = eigenvectors[nearest_nbrs]
-    u = coords - coords[mask][nearest_nbrs]
-    scale = u[:, 0] * v[:, 0] + u[:, 1] * v[:, 1] + u[:, 2] * v[:, 2]  # np.sum(u * v, axis=1)
-    # find coprojection
-    w = u - scale[:, None] * v
+        # find direction from each point to point of interest, project onto eigenvector
+        v = eigenvectors[nearest_nbrs]
+        u = coords - coords[mask][nearest_nbrs]
+        scale = u[:, 0] * v[:, 0] + u[:, 1] * v[:, 1] + u[:, 2] * v[:, 2]  # np.sum(u * v, axis=1)
+        # find coprojection
+        w = u - scale[:, None] * v
 
-    # find distance to line formed by eigenvector
-    w_norms = np.sqrt(w[:, 0] ** 2 + w[:, 1] ** 2 + w[:, 2] ** 2)  # np.sqrt(np.sum(w ** 2, axis=1))
+        # find distance to line formed by eigenvector
+        w_norms = np.sqrt(w[:, 0] ** 2 + w[:, 1] ** 2 + w[:, 2] ** 2)  # np.sqrt(np.sum(w ** 2, axis=1))
 
-    # return condition for the corridor
-    condition = (w_norms < R) & (np.absolute(scale) < S)
+        # return condition for the corridor
+        condition = (w_norms < R) & (np.absolute(scale) < S)
+    else:
+        condition = np.zeros(coords.shape[-2], dtype=bool)
 
     return condition
+
+
+def eigenvector_corridors(infile,
+                          outfile,
+                          attribute_to_corridor,
+                          range_to_corridor,
+                          protection_attribute,
+                          range_to_protect,
+                          classification_of_corridor,
+                          radius_of_cylinders,
+                          length_of_cylinders):
+    """
+    Select some points to put a corridor (=collection of cylinders) around, by using an attribute and range.
+    Select an attribute range to protect from change in classification.
+    Choose classification for points inside corridor, with radius and length of cylinders to define corridor.
+    @param infile: input file name
+    @param outfile: output file name
+    @param attribute_to_corridor: attribute used to select points
+    @param range_to_corridor: range of values to change
+    @param protection_attribute: attribute used to protect points from classification change
+    @param range_to_protect: range of values to protect
+    @param classification_of_corridor: classification of inside corridor
+    @param radius_of_cylinders: radius of cylinders which describe corridor
+    @param length_of_cylinders: length of cylinders which describe corridor
+    @return: file with selection reclassified
+    """
+    inFile = File(infile)
+    classn = 1 * inFile.classification
+    outFile = File(outfile, mode="w", header=inFile.header)
+    outFile.points = inFile.points
+    mask = uicondition2mask(range_to_corridor)(inFile.reader.get_dimension(attribute_to_corridor))
+    protect = uicondition2mask(range_to_protect)(inFile.reader.get_dimension(protection_attribute))
+    coords = np.stack((inFile.x, inFile.y, inFile.z), axis=1)
+    eigenvectors = np.stack((inFile.eig20, inFile.eig21, inFile.eig22), axis=1)[mask, :]
+    condition = corridor(coords, eigenvectors, mask, radius_of_cylinders,
+                         length_of_cylinders)
+    classn[condition & (~ protect)] = classification_of_corridor
+    outFile.classification = classn
+    outFile.close()
 
 
 def point_dimension(inFile):
@@ -976,6 +1062,57 @@ def cluster_labels_v01_1(infile,
     out_file.close()
 
 
+def cluster_labels_v01_2(infile,
+                         outfile,
+                         attribute,
+                         range_to_cluster,
+                         distance,
+                         min_pts,
+                         cluster_attribute,
+                         minimum_length):
+    """
+    Inputs a file and a classification to cluster. Outputs a file with cluster labels.
+    Clusters with label 0 are non-core points, i.e. points without "min_pts" within
+    "tolerance" (see DBSCAN documentation), or points outside the classification to cluster.
+    :param infile: input file name
+    :param outfile: output file name
+    :param attribute: the attribute which you want to use to select a range from
+    :param range_to_cluster: python list of values to cluster e.g. for classification [3,4,5] for the three types of veg
+    :param distance: how close must two points be to be put in the same cluster
+    :param min_pts: minimum number of points each point must have in a radius of size "distance"
+    :param cluster_attribute: the name given to the clustering labels
+    :param minimum_length: the minimum length of a cluster
+    """
+    # we shouldn't use las_modules.cluster function because it acts on a file, not on a family of points
+    infile = File(infile, mode="r")
+    x = infile.x
+    y = infile.y
+    z = infile.z
+    # make a vector to store labels
+    labels_allpts = np.zeros(len(infile), dtype=int)
+    # get the point positions
+    coords = np.stack((x, y, z), axis=1)
+    # make the clusters
+    attr = infile.reader.get_dimension(attribute)
+    mask = uicondition2mask(range_to_cluster)(attr)
+    labels = 1 + clustering(coords[mask], distance, minimum_length, min_pts)
+    # assign the target classification's labels
+    labels_allpts[mask] = labels  # find our labels (DBSCAN starts at -1 and we want to start at 0, so add 1)
+    # make the output file
+    out_file = File(outfile, mode="w", header=infile.header)
+    dimensions = [spec.name for spec in infile.point_format]
+    # add new dimension
+    if cluster_attribute not in dimensions:
+        out_file.define_new_dimension(name=cluster_attribute, data_type=6, description="clustering labels")
+    # add pre-existing point records
+    for dimension in dimensions:
+        dat = infile.reader.get_dimension(dimension)
+        out_file.writer.set_dimension(dimension, dat)
+    # set new dimension to labels
+    out_file.writer.set_dimension(cluster_attribute, labels_allpts)
+    out_file.close()
+
+
 def eigencluster_labels_v01_0(infile,
                               outfile,
                               classification_to_cluster,
@@ -1106,6 +1243,72 @@ def eigencluster_labels_v01_1(infile,
     out_file.close()
 
 
+def eigencluster_labels_v01_2(infile,
+                              outfile,
+                              eigenvector_number,
+                              attribute,
+                              range_to_cluster,
+                              distance,
+                              min_pts,
+                              cluster_attribute,
+                              minimum_length):
+    """
+    Input a file and select an eigenvector and attribute range to cluster. Outputs a file with cluster labels.
+    Clusters with label 0 are non-core points, i.e. points without "min_pts" within
+    "distance" (see DBSCAN documentation), or points outside the classification to cluster.
+    :param infile: input file name
+    :param outfile: output file name
+    :param eigenvector_number: 0, 1 or 2
+    :param attribute: the attribute which you want to use to select a range from
+    :param range_to_cluster: python list of values to cluster e.g. for classification [3,4,5] for the three types of veg
+    :param distance: how close must two points be to be put in the same cluster
+    :param min_pts: minimum number of points each point must have in a radius of size "distance"
+    :param cluster_attribute: the name given to the clustering labels
+    :param minimum_length: the minimum length of a cluster
+    :return:
+    """
+    # we shouldn't use las_modules.cluster function because it acts on a file, not on a family of points
+    infile = File(infile, mode="r")
+    x = infile.x
+    y = infile.y
+    z = infile.z
+
+    # extract the componenets of the desired eigenvector
+    v0 = infile.reader.get_dimension(f"eig{eigenvector_number}0")
+    v1 = infile.reader.get_dimension(f"eig{eigenvector_number}1")
+    v2 = infile.reader.get_dimension(f"eig{eigenvector_number}2")
+    eigenvector = np.stack((v0, v1, v2), axis=1)
+    # make a vector to store labels
+    labels_allpts = np.zeros(len(infile), dtype=int)
+    # get the point positions
+
+    coords = np.stack((x, y, z), axis=1)
+    # make the cluster labels
+    attr = infile.reader.get_dimension(attribute)
+    mask = uicondition2mask(range_to_cluster)(attr)
+    labels = 1 + eigen_clustering(coords[mask],
+                                  eigenvector[mask],
+                                  distance,
+                                  5,
+                                  minimum_length,
+                                  min_pts)
+    # assign the target classification's labels
+    labels_allpts[mask] = labels
+    # make the output file
+    out_file = File(outfile, mode="w", header=infile.header)
+    dimensions = [spec.name for spec in infile.point_format]
+    # add new dimension
+    if cluster_attribute not in dimensions:
+        out_file.define_new_dimension(name=cluster_attribute, data_type=6, description="clustering labels")
+    # add pre-existing point records
+    for dimension in dimensions:
+        dat = infile.reader.get_dimension(dimension)
+        out_file.writer.set_dimension(dimension, dat)
+    # set new dimension to labels
+    out_file.writer.set_dimension(cluster_attribute, labels_allpts)
+    out_file.close()
+
+
 def count_v01_0(tile,
                 output_file,
                 attribute):
@@ -1155,14 +1358,35 @@ def ferry_v01_0(infile, outfile, attribute1, attribute2, renumber, start=0):
     outFile.writer.set_dimension(attribute2, a)
 
 
+def ferry_v01_1(infile, outfile, attribute1, attribute2, renumber, start=0, manipulate=lambda x: x):
+    """
+    :param infile: file name to read
+    :param outfile: file name to write
+    :param attribute1: attribute whose values will be inserted into attribute2
+    :param attribute2: attribute to be overwritten by attribute1
+    :param renumber: True/False to renumber as consecutive integers
+    :param start: what to renumber from (ignored if renumber is False)
+    """
+    inFile = File(infile)
+    outFile = File(outfile, mode="w", header=inFile.header)
+    outFile.points = inFile.points
+    a = inFile.reader.get_dimension(attribute1)
+    if renumber:
+        unq, ind, inv = np.unique(a, return_index=True, return_inverse=True, return_counts=False)
+        a = np.arange(ind.size)[inv] + start
+    outFile.writer.set_dimension(attribute2, manipulate(a))
+
+
 def decimate_v01_0(infile, outfile, decimated_outfile, voxel_size, inverter_attribute):
     """
-    @param infile:
-    @param outfile:
-    @param decimated_outfile:
-    @param voxel_size:
-    @param inverter_attribute:
-    @return:
+    Produces two new files. One is decimated with no extra attributes, another is not decimated which holds an attribute
+    to recover info from decimated file.
+    @param infile: file to decimate
+    @param outfile: the file with inverter attibute
+    @param decimated_outfile: the decimated file with fewer points
+    @param voxel_size: voxel side length
+    @param inverter_attribute: name of inverter attribute
+    @return: two files, one with inverter, one with fewer points
     """
     inFile = File(infile)
     outFile = File(outfile, mode="w", header=inFile.header)
@@ -1197,12 +1421,12 @@ def decimate_v01_0(infile, outfile, decimated_outfile, voxel_size, inverter_attr
 
 def undecimate_v01_0(infile_with_inv, infile_decimated, outfile, inverter_attribute, attributes_to_copy):
     """
-
-    @param infile_with_inv:
-    @param infile_decimated:
-    @param outfile:
-    @param inverter_attribute:
-    @param attributes_to_copy:
+    reverses decimation
+    @param infile_with_inv: file with inverter attribute
+    @param infile_decimated: decimated file with fewer points
+    @param outfile: new file with attributes recovered from decimation
+    @param inverter_attribute: name of inverter attribute on infile_with_inv
+    @param attributes_to_copy: attributes for recovery
     @return:
     """
     inFile1 = File(infile_with_inv)
