@@ -164,8 +164,8 @@ def rh_tiling_gps_equal_filesize(filename, output_location, filesize=30):
     pool.close()
 
 
-def pdal_smrf(infile, outname, extra_dims=None, ground_classification=2, above_ground_classification=4,
-                   slope=0.1, cut=0.0, window=18, cell=1.0, scalar=0.5, threshold=0.5):
+def pdal_smrf(inname, outname, extra_dims=[("slpid"), ("uint64")], ground_classification=2, above_ground_classification=4,
+              slope=0.1, cut=0.0, window=18, cell=1.0, scalar=0.5, threshold=0.5):
     """
     Extraction of ground points. It is making the command
     to run the pdal ground app.
@@ -173,8 +173,8 @@ def pdal_smrf(infile, outname, extra_dims=None, ground_classification=2, above_g
     :param above_ground_classification: Classification on above
     :param ground_classification: Classification on ground
     :param extra_dims: Array of extra dimensions and types like [(extra1,uint64),(extra2,float)]
-    :param infile: Las file on which we need to extract the ground points.
-    :type infile: laspy object
+    :param inname: Las file name on which we need to extract the ground points.
+    :type inname: string
     :param outname: File name which will have the ground points classified
     :type outname: string
     :param slope: ground param
@@ -216,7 +216,7 @@ def pdal_smrf(infile, outname, extra_dims=None, ground_classification=2, above_g
     # ground_command = "pdal ground --slope 0.1 --max_window_size 18 --cell_size 0.5 --initial_distance 2.0 -i {} -o {}"
 
     # populate the command with all the attributes that ground have
-    command_v2 = ground_command_v2.format(infile.filename, outname, slope, cut, window, cell, scalar, threshold)
+    command_v2 = ground_command_v2.format(inname, outname, slope, cut, window, cell, scalar, threshold)
     # command = ground_command.format(infile.filename, outname)
 
     # call the command from the system which will make a file with name as outname
