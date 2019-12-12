@@ -388,7 +388,13 @@ def uicondition2mask(range):
     @param range: The range gotten from the UI
     @return: A function we can apply to x (the vector to be ranged) which outputs a mask
     """
+    condition1 = lambda x: (isinstance(x, tuple) or isinstance(x, list))
+    condition2 = lambda x: (len(x) == 1) or (len(x) == 2)
+    for item in range:
+        assert condition1(item), "ranges should be list of lists, or a list of tuples"
+        assert condition2(item), "items in the range should be length 1 or 2"
     f = lambda x: np.zeros(len(x), dtype=bool)
+
     rh_or = lambda f, g: lambda x: (f(x) | g(x))
     rh_and = lambda f, g: lambda x: (f(x) & g(x))
 
@@ -464,7 +470,7 @@ def corridor(coords, eigenvectors, mask, R, S):
     return condition
 
 
-def eigenvector_corridors(infile,
+def eigenvector_corridors_v01_0(infile,
                           outfile,
                           attribute_to_corridor,
                           range_to_corridor,
@@ -1459,4 +1465,46 @@ def undecimate_v01_0(infile_with_inv, infile_decimated, outfile, inverter_attrib
     for dimension in attributes_to_copy:
         dat = inFile2.reader.get_dimension(dimension)
         outFile.writer.set_dimension(dimension, dat[inv])
+    outFile.close()
+
+
+def virus_v01_0(infile, outfile, distance, num_itter, virus_attribute, virus_range, select_attribute, select_range,
+                protect_attribute, protect_range, attack_attribute, value):
+    """
+    @param infile:
+    @param outfile:
+    @param virus_attribute:
+    @param virus_range:
+    @param select_attribute:
+    @param select_range:
+    @param protect_attribute:
+    @param protect_range:
+    @return:
+    """
+    inFile = File(infile)
+    vir = inFile.reader.get_dimension(virus_attribute)
+    atk = inFile.reader.get_dimension(select_attribute)
+    ptc = inFile.reader.get_dimension(protect_attribute)
+    mask1 = uicondition2mask(virus_range)(vir)
+    mask2 = uicondition2mask(select_range)(atk) & (~ uicondition2mask(protect_range)(ptc))
+    cls = virus_background_v01_0(infile, distance, num_itter, mask1, mask2, value)
+    outFile = File(outfile, mode="w", header=inFile.header)
+    outFile.points = inFile.points
+    outFile.writer.set_dimension(attack_attribute, cls)
+    outFile.close()
+
+
+def attributeupdate_v01_0(infile, outfile, select_attribute, select_range, protect_attribute, protect_range,
+                               attack_attribute, value):
+    inFile = File(infile)
+    cls = 1*inFile.reader.get_dimension(attack_attribute)
+    mask1 = uicondition2mask(select_range)(inFile.reader.get_dimension(select_attribute))
+    if protect_attribute is not None:
+        mask2 = uicondition2mask(protect_range)(inFile.reader.get_dimension(protect_attribute))
+    else:
+        mask2 = np.zeros(len(inFile), dtype=bool)
+    cls[mask1 & (~mask2)] = value
+    outFile = File(outfile, mode="w", header=inFile.header)
+    outFile.points = inFile.points
+    outFile.writer.set_dimension(attack_attribute, cls)
     outFile.close()

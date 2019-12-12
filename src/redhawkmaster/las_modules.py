@@ -5,7 +5,7 @@ import sys
 import os
 
 
-def las_range(dimension, start=(-sys.maxsize-1), end=sys.maxsize, reverse=False, point_id_mask=np.array([])):
+def las_range(dimension, start=(-sys.maxsize - 1), end=sys.maxsize, reverse=False, point_id_mask=np.array([])):
     """
     Function that return range between start and end values on some dimension.
     The interval is [start,end) which means >=start and >end.
@@ -79,7 +79,7 @@ def duplicate_attr(infile, attribute_in, attribute_out, attr_descrp, attr_type):
     inFile = File("T000_extradim.las", mode="r")
 
     # Open output file with same name as infile
-    outFile1 = File(infile.filename.split('/')[-1].split('.las')[0]+".las",
+    outFile1 = File(infile.filename.split('/')[-1].split('.las')[0] + ".las",
                     mode="w", header=inFile.header)
 
     # Populate the points
@@ -216,6 +216,49 @@ def virus(infile, clip, num_itter, classif):
             cls[np.logical_and(distances[:, 0] < clip, np.logical_not(class1))] = classif
 
     infile.classification = cls
+
+    return cls
+
+
+def virus_background(infile, clip, num_itter, mask1, mask2, attribute_attack, value):
+    """
+    It is spreading the classification classif using some clip on the infile with
+    some number iterations.
+
+    :param infile: laspy object on which to change the intensity
+    :type infile: laspy object
+    :param clip: distances from where to cut the distances of the neighbour points to
+    :type clip: float
+    :param num_itter: number of iterations means how much the the classification will spread
+    :type num_itter: int
+    :param mask1: describing points which we want to virus out of
+    :type mask1: numpy array (dtype == bool)
+    :param mask2: describing points we want to relabel
+    :type mask2: numpy array (dtype == bool)
+    :param classif: what classification will be put on a points
+    :type classif: int
+    :return  numpy array of the new classification
+    """
+
+    # Coords of the file along with the classification
+    cls = infile.reader.get_dimension(attribute_attack)
+    x_array = infile.x
+    y_array = infile.y
+    z_array = infile.z
+
+    coords = np.stack((x_array, y_array, z_array), axis = 1)
+
+    # Loop for the iterations
+    for i in range(num_itter):
+        # If we don't have zero points proceed
+        if mask1.any() and mask2.any():
+            # Compute the distances of the first neighbour of every point
+            nhbrs = NearestNeighbors(n_neighbors=1, algorithm="kd_tree").fit(coords[mask1])
+            distances, indices = nhbrs.kneighbors(coords[mask2])
+            cls2 = cls[mask2]
+            # The distances that are less then the clip get classified
+            cls2[distances[:, 0] < clip) = value
+            cls[mask2] = cls2
 
     return cls
 
@@ -370,32 +413,32 @@ def rh_attribute_compute(infile, outname, k=50, radius=0.50, thresh=0.001, space
     Specs = [spec.name for spec in infile.point_format]
 
     extra_dims = [
-     ["xy_lin_reg", 9, "Linear regression."],
-     ["lin_reg", 9, "Linear regression."],
-     ["plan_reg", 9, "Planar regression."],
-     ["eig0", 9, "Eigenvalue 0. "],
-     ["eig1", 9, "Eigenvalue 1. "],
-     ["eig2", 9, "Eigenvalue 2. "],
-     ["rank", 5, "Structure matrix."],
-     ["curv", 9, "Curvature."],
-     ["iso", 9, "Isotropy"],
-     ["ent", 9, "Entropy"],
-     ["plang", 9, "Planar angle"],
-     ["lang", 9, "Linear angle"],
-     ["linearity", 9, "Closeness to a line"],
-     ["planarity", 9, "Closeness to a plane"],
-     ["scattering", 9, "3d-ness"],
-     ["dim1_mw", 9, "Similar to linearity"],
-     ["dim2_mw", 9, "Similar to planarity"],
-     ["dim3_mw", 9, "Similar to scattering"],
-     ["dim1_sd", 9, "Similar to linearity"],
-     ["dim2_sd", 9, "Similar to planarity"],
-     ["dim3_sd", 9, "Similar to scattering"],
-     ["dimension", 5, "Dimension of nbhd"]
+        ["xy_lin_reg", 9, "Linear regression."],
+        ["lin_reg", 9, "Linear regression."],
+        ["plan_reg", 9, "Planar regression."],
+        ["eig0", 9, "Eigenvalue 0. "],
+        ["eig1", 9, "Eigenvalue 1. "],
+        ["eig2", 9, "Eigenvalue 2. "],
+        ["rank", 5, "Structure matrix."],
+        ["curv", 9, "Curvature."],
+        ["iso", 9, "Isotropy"],
+        ["ent", 9, "Entropy"],
+        ["plang", 9, "Planar angle"],
+        ["lang", 9, "Linear angle"],
+        ["linearity", 9, "Closeness to a line"],
+        ["planarity", 9, "Closeness to a plane"],
+        ["scattering", 9, "3d-ness"],
+        ["dim1_mw", 9, "Similar to linearity"],
+        ["dim2_mw", 9, "Similar to planarity"],
+        ["dim3_mw", 9, "Similar to scattering"],
+        ["dim1_sd", 9, "Similar to linearity"],
+        ["dim2_sd", 9, "Similar to planarity"],
+        ["dim3_sd", 9, "Similar to scattering"],
+        ["dimension", 5, "Dimension of nbhd"]
     ]
 
     for dim in extra_dims:
-        if not(dim[0] in Specs):
+        if not (dim[0] in Specs):
             outFile.define_new_dimension(name=dim[0], data_type=dim[1], description=dim[2])
 
     for dimension in infile.point_format:
@@ -430,17 +473,17 @@ def rh_attribute_compute(infile, outname, k=50, radius=0.50, thresh=0.001, space
 
     if len(x_array) != 0:
 
-        times = list([np.quantile(gps_time, q=float(i)/float(N)) for i in range(N+1)])
+        times = list([np.quantile(gps_time, q=float(i) / float(N)) for i in range(N + 1)])
 
         for i in range(N):
 
-            time_range = (times[i] <= gps_time) * (gps_time <= times[i+1])
+            time_range = (times[i] <= gps_time) * (gps_time <= times[i + 1])
 
             coords = np.vstack((x_array[time_range], y_array[time_range],
-                                heightaboveground[time_range])+spacetime*(v_speed*gps_time[time_range],))
+                                heightaboveground[time_range]) + spacetime * (v_speed * gps_time[time_range],))
 
             if decimate:
-                spatial_coords, ind, inv, cnt = np.unique(np.floor(coords[0:4, :]/u),
+                spatial_coords, ind, inv, cnt = np.unique(np.floor(coords[0:4, :] / u),
                                                           return_index=True, return_inverse=True,
                                                           return_counts=True, axis=1)
             else:
@@ -449,8 +492,8 @@ def rh_attribute_compute(infile, outname, k=50, radius=0.50, thresh=0.001, space
 
             coords = coords[:, ind]
 
-            distances, indices = NearestNeighbors(n_neighbors=k, algorithm="kd_tree").\
-                fit(np.transpose(coords)).\
+            distances, indices = NearestNeighbors(n_neighbors=k, algorithm="kd_tree"). \
+                fit(np.transpose(coords)). \
                 kneighbors(np.transpose(coords))
 
             neighbours = coords[:, indices]
@@ -512,14 +555,14 @@ def rh_attribute_compute(infile, outname, k=50, radius=0.50, thresh=0.001, space
             dummies['curv'][time_range] = p0[inv].astype(x_array.dtype)
 
             dummies['curv'][np.logical_or(np.isnan(dummies['curv']), np.isinf(dummies['curv']))] = (
-                        0 * x_array[np.logical_or(np.isnan(dummies['curv']), np.isinf(dummies['curv']))]).astype(
+                    0 * x_array[np.logical_or(np.isnan(dummies['curv']), np.isinf(dummies['curv']))]).astype(
                 x_array.dtype)
 
             dummies['iso'][time_range] = ((evals[:, -1] + evals[:, -2] + evals[:, -3]) / np.sqrt(
                 3 * (evals[:, -1] ** 2 + evals[:, -2] ** 2 + evals[:, -3] ** 2)))[inv].astype(x_array.dtype)
 
             dummies['iso'][np.logical_or(np.isnan(dummies['iso']), np.isinf(dummies['iso']))] = (
-                        0 * x_array[np.logical_or(np.isnan(dummies['iso']), np.isinf(dummies['iso']))]).astype(
+                    0 * x_array[np.logical_or(np.isnan(dummies['iso']), np.isinf(dummies['iso']))]).astype(
                 x_array.dtype)
 
             dummies['rank'][time_range] = ranks[inv].astype(classification.dtype)
@@ -533,7 +576,7 @@ def rh_attribute_compute(infile, outname, k=50, radius=0.50, thresh=0.001, space
                 inv].astype(x_array.dtype)
 
             dummies['plang'][np.logical_or(np.isnan(dummies['plang']), np.isinf(dummies['plang']))] = (
-                        0 * x_array[np.logical_or(np.isnan(dummies['plang']), np.isinf(dummies['plang']))]).astype(
+                    0 * x_array[np.logical_or(np.isnan(dummies['plang']), np.isinf(dummies['plang']))]).astype(
                 x_array.dtype)
 
             dummies['lang'][time_range] = np.clip(2 * (np.arccos(abs(evects[:, 2, -1]) / (
@@ -541,7 +584,7 @@ def rh_attribute_compute(infile, outname, k=50, radius=0.50, thresh=0.001, space
                 inv].astype(x_array.dtype)
 
             dummies['lang'][np.logical_or(np.isnan(dummies['lang']), np.isinf(dummies['lang']))] = (
-                        0 * x_array[np.logical_or(np.isnan(dummies['lang']), np.isinf(dummies['lang']))]).astype(
+                    0 * x_array[np.logical_or(np.isnan(dummies['lang']), np.isinf(dummies['lang']))]).astype(
                 x_array.dtype)
 
         some_definitions = {
@@ -556,7 +599,6 @@ def rh_attribute_compute(infile, outname, k=50, radius=0.50, thresh=0.001, space
         }
 
         for function_lambdas in some_definitions:
-
             dummies[function_lambdas] = some_definitions[function_lambdas](dummies['eig0'], dummies['eig1'],
                                                                            dummies['eig2'])
 
@@ -566,7 +608,6 @@ def rh_attribute_compute(infile, outname, k=50, radius=0.50, thresh=0.001, space
                 x_array.dtype)
 
         for signal in dummies:
-
             outFile.writer.set_dimension(signal, dummies[signal])
     else:
         for signal in dummies:
@@ -681,7 +722,7 @@ def rh_pdal_cluster(inname, outname):
               '--filters.cluster.min_points=1 ' \
               '--writers.las.extra_dims="all"'
 
-    command = command.format(inname,outname)
+    command = command.format(inname, outname)
     os.system(command)
 
 
@@ -724,7 +765,6 @@ def rh_cluster_median_return(infile, outname):
     cluster_id = infile.cluster_id
 
     for i in np.unique(np.sort(cluster_id)):
-
         Mask = cluster_id == i
         Mask_ReturnNumber = return_number[Mask]
 
@@ -754,13 +794,11 @@ def rh_cluster_id_count_max(infile):
     Specs = [spec.name for spec in infile.point_format]
 
     if "cluster_id_count_max" in Specs:
-
         ClusterIDCountMax = infile.cluster_id_count_max
 
     ClusterID = infile.cluster_id
 
     for i in np.unique(np.sort(ClusterID)):
-
         Mask = ClusterID == i
 
         number_of_points = np.sum(Mask)
