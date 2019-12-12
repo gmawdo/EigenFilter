@@ -279,18 +279,45 @@ def build_add_classification():
 
     infile = 'T000_012.las'
     outfile = 'T000_013.las'
+    attributeupdate_v01_0(infile,
+                          outfile,
+                          select_attribute='raw_classification',
+                          select_range=[[3]],
+                          protect_attribute='cluster3',
+                          protect_range=[[1, ...]],
+                          attack_attribute='raw_classification',
+                          value=0)
+
+    infile = 'T000_013.las'
+    outfile = 'T000_014.las'
     virus_v01_0(infile,
                 outfile,
                 distance=0.5,
                 num_itter=1,
-                virus_attribute='cluster3',
-                virus_range=[[1, ...]],
+                virus_attribute='raw_classification',
+                virus_range=[[3]],
                 select_attribute=None,
                 select_range=None,
                 protect_attribute='raw_classification',
-                protect_range=[[0], [7]],
+                protect_range=[[1,2],[7]],
                 attack_attribute='raw_classification',
                 value=3)
+
+
+    infile = 'T000_014.las'
+    outfile = 'T000_015.las'
+    virus_v01_0(infile,
+                outfile,
+                distance=0.5,
+                num_itter=1,
+                virus_attribute='raw_classification',
+                virus_range=[[1, ...]],
+                select_attribute='raw_classification',
+                select_range=[[0]],
+                protect_attribute='raw_classification',
+                protect_range=[[7]],
+                attack_attribute='raw_classification',
+                value='auto')
 
 
 # triangulation_test()
