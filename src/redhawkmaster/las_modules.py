@@ -241,7 +241,7 @@ def virus_background(infile, clip, num_itter, mask1, mask2, attribute_attack, va
     """
 
     # Coords of the file along with the classification
-    cls = infile.reader.get_dimension(attribute_attack)
+    cls = 1*infile.reader.get_dimension(attribute_attack)
     x_array = infile.x
     y_array = infile.y
     z_array = infile.z
@@ -257,7 +257,7 @@ def virus_background(infile, clip, num_itter, mask1, mask2, attribute_attack, va
             distances, indices = nhbrs.kneighbors(coords[mask2])
             cls2 = cls[mask2]
             # The distances that are less then the clip get classified
-            cls2[distances[:, 0] < clip) = value
+            cls2[distances[:, 0] < clip] = value
             cls[mask2] = cls2
 
     return cls

@@ -1,11 +1,10 @@
-import os
-
 import numpy as np
 from laspy.file import File
 from sklearn.cluster import DBSCAN
 from sklearn.neighbors import NearestNeighbors
 from scipy.spatial import Delaunay
-from redhawkmaster import lasmaster as lm
+#from redhawkmaster import lasmaster as lm
+from redhawkmaster.las_modules import virus_background
 import pandas as pd
 import os
 
@@ -391,7 +390,7 @@ def uicondition2mask(range):
     condition1 = lambda x: (isinstance(x, tuple) or isinstance(x, list))
     condition2 = lambda x: (len(x) == 1) or (len(x) == 2)
     for item in range:
-        assert condition1(item), "ranges should be list of lists, or a list of tuples"
+        assert condition1(item) and isinstance(range, list), "ranges should be list of lists, or a list of tuples"
         assert condition2(item), "items in the range should be length 1 or 2"
     f = lambda x: np.zeros(len(x), dtype=bool)
 
@@ -1095,7 +1094,7 @@ def cluster_labels_v01_2(infile,
     """
     Inputs a file and a classification to cluster. Outputs a file with cluster labels.
     Clusters with label 0 are non-core points, i.e. points without "min_pts" within
-    "tolerance" (see DBSCAN documentation), or points outside the classification to cluster.
+    "tolerance" (see DBSCAN documentation), or points outside the classificcluster_labelsation to cluster.
     :param infile: input file name
     :param outfile: output file name
     :param attribute: the attribute which you want to use to select a range from
@@ -1483,11 +1482,19 @@ def virus_v01_0(infile, outfile, distance, num_itter, virus_attribute, virus_ran
     """
     inFile = File(infile)
     vir = inFile.reader.get_dimension(virus_attribute)
-    atk = inFile.reader.get_dimension(select_attribute)
-    ptc = inFile.reader.get_dimension(protect_attribute)
+    if select_attribute is not None:
+        sel = inFile.reader.get_dimension(select_attribute)
+        mask3 = uicondition2mask(select_range)(sel)
+    else:
+        mask3 = np.ones(len(inFile), dtype = bool)
+    if protect_attribute is not None:
+        ptc = inFile.reader.get_dimension(protect_attribute)
+        mask4 = uicondition2mask(protect_range)(ptc)
+    else:
+        mask4 = np.zeros(len(inFile), dtype = bool)
     mask1 = uicondition2mask(virus_range)(vir)
-    mask2 = uicondition2mask(select_range)(atk) & (~ uicondition2mask(protect_range)(ptc))
-    cls = virus_background_v01_0(infile, distance, num_itter, mask1, mask2, value)
+    mask2 = mask3 & (~ mask4)
+    cls = virus_background(inFile, distance, num_itter, mask1, mask2, attack_attribute, value)
     outFile = File(outfile, mode="w", header=inFile.header)
     outFile.points = inFile.points
     outFile.writer.set_dimension(attack_attribute, cls)
@@ -1498,7 +1505,11 @@ def attributeupdate_v01_0(infile, outfile, select_attribute, select_range, prote
                                attack_attribute, value):
     inFile = File(infile)
     cls = 1*inFile.reader.get_dimension(attack_attribute)
-    mask1 = uicondition2mask(select_range)(inFile.reader.get_dimension(select_attribute))
+    if select_attribute is not None:
+        sel = inFile.reader.get_dimension(select_attribute)
+        mask1 = uicondition2mask(select_range)(sel)
+    else:
+        mask1 = np.ones(len(inFile), dtype=bool)
     if protect_attribute is not None:
         mask2 = uicondition2mask(protect_range)(inFile.reader.get_dimension(protect_attribute))
     else:

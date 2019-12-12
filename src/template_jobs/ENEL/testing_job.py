@@ -194,14 +194,14 @@ def build_add_classification():
 
     infile = 'T000_005.las'
     outfile = 'T000_006.las'
-    attribute_v01_0(infile,
-                               outfile,
-                               select_attribute='eig2',
-                               select_range=[[..., 0.0]],
-                               protect_attribute=None,
-                               protect_range=None,
-                               attack_attribute='raw_classification',
-                               value=7)
+    attributeupdate_v01_0(infile,
+                          outfile,
+                          select_attribute='eig2',
+                          select_range=[[..., 0.0]],
+                          protect_attribute=None,
+                          protect_range=None,
+                          attack_attribute='raw_classification',
+                          value=7)
 
     infile = 'T000_006.las'
     outfile = 'T000_007.las'
@@ -225,7 +225,7 @@ def build_add_classification():
                                 range_to_protect=[[7]],
                                 classification_of_corridor=1,
                                 radius_of_cylinders=0.5,
-                                length_of_cylinders=1)
+                                length_of_cylinders=2.0)
 
 
     infile = 'T000_008.las'
@@ -239,6 +239,59 @@ def build_add_classification():
                               min_pts=1,
                               cluster_attribute='cluster2',
                               minimum_length=2)
+
+    infile = 'T000_009.las'
+    outfile = 'T000_010.las'
+    virus_v01_0(infile,
+                outfile,
+                distance=0.5,
+                num_itter=1,
+                virus_attribute='cluster2',
+                virus_range=[[1, ...]],
+                select_attribute=None,
+                select_range=None,
+                protect_attribute='raw_classification',
+                protect_range=[[1], [7]],
+                attack_attribute='raw_classification',
+                value=2)
+
+    infile = 'T000_010.las'
+    outfile = 'T000_011.las'
+    attributeupdate_v01_0(infile,
+                          outfile,
+                          select_attribute='dimension1d2d3d',
+                          select_range=[[3]],
+                          protect_attribute='raw_classification',
+                          protect_range=[[1], [2], [7]],
+                          attack_attribute='raw_classification',
+                          value=3)
+
+    infile = 'T000_011.las'
+    outfile = 'T000_012.las'
+    cluster_labels_v01_2(infile,
+                         outfile,
+                         attribute='raw_classification',
+                         range_to_cluster=[[3]],
+                         distance=0.5,
+                         min_pts=1,
+                         cluster_attribute='cluster3',
+                         minimum_length=2.0)
+
+    infile = 'T000_012.las'
+    outfile = 'T000_013.las'
+    virus_v01_0(infile,
+                outfile,
+                distance=0.5,
+                num_itter=1,
+                virus_attribute='cluster3',
+                virus_range=[[1, ...]],
+                select_attribute=None,
+                select_range=None,
+                protect_attribute='raw_classification',
+                protect_range=[[0], [7]],
+                attack_attribute='raw_classification',
+                value=3)
+
 
 # triangulation_test()
 # dimension1d2d3d_clustering_testing()
