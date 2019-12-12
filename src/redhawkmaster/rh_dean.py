@@ -383,7 +383,7 @@ def uicondition2mask(range):
     The ui sometimes gives the user the option to enter a range. This looks something like
     range = (0,1),(2,4),[-1,-0.5],[10,...], (...,-10)
     This means that the we need to select points with:
-    0<x<1 & 2<x<4 & -1<=x<=0.5 & 10<=x & x<-10
+    0<x<1 or 2<x<4 or -1<=x<=0.5 or 10<=x or x<-10
     We need to take the range and get a function of x which produces a mask. This is what this function does.
     @param range: The range gotten from the UI
     @return: A function we can apply to x (the vector to be ranged) which outputs a mask
