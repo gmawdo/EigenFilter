@@ -227,7 +227,6 @@ def build_add_classification():
                                 radius_of_cylinders=0.5,
                                 length_of_cylinders=2.0)
 
-
     infile = 'T000_008.las'
     outfile = 'T000_009.las'
     eigencluster_labels_v01_2(infile,
@@ -299,10 +298,9 @@ def build_add_classification():
                 select_attribute=None,
                 select_range=None,
                 protect_attribute='raw_classification',
-                protect_range=[[1,2],[7]],
+                protect_range=[[1, 2], [7]],
                 attack_attribute='raw_classification',
                 value=3)
-
 
     infile = 'T000_014.las'
     outfile = 'T000_015.las'
@@ -319,17 +317,19 @@ def build_add_classification():
                 attack_attribute='raw_classification',
                 value='auto')
 
+
 def virus_testing():
-    for i in range(1,11):
-        infile = "attrN010k004_049radius00_50dec00_00notgrd_ground_ID_"+"DH5091309_"+str(i).zfill(6)+"_NoClass.las"
+    for i in range(1, 11):
+        infile = "attrN010k004_049radius00_50dec00_00notgrd_ground_ID_" + "DH5091309_" + str(i).zfill(
+            6) + "_NoClass.las"
 
         infile = infile
-        outfile = '005_'+infile
+        outfile = '005_' + infile
         dimension1d2d3d_v01_0(infile,
                               outfile)
 
-        infile = '005_'+infile
-        outfile = '006_'+infile
+        infile = '005_' + infile
+        outfile = '006_' + infile
         attributeupdate_v01_0(infile,
                               outfile,
                               select_attribute='eig2',
@@ -339,8 +339,8 @@ def virus_testing():
                               attack_attribute='raw_classification',
                               value=7)
 
-        infile = '006_'+infile
-        outfile = '007_'+infile
+        infile = '006_' + infile
+        outfile = '007_' + infile
         eigencluster_labels_v01_2(infile,
                                   outfile,
                                   eigenvector_number=2,
@@ -351,8 +351,8 @@ def virus_testing():
                                   cluster_attribute='cluster1',
                                   minimum_length=2)
 
-        infile = '007_'+infile
-        outfile = '008_'+infile
+        infile = '007_' + infile
+        outfile = '008_' + infile
         eigenvector_corridors_v01_0(infile,
                                     outfile,
                                     attribute_to_corridor='cluster1',
@@ -363,12 +363,15 @@ def virus_testing():
                                     radius_of_cylinders=0.5,
                                     length_of_cylinders=2.0)
 
-
-        infile = '008_'+infile
-        outfile = '009_'+infile
+        infile = '008_' + infile
+        outfile = '009_' + infile
         eigencluster_labels_v01_2(infile,
                                   outfile,
-                                  eigenvector_number=0,
+                                  eigenvector_number=1,  # INCORRECT NUMBER - THIS SHOULD BE A ZERO IN ANY FUTURE TEST
+                                  # WHERE PARAMETER range_to_cluster==[[2]]
+                                  # Eigenvector 0 is normal to the plane of best fit
+                                  # Eigenvector 1 mistakenly used in ENEL trial in Oct 2019 & currently presented results 13-Dec-2019
+                                  # Error approved by Andrew for Sam to ensure data quality matches client expectations
                                   attribute='dimension1d2d3d',
                                   range_to_cluster=[[2]],
                                   distance=0.5,
@@ -376,8 +379,8 @@ def virus_testing():
                                   cluster_attribute='cluster2',
                                   minimum_length=2)
 
-        infile = '009_'+infile
-        outfile = '010_'+infile
+        infile = '009_' + infile
+        outfile = '010_' + infile
         virus_v01_0(infile,
                     outfile,
                     distance=0.5,
@@ -391,8 +394,8 @@ def virus_testing():
                     attack_attribute='raw_classification',
                     value=2)
 
-        infile = '010_'+infile
-        outfile = '011_'+infile
+        infile = '010_' + infile
+        outfile = '011_' + infile
         attributeupdate_v01_0(infile,
                               outfile,
                               select_attribute='dimension1d2d3d',
@@ -402,8 +405,8 @@ def virus_testing():
                               attack_attribute='raw_classification',
                               value=3)
 
-        infile = '011_'+infile
-        outfile = '012_'+infile
+        infile = '011_' + infile
+        outfile = '012_' + infile
         cluster_labels_v01_2(infile,
                              outfile,
                              attribute='raw_classification',
@@ -413,8 +416,8 @@ def virus_testing():
                              cluster_attribute='cluster3',
                              minimum_length=2.0)
 
-        infile = '012_'+infile
-        outfile = '013_'+infile
+        infile = '012_' + infile
+        outfile = '013_' + infile
         attributeupdate_v01_0(infile,
                               outfile,
                               select_attribute='raw_classification',
@@ -424,8 +427,8 @@ def virus_testing():
                               attack_attribute='raw_classification',
                               value=0)
 
-        infile = '013_'+infile
-        outfile = '014_'+infile
+        infile = '013_' + infile
+        outfile = '014_' + infile
         virus_v01_0(infile,
                     outfile,
                     distance=0.5,
@@ -435,13 +438,12 @@ def virus_testing():
                     select_attribute=None,
                     select_range=None,
                     protect_attribute='raw_classification',
-                    protect_range=[[1,2],[7]],
+                    protect_range=[[1, 2], [7]],
                     attack_attribute='raw_classification',
                     value=3)
 
-
-        infile = '014_'+infile
-        outfile = '015_'+infile
+        infile = '014_' + infile
+        outfile = '015_' + infile
         virus_v01_0(infile,
                     outfile,
                     distance=0.5,
@@ -455,8 +457,8 @@ def virus_testing():
                     attack_attribute='raw_classification',
                     value='auto')
 
-        infile = '015_'+infile
-        outfile = '016_'+infile
+        infile = '015_' + infile
+        outfile = '016_' + infile
         ferry_v01_0(infile=infile,
                     outfile=outfile,
                     attribute1='dimension1d2d3d',
@@ -468,4 +470,5 @@ def virus_testing():
 # dimension1d2d3d_clustering_testing()
 # cluster_labels_testing()
 # decimation_testing()
-build_add_classification()
+# build_add_classification()
+virus_testing()
