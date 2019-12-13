@@ -3,7 +3,7 @@ from laspy.file import File
 from sklearn.cluster import DBSCAN
 from sklearn.neighbors import NearestNeighbors
 from scipy.spatial import Delaunay
-#from redhawkmaster import lasmaster as lm
+# from redhawkmaster import lasmaster as lm
 from redhawkmaster.las_modules import virus_background
 import pandas as pd
 import os
@@ -470,14 +470,14 @@ def corridor(coords, eigenvectors, mask, R, S):
 
 
 def eigenvector_corridors_v01_0(infile,
-                          outfile,
-                          attribute_to_corridor,
-                          range_to_corridor,
-                          protection_attribute,
-                          range_to_protect,
-                          classification_of_corridor,
-                          radius_of_cylinders,
-                          length_of_cylinders):
+                                outfile,
+                                attribute_to_corridor,
+                                range_to_corridor,
+                                protection_attribute,
+                                range_to_protect,
+                                classification_of_corridor,
+                                radius_of_cylinders,
+                                length_of_cylinders):
     """
     Select some points to put a corridor (=collection of cylinders) around, by using an attribute and range.
     Select an attribute range to protect from change in classification.
@@ -1094,7 +1094,7 @@ def cluster_labels_v01_2(infile,
     """
     Inputs a file and a classification to cluster. Outputs a file with cluster labels.
     Clusters with label 0 are non-core points, i.e. points without "min_pts" within
-    "tolerance" (see DBSCAN documentation), or points outside the classificcluster_labelsation to cluster.
+    "tolerance" (see DBSCAN documentation), or points outside the classification to cluster.
     :param infile: input file name
     :param outfile: output file name
     :param attribute: the attribute which you want to use to select a range from
@@ -1470,14 +1470,18 @@ def undecimate_v01_0(infile_with_inv, infile_decimated, outfile, inverter_attrib
 def virus_v01_0(infile, outfile, distance, num_itter, virus_attribute, virus_range, select_attribute, select_range,
                 protect_attribute, protect_range, attack_attribute, value):
     """
+    Used to spread an attribute to nearby points of selected points. OR we can put a number in value to reset the
+    selected points' attack attribute to that number
     @param infile:
     @param outfile:
-    @param virus_attribute:
-    @param virus_range:
-    @param select_attribute:
-    @param select_range:
-    @param protect_attribute:
-    @param protect_range:
+    @param virus_attribute: Attribute to range in order to decide which points to `spread out from'.
+    @param virus_range: range for virus_attribute
+    @param select_attribute: An attribute used to range for selecting affected points.
+    @param select_range: Range for select_attribute.
+    @param protect_attribute: An attribute used to range for protecting points.
+    @param protect_range:Range for protect_attribute.
+    @param attack_attribute:
+    @param value: Values to which we should change the attack_attribute OR name of attribute to spread.
     @return:
     """
     inFile = File(infile)
@@ -1486,12 +1490,12 @@ def virus_v01_0(infile, outfile, distance, num_itter, virus_attribute, virus_ran
         sel = inFile.reader.get_dimension(select_attribute)
         mask3 = uicondition2mask(select_range)(sel)
     else:
-        mask3 = np.ones(len(inFile), dtype = bool)
+        mask3 = np.ones(len(inFile), dtype=bool)
     if protect_attribute is not None:
         ptc = inFile.reader.get_dimension(protect_attribute)
         mask4 = uicondition2mask(protect_range)(ptc)
     else:
-        mask4 = np.zeros(len(inFile), dtype = bool)
+        mask4 = np.zeros(len(inFile), dtype=bool)
     mask1 = uicondition2mask(virus_range)(vir)
     mask2 = mask3 & (~ mask4)
     cls = virus_background(inFile, distance, num_itter, mask1, mask2, attack_attribute, value)
@@ -1502,9 +1506,25 @@ def virus_v01_0(infile, outfile, distance, num_itter, virus_attribute, virus_ran
 
 
 def attributeupdate_v01_0(infile, outfile, select_attribute, select_range, protect_attribute, protect_range,
-                               attack_attribute, value):
+                          attack_attribute, value):
+    """
+    Note: I think this somewhat "pathes the way" for the way in which we should set out our modules. It gives the user:
+    A select attribute to control which points will potentially be affected.
+    A protect attribute to control which points will not be affected.
+    An attack attribute which will be changed for the affected points.
+    This module simply updates an attribute to the given value.
+    @param infile:
+    @param outfile:
+    @param select_attribute: An attribute used to range for selecting affected points.
+    @param select_range: Range for select_attribute.
+    @param protect_attribute: An attribute used to range for protecting points.
+    @param protect_range: Range for protect_attribute.
+    @param attack_attribute: Attribute to be changed
+    @param value: Values to which we should change the attack_attribute.
+    @return:
+    """
     inFile = File(infile)
-    cls = 1*inFile.reader.get_dimension(attack_attribute)
+    cls = 1 * inFile.reader.get_dimension(attack_attribute)
     if select_attribute is not None:
         sel = inFile.reader.get_dimension(select_attribute)
         mask1 = uicondition2mask(select_range)(sel)
