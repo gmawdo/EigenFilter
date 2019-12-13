@@ -1,1 +1,2 @@
-import lasmaster
+from redhawkmaster import las_modules
+from redhawkmaster import rh_dean
