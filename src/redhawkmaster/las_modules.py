@@ -241,12 +241,12 @@ def virus_background(infile, clip, num_itter, mask1, mask2, attribute_attack, va
     """
 
     # Coords of the file along with the classification
-    cls = 1*infile.reader.get_dimension(attribute_attack)
+    cls = 1 * infile.reader.get_dimension(attribute_attack)
     x_array = infile.x
     y_array = infile.y
     z_array = infile.z
 
-    coords = np.stack((x_array, y_array, z_array), axis = 1)
+    coords = np.stack((x_array, y_array, z_array), axis=1)
 
     # Loop for the iterations
     for i in range(num_itter):
@@ -257,7 +257,10 @@ def virus_background(infile, clip, num_itter, mask1, mask2, attribute_attack, va
             distances, indices = nhbrs.kneighbors(coords[mask2])
             cls2 = cls[mask2]
             # The distances that are less then the clip get classified
-            cls2[distances[:, 0] < clip] = value
+            if value == 'auto':
+                cls2[distances[:, 0] < clip] = cls[mask1][indices[:, 0][distances[:, 0] < clip]]
+            else:
+                cls2[distances[:, 0] < clip] = value
             cls[mask2] = cls2
 
     return cls
