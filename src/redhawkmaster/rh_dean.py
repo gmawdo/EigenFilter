@@ -525,8 +525,29 @@ def dimension1d2d3d_v01_0(infile,
         dat = in_file.reader.get_dimension(dimension)
         out_file.writer.set_dimension(dimension, dat)
     # add new dimension
-    out_file.writer.set_dimension("dimension1d2d3d", point_dimension(in_file))
+    out_file.writer.set_dimension("dimension1d2d3d", point_dimension(infile))
     out_file.close()
+
+
+def dimension1d2d3d_v01_1(infile,
+                          outfile):
+    """
+    Adds dimension 1, 2 or 3 to each point.
+    :param infile: name of infile
+    :param outfile: name of outfile
+    :return: nothing, just writes new file
+    """
+    # in_file = File(infile)
+    # out_file = File(outfile, mode="w", header=in_file.header)
+    # # add dimension
+    # dimensions = [spec.name for spec in in_file.point_format if spec.name != "dim"]
+    # out_file.define_new_dimension(name="dimension1d2d3d", data_type=6, description="dimension")
+    # # add pre-existing point records
+    # for dimension in dimensions:
+    #     dat = in_file.reader.get_dimension(dimension)
+    #     out_file.writer.set_dimension(dimension, dat)
+    # # add new dimension
+    outfile.writer.set_dimension("dimension1d2d3d", point_dimension(infile))
 
 
 def eigen_clustering(coords, eigenvector, tolerance, eigenvector_scale, max_length, min_pts):
@@ -1300,18 +1321,18 @@ def eigencluster_labels_v01_2(infile,
     # assign the target classification's labels
     labels_allpts[mask] = labels
     # make the output file
-    out_file = File(outfile, mode="w", header=infile.header)
-    dimensions = [spec.name for spec in infile.point_format]
-    # add new dimension
-    if cluster_attribute not in dimensions:
-        out_file.define_new_dimension(name=cluster_attribute, data_type=6, description="clustering labels")
-    # add pre-existing point records
-    for dimension in dimensions:
-        dat = infile.reader.get_dimension(dimension)
-        out_file.writer.set_dimension(dimension, dat)
-    # set new dimension to labels
+    # out_file = File(outfile, mode="w", header=infile.header)
+    # dimensions = [spec.name for spec in infile.point_format]
+    # # add new dimension
+    # if cluster_attribute not in dimensions:
+    #     out_file.define_new_dimension(name=cluster_attribute, data_type=6, description="clustering labels")
+    # # add pre-existing point records
+    # for dimension in dimensions:
+    #     dat = infile.reader.get_dimension(dimension)
+    #     out_file.writer.set_dimension(dimension, dat)
+    # # set new dimension to labels
     out_file.writer.set_dimension(cluster_attribute, labels_allpts)
-    out_file.close()
+    # out_file.close()
 
 
 def count_v01_0(tile,
@@ -1386,12 +1407,12 @@ def decimate_v01_0(infile, outfile, decimated_outfile, voxel_size, inverter_attr
     """
     Produces two new files. One is decimated with no extra attributes, another is not decimated which holds an attribute
     to recover info from decimated file.
-    @param infile: file to decimate
-    @param outfile: the file with inverter attibute
-    @param decimated_outfile: the decimated file with fewer points
-    @param voxel_size: voxel side length
-    @param inverter_attribute: name of inverter attribute
-    @return: two files, one with inverter, one with fewer points
+    :param infile: file to decimate
+    :param outfile: the file with inverter attibute
+    :param decimated_outfile: the decimated file with fewer points
+    :param voxel_size: voxel side length
+    :param inverter_attribute: name of inverter attribute
+    :return: two files, one with inverter, one with fewer points
     """
     inFile = File(infile)
     outFile = File(outfile, mode="w", header=inFile.header)
@@ -1427,12 +1448,12 @@ def decimate_v01_0(infile, outfile, decimated_outfile, voxel_size, inverter_attr
 def undecimate_v01_0(infile_with_inv, infile_decimated, outfile, inverter_attribute, attributes_to_copy):
     """
     reverses decimation
-    @param infile_with_inv: file with inverter attribute
-    @param infile_decimated: decimated file with fewer points
-    @param outfile: new file with attributes recovered from decimation
-    @param inverter_attribute: name of inverter attribute on infile_with_inv
-    @param attributes_to_copy: attributes for recovery
-    @return:
+    :param infile_with_inv: file with inverter attribute
+    :param infile_decimated: decimated file with fewer points
+    :param outfile: new file with attributes recovered from decimation
+    :param inverter_attribute: name of inverter attribute on infile_with_inv
+    :param attributes_to_copy: attributes for recovery
+    :return:
     """
     inFile1 = File(infile_with_inv)
     inFile2 = File(infile_decimated)
@@ -1456,17 +1477,17 @@ def virus_v01_0(infile, outfile, distance, num_itter, virus_attribute, virus_ran
     """
     Used to spread an attribute to nearby points of selected points. OR we can put a number in value to reset the
     selected points' attack attribute to that number
-    @param infile:
-    @param outfile:
-    @param virus_attribute: Attribute to range in order to decide which points to `spread out from'.
-    @param virus_range: range for virus_attribute
-    @param select_attribute: An attribute used to range for selecting affected points.
-    @param select_range: Range for select_attribute.
-    @param protect_attribute: An attribute used to range for protecting points.
-    @param protect_range:Range for protect_attribute.
-    @param attack_attribute:
-    @param value: Values to which we should change the attack_attribute OR name of attribute to spread.
-    @return:
+    :param infile:
+    :param outfile:
+    :param virus_attribute: Attribute to range in order to decide which points to `spread out from'.
+    :param virus_range: range for virus_attribute
+    :param select_attribute: An attribute used to range for selecting affected points.
+    :param select_range: Range for select_attribute.
+    :param protect_attribute: An attribute used to range for protecting points.
+    :param protect_range:Range for protect_attribute.
+    :param attack_attribute:
+    :param value: Values to which we should change the attack_attribute OR name of attribute to spread.
+    :return:
     """
     inFile = File(infile)
     vir = inFile.reader.get_dimension(virus_attribute)
@@ -1497,15 +1518,15 @@ def attributeupdate_v01_0(infile, outfile, select_attribute, select_range, prote
     A protect attribute to control which points will not be affected.
     An attack attribute which will be changed for the affected points.
     This module simply updates an attribute to the given value.
-    @param infile:
-    @param outfile:
-    @param select_attribute: An attribute used to range for selecting affected points.
-    @param select_range: Range for select_attribute.
-    @param protect_attribute: An attribute used to range for protecting points.
-    @param protect_range: Range for protect_attribute.
-    @param attack_attribute: Attribute to be changed
-    @param value: Values to which we should change the attack_attribute.
-    @return:
+    :param infile:
+    :param outfile:
+    :param select_attribute: An attribute used to range for selecting affected points.
+    :param select_range: Range for select_attribute.
+    :param protect_attribute: An attribute used to range for protecting points.
+    :param protect_range: Range for protect_attribute.
+    :param attack_attribute: Attribute to be changed
+    :param value: Values to which we should change the attack_attribute.
+    :return:
     """
     inFile = File(infile)
     cls = 1 * inFile.reader.get_dimension(attack_attribute)
@@ -1523,3 +1544,65 @@ def attributeupdate_v01_0(infile, outfile, select_attribute, select_range, prote
     outFile.points = inFile.points
     outFile.writer.set_dimension(attack_attribute, cls)
     outFile.close()
+
+
+def attributeupdate_v01_1(infile, outfile,select_attribute, select_range, protect_attribute, protect_range,
+                          attack_attribute, value):
+    """
+    Note: I think this somewhat "pathes the way" for the way in which we should set out our modules. It gives the user:
+    A select attribute to control which points will potentially be affected.
+    A protect attribute to control which points will not be affected.
+    An attack attribute which will be changed for the affected points.
+    This module simply updates an attribute to the given value.
+    :param infile:
+    :param outfile:
+    :param select_attribute: An attribute used to range for selecting affected points.
+    :param select_range: Range for select_attribute.
+    :param protect_attribute: An attribute used to range for protecting points.
+    :param protect_range: Range for protect_attribute.
+    :param attack_attribute: Attribute to be changed
+    :param value: Values to which we should change the attack_attribute.
+    :return:
+    """
+    inFile = File(infile)
+    cls = 1 * inFile.reader.get_dimension(attack_attribute)
+    if select_attribute is not None:
+        sel = inFile.reader.get_dimension(select_attribute)
+        mask1 = uicondition2mask(select_range)(sel)
+    else:
+        mask1 = np.ones(len(inFile), dtype=bool)
+    if protect_attribute is not None:
+        mask2 = uicondition2mask(protect_range)(inFile.reader.get_dimension(protect_attribute))
+    else:
+        mask2 = np.zeros(len(inFile), dtype=bool)
+    cls[mask1 & (~mask2)] = value
+
+    outfile.writer.set_dimension(attack_attribute, cls)
+
+
+def create_attributes(infile, output_file, attribute_names=None):
+    """
+    Create the extra dimensions that are putted into attribute_names.
+
+    :param output_file: Name of the output file.
+    :param infile: las file on which to create the attributes.
+    :param attribute_names: Attributes names put like ("name","data_type","description")
+    e.x. [("dimension1d2d3d",6,"dimension")]
+    :return: output las file in write mode
+    """
+    if attribute_names is None:
+        attribute_names = []
+
+    out_file = File(output_file, mode="w", header=infile.header)
+    dimensions = [spec.name for spec in infile.point_format]
+    # add new dimension
+    for dim in attribute_names:
+        if dim[0] not in dimensions:
+            out_file.define_new_dimension(name=dim[0], data_type=dim[1], description=dim[2])
+
+    # add pre-existing point records
+    for dimension in dimensions:
+        dat = infile.reader.get_dimension(dimension)
+        out_file.writer.set_dimension(dimension, dat)
+
+    return out_file
