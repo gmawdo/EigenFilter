@@ -337,7 +337,7 @@ def virus_testing():
                               protect_attribute=None,
                               protect_range=None,
                               attack_attribute='raw_classification',
-                              value=7)
+                              value=7
 
         infile = '006_' + infile
         outfile = '007_' + infile
