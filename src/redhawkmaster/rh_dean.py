@@ -226,6 +226,7 @@ def corridor_2d(inFile, distance_threshold=1, angle_threshold=0.2,
         classn[classn == classification_up] = classn0
 
     inFile.classification = classn
+    inFile.classification = classn
 
     return classn
 
