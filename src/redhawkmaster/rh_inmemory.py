@@ -1,5 +1,29 @@
-import pandas as pd
+from pandas import DataFrame
 from inspect import signature
+
+
+def point_cloud_type(name, attributes):
+    def LAS_init(self, values, user_info=None):
+        DataFrame.__init__(self, data=values, columns=attributes)
+        self.user_info = user_info
+
+    return type(name, (DataFrame,), {"__init__": LAS_init})
+
+
+RedHawkPointCloud = point_cloud_type("RedHawkPointCloud",
+                                     "x y z classification".split())  # this is a subclass of DataFrame
+
+
+def File_laspy:
+    inFile = File(filename)
+    header = inFile.header
+    points = inFile.points
+    x = inFile.x
+    y = inFile.y
+    z = inFile.z
+    classification = inFile.classification
+    user_info = {'header': header, 'points': points}
+    self.redhawk = RedHawkPointCloud()
 
 
 class RedHawkPipe:
@@ -32,8 +56,6 @@ class RedHawkPipe:
             return (f(x[:num_args(f)]), g(x[:-num_args(g)]))
 
         return hcomposition
-
-    def decimate(self, parameters)
 
 
 class RedHawkPipeline:
