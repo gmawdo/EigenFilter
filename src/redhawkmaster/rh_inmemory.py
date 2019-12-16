@@ -1,28 +1,38 @@
-from pandas import DataFrame
+import numpy as np
 from inspect import signature
 
 
-def point_cloud_type(name, attributes):
-    def LAS_init(self, values, user_info=None):
-        DataFrame.__init__(self, data=values, columns=attributes)
+def point_cloud_type(name, attributes, datatypes):
+    assert len(attributes) >= len(datatypes), "Fewer attributes than data types."
+    assert len(attributes) <= len(datatypes), "Fewer data types than attributes."
+
+    def point_cloud_init(self, length, values, user_info=None):
+        assert len(attributes) >= len(values), "Fewer attributes than values."
+        assert len(attributes) <= len(values), "Fewer values than attributes."
+        assert all(a.size == length for a in values), f"All values must have shape {(length,)}"
         self.user_info = user_info
 
-    return type(name, (DataFrame,), {"__init__": LAS_init})
+    attribute_dict = {}
+    attribute_dict["__init__"] = LAS_init
+
+    return type(name, (DataFrame,), attribute_dict)
 
 
-RedHawkPointCloud = point_cloud_type("RedHawkPointCloud",
-                                     "x y z classification".split())  # this is a subclass of DataFrame
+RedHawkPointCloud = point_cloud_type(name="RedHawkPointCloud",
+                                     attributes="x y z classification".split(),
+                                     datatypes=[np.float32, np.float32, np.float32,
+                                                np.int8])  # this is a subclass of DataFrame
 
 
-def File_laspy:
+class FileLaspy(filename):
     inFile = File(filename)
     header = inFile.header
-    points = inFile.points
     x = inFile.x
     y = inFile.y
     z = inFile.z
     classification = inFile.classification
-    user_info = {'header': header, 'points': points}
+    user_info = {'header': header}
+    dimensions = [spec.name for spec in inFile.point_format]
     self.redhawk = RedHawkPointCloud()
 
 
