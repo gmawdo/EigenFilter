@@ -23,10 +23,10 @@ point_id_ground = las_range(dimension=infile.classification,
                             reverse=False,
                             point_id_mask=infile.slpid)
 
-point_id_non_ground = las_range(dimension=infile.X,
-                                start=3000, end=5000,
+point_id_non_ground = las_range(dimension=infile.classification,
+                                start=6, end=7,
                                 reverse=True,
-                                point_id_mask=point_id_ground)
+                                point_id_mask=infile.slpid)
 
 outfile1 = las_output(output_file1,
                       infile,

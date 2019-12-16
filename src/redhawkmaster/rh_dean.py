@@ -492,6 +492,43 @@ def eigenvector_corridors_v01_0(infile,
     outFile.close()
 
 
+def eigenvector_corridors_v01_1(infile,
+                                outfile,
+                                attribute_to_corridor,
+                                range_to_corridor,
+                                protection_attribute,
+                                range_to_protect,
+                                classification_of_corridor,
+                                radius_of_cylinders,
+                                length_of_cylinders):
+    """
+    Select some points to put a corridor (=collection of cylinders) around, by using an attribute and range.
+    Select an attribute range to protect from change in classification.
+    Choose classification for points inside corridor, with radius and length of cylinders to define corridor.
+    :param infile: input file name
+    :param outfile: output file name
+    :param attribute_to_corridor: attribute used to select points
+    :param range_to_corridor: range of values to change
+    :param protection_attribute: attribute used to protect points from classification change
+    :param range_to_protect: range of values to protect
+    :param classification_of_corridor: classification of inside corridor
+    :param radius_of_cylinders: radius of cylinders which describe corridor
+    :param length_of_cylinders: length of cylinders which describe corridor
+    :return: file with selection reclassified
+    """
+
+    classn = 1 * infile.classification
+
+    mask = uicondition2mask(range_to_corridor)(infile.reader.get_dimension(attribute_to_corridor))
+    protect = uicondition2mask(range_to_protect)(infile.reader.get_dimension(protection_attribute))
+    coords = np.stack((infile.x, infile.y, infile.z), axis=1)
+    eigenvectors = np.stack((infile.eig20, infile.eig21, infile.eig22), axis=1)[mask, :]
+    condition = corridor(coords, eigenvectors, mask, radius_of_cylinders,
+                         length_of_cylinders)
+    classn[condition & (~ protect)] = classification_of_corridor
+    outfile.classification = classn
+
+
 def point_dimension(inFile):
     """
     Dimensions for each point of a las file.
@@ -525,8 +562,20 @@ def dimension1d2d3d_v01_0(infile,
         dat = in_file.reader.get_dimension(dimension)
         out_file.writer.set_dimension(dimension, dat)
     # add new dimension
-    out_file.writer.set_dimension("dimension1d2d3d", point_dimension(in_file))
+    out_file.writer.set_dimension("dimension1d2d3d", point_dimension(infile))
     out_file.close()
+
+
+def dimension1d2d3d_v01_1(infile,
+                          outfile):
+    """
+    Adds dimension 1, 2 or 3 to each point.
+    :param infile: name of infile
+    :param outfile: name of outfile
+    :return: nothing, just writes new file
+    """
+
+    outfile.writer.set_dimension("dimension1d2d3d", point_dimension(infile))
 
 
 def eigen_clustering(coords, eigenvector, tolerance, eigenvector_scale, max_length, min_pts):
@@ -1118,6 +1167,45 @@ def cluster_labels_v01_2(infile,
     out_file.close()
 
 
+def cluster_labels_v01_3(infile,
+                         outfile,
+                         attribute,
+                         range_to_cluster,
+                         distance,
+                         min_pts,
+                         cluster_attribute,
+                         minimum_length):
+    """
+    Inputs a file and a classification to cluster. Outputs a file with cluster labels.
+    Clusters with label 0 are non-core points, i.e. points without "min_pts" within
+    "tolerance" (see DBSCAN documentation), or points outside the classification to cluster.
+    :param infile: input file name
+    :param outfile: output file name
+    :param attribute: the attribute which you want to use to select a range from
+    :param range_to_cluster: python list of values to cluster e.g. for classification [3,4,5] for the three types of veg
+    :param distance: how close must two points be to be put in the same cluster
+    :param min_pts: minimum number of points each point must have in a radius of size "distance"
+    :param cluster_attribute: the name given to the clustering labels
+    :param minimum_length: the minimum length of a cluster
+    """
+    # we shouldn't use las_modules.cluster function because it acts on a file, not on a family of points
+    x = infile.x
+    y = infile.y
+    z = infile.z
+    # make a vector to store labels
+    labels_allpts = np.zeros(len(infile), dtype=int)
+    # get the point positions
+    coords = np.stack((x, y, z), axis=1)
+    # make the clusters
+    attr = infile.reader.get_dimension(attribute)
+    mask = uicondition2mask(range_to_cluster)(attr)
+    labels = 1 + clustering(coords[mask], distance, minimum_length, min_pts)
+    # assign the target classification's labels
+    labels_allpts[mask] = labels  # find our labels (DBSCAN starts at -1 and we want to start at 0, so add 1)
+
+    outfile.writer.set_dimension(cluster_attribute, labels_allpts)
+
+
 def eigencluster_labels_v01_0(infile,
                               outfile,
                               classification_to_cluster,
@@ -1314,6 +1402,61 @@ def eigencluster_labels_v01_2(infile,
     out_file.close()
 
 
+def eigencluster_labels_v01_3(infile,
+                              outfile,
+                              eigenvector_number,
+                              attribute,
+                              range_to_cluster,
+                              distance,
+                              min_pts,
+                              cluster_attribute,
+                              minimum_length):
+    """
+    Input a file and select an eigenvector and attribute range to cluster. Outputs a file with cluster labels.
+    Clusters with label 0 are non-core points, i.e. points without "min_pts" within
+    "distance" (see DBSCAN documentation), or points outside the classification to cluster.
+    :param infile: input file name
+    :param outfile: output file name
+    :param eigenvector_number: 0, 1 or 2
+    :param attribute: the attribute which you want to use to select a range from
+    :param range_to_cluster: python list of values to cluster e.g. for classification [3,4,5] for the three types of veg
+    :param distance: how close must two points be to be put in the same cluster
+    :param min_pts: minimum number of points each point must have in a radius of size "distance"
+    :param cluster_attribute: the name given to the clustering labels
+    :param minimum_length: the minimum length of a cluster
+    :return:
+    """
+    # we shouldn't use las_modules.cluster function because it acts on a file, not on a family of points
+
+    x = infile.x
+    y = infile.y
+    z = infile.z
+
+    # extract the componenets of the desired eigenvector
+    v0 = infile.reader.get_dimension(f"eig{eigenvector_number}0")
+    v1 = infile.reader.get_dimension(f"eig{eigenvector_number}1")
+    v2 = infile.reader.get_dimension(f"eig{eigenvector_number}2")
+    eigenvector = np.stack((v0, v1, v2), axis=1)
+    # make a vector to store labels
+    labels_allpts = np.zeros(len(infile), dtype=int)
+    # get the point positions
+
+    coords = np.stack((x, y, z), axis=1)
+    # make the cluster labels
+    attr = infile.reader.get_dimension(attribute)
+    mask = uicondition2mask(range_to_cluster)(attr)
+    labels = 1 + eigen_clustering(coords[mask],
+                                  eigenvector[mask],
+                                  distance,
+                                  5,
+                                  minimum_length,
+                                  min_pts)
+    # assign the target classification's labels
+    labels_allpts[mask] = labels
+
+    outfile.writer.set_dimension(cluster_attribute, labels_allpts)
+
+
 def count_v01_0(tile,
                 output_file,
                 attribute):
@@ -1386,12 +1529,12 @@ def decimate_v01_0(infile, outfile, decimated_outfile, voxel_size, inverter_attr
     """
     Produces two new files. One is decimated with no extra attributes, another is not decimated which holds an attribute
     to recover info from decimated file.
-    @param infile: file to decimate
-    @param outfile: the file with inverter attibute
-    @param decimated_outfile: the decimated file with fewer points
-    @param voxel_size: voxel side length
-    @param inverter_attribute: name of inverter attribute
-    @return: two files, one with inverter, one with fewer points
+    :param infile: file to decimate
+    :param outfile: the file with inverter attibute
+    :param decimated_outfile: the decimated file with fewer points
+    :param voxel_size: voxel side length
+    :param inverter_attribute: name of inverter attribute
+    :return: two files, one with inverter, one with fewer points
     """
     inFile = File(infile)
     outFile = File(outfile, mode="w", header=inFile.header)
@@ -1427,12 +1570,12 @@ def decimate_v01_0(infile, outfile, decimated_outfile, voxel_size, inverter_attr
 def undecimate_v01_0(infile_with_inv, infile_decimated, outfile, inverter_attribute, attributes_to_copy):
     """
     reverses decimation
-    @param infile_with_inv: file with inverter attribute
-    @param infile_decimated: decimated file with fewer points
-    @param outfile: new file with attributes recovered from decimation
-    @param inverter_attribute: name of inverter attribute on infile_with_inv
-    @param attributes_to_copy: attributes for recovery
-    @return:
+    :param infile_with_inv: file with inverter attribute
+    :param infile_decimated: decimated file with fewer points
+    :param outfile: new file with attributes recovered from decimation
+    :param inverter_attribute: name of inverter attribute on infile_with_inv
+    :param attributes_to_copy: attributes for recovery
+    :return:
     """
     inFile1 = File(infile_with_inv)
     inFile2 = File(infile_decimated)
@@ -1456,17 +1599,17 @@ def virus_v01_0(infile, outfile, distance, num_itter, virus_attribute, virus_ran
     """
     Used to spread an attribute to nearby points of selected points. OR we can put a number in value to reset the
     selected points' attack attribute to that number
-    @param infile:
-    @param outfile:
-    @param virus_attribute: Attribute to range in order to decide which points to `spread out from'.
-    @param virus_range: range for virus_attribute
-    @param select_attribute: An attribute used to range for selecting affected points.
-    @param select_range: Range for select_attribute.
-    @param protect_attribute: An attribute used to range for protecting points.
-    @param protect_range:Range for protect_attribute.
-    @param attack_attribute:
-    @param value: Values to which we should change the attack_attribute OR name of attribute to spread.
-    @return:
+    :param infile:
+    :param outfile:
+    :param virus_attribute: Attribute to range in order to decide which points to `spread out from'.
+    :param virus_range: range for virus_attribute
+    :param select_attribute: An attribute used to range for selecting affected points.
+    :param select_range: Range for select_attribute.
+    :param protect_attribute: An attribute used to range for protecting points.
+    :param protect_range:Range for protect_attribute.
+    :param attack_attribute:
+    :param value: Values to which we should change the attack_attribute OR name of attribute to spread.
+    :return:
     """
     inFile = File(infile)
     vir = inFile.reader.get_dimension(virus_attribute)
@@ -1489,6 +1632,41 @@ def virus_v01_0(infile, outfile, distance, num_itter, virus_attribute, virus_ran
     outFile.close()
 
 
+def virus_v01_1(infile, outfile, distance, num_itter, virus_attribute, virus_range, select_attribute, select_range,
+                protect_attribute, protect_range, attack_attribute, value):
+    """
+    Used to spread an attribute to nearby points of selected points. OR we can put a number in value to reset the
+    selected points' attack attribute to that number
+    :param infile:
+    :param outfile:
+    :param virus_attribute: Attribute to range in order to decide which points to `spread out from'.
+    :param virus_range: range for virus_attribute
+    :param select_attribute: An attribute used to range for selecting affected points.
+    :param select_range: Range for select_attribute.
+    :param protect_attribute: An attribute used to range for protecting points.
+    :param protect_range:Range for protect_attribute.
+    :param attack_attribute:
+    :param value: Values to which we should change the attack_attribute OR name of attribute to spread.
+    :return:
+    """
+
+    vir = infile.reader.get_dimension(virus_attribute)
+    if select_attribute is not None:
+        sel = infile.reader.get_dimension(select_attribute)
+        mask3 = uicondition2mask(select_range)(sel)
+    else:
+        mask3 = np.ones(len(infile), dtype=bool)
+    if protect_attribute is not None:
+        ptc = infile.reader.get_dimension(protect_attribute)
+        mask4 = uicondition2mask(protect_range)(ptc)
+    else:
+        mask4 = np.zeros(len(infile), dtype=bool)
+    mask1 = uicondition2mask(virus_range)(vir)
+    mask2 = mask3 & (~ mask4)
+    cls = virus_background(infile, distance, num_itter, mask1, mask2, attack_attribute, value)
+    outfile.writer.set_dimension(attack_attribute, cls)
+
+
 def attributeupdate_v01_0(infile, outfile, select_attribute, select_range, protect_attribute, protect_range,
                           attack_attribute, value):
     """
@@ -1497,15 +1675,15 @@ def attributeupdate_v01_0(infile, outfile, select_attribute, select_range, prote
     A protect attribute to control which points will not be affected.
     An attack attribute which will be changed for the affected points.
     This module simply updates an attribute to the given value.
-    @param infile:
-    @param outfile:
-    @param select_attribute: An attribute used to range for selecting affected points.
-    @param select_range: Range for select_attribute.
-    @param protect_attribute: An attribute used to range for protecting points.
-    @param protect_range: Range for protect_attribute.
-    @param attack_attribute: Attribute to be changed
-    @param value: Values to which we should change the attack_attribute.
-    @return:
+    :param infile:
+    :param outfile:
+    :param select_attribute: An attribute used to range for selecting affected points.
+    :param select_range: Range for select_attribute.
+    :param protect_attribute: An attribute used to range for protecting points.
+    :param protect_range: Range for protect_attribute.
+    :param attack_attribute: Attribute to be changed
+    :param value: Values to which we should change the attack_attribute.
+    :return:
     """
     inFile = File(infile)
     cls = 1 * inFile.reader.get_dimension(attack_attribute)
@@ -1523,3 +1701,65 @@ def attributeupdate_v01_0(infile, outfile, select_attribute, select_range, prote
     outFile.points = inFile.points
     outFile.writer.set_dimension(attack_attribute, cls)
     outFile.close()
+
+
+def attributeupdate_v01_1(infile, outfile, select_attribute, select_range, protect_attribute, protect_range,
+                          attack_attribute, value):
+    """
+    Note: I think this somewhat "pathes the way" for the way in which we should set out our modules. It gives the user:
+    A select attribute to control which points will potentially be affected.
+    A protect attribute to control which points will not be affected.
+    An attack attribute which will be changed for the affected points.
+    This module simply updates an attribute to the given value.
+    :param infile:
+    :param outfile:
+    :param select_attribute: An attribute used to range for selecting affected points.
+    :param select_range: Range for select_attribute.
+    :param protect_attribute: An attribute used to range for protecting points.
+    :param protect_range: Range for protect_attribute.
+    :param attack_attribute: Attribute to be changed
+    :param value: Values to which we should change the attack_attribute.
+    :return:
+    """
+
+    cls = 1 * infile.reader.get_dimension(attack_attribute)
+    if select_attribute is not None:
+        sel = infile.reader.get_dimension(select_attribute)
+        mask1 = uicondition2mask(select_range)(sel)
+    else:
+        mask1 = np.ones(len(infile), dtype=bool)
+    if protect_attribute is not None:
+        mask2 = uicondition2mask(protect_range)(infile.reader.get_dimension(protect_attribute))
+    else:
+        mask2 = np.zeros(len(infile), dtype=bool)
+    cls[mask1 & (~mask2)] = value
+
+    outfile.writer.set_dimension(attack_attribute, cls)
+
+
+def create_attributes(infile, output_file, attribute_names=None):
+    """
+    Create the extra dimensions that are putted into attribute_names.
+
+    :param output_file: Name of the output file.
+    :param infile: las file on which to create the attributes.
+    :param attribute_names: Attributes names put like ("name","data_type","description")
+    e.x. [("dimension1d2d3d",6,"dimension")]
+    :return: output las file in write mode
+    """
+    if attribute_names is None:
+        attribute_names = []
+
+    out_file = File(output_file, mode="w", header=infile.header)
+    dimensions = [spec.name for spec in infile.point_format]
+    # add new dimension
+    for dim in attribute_names:
+        if dim[0] not in dimensions:
+            out_file.define_new_dimension(name=dim[0], data_type=dim[1], description=dim[2])
+
+    # add pre-existing point records
+    for dimension in dimensions:
+        dat = infile.reader.get_dimension(dimension)
+        out_file.writer.set_dimension(dimension, dat)
+
+    return out_file
