@@ -103,7 +103,10 @@ def get_in_files(line, count, fil):
     # e.x. 005,003_1,006
     if count_in == 1:
         for i in range(0, len(line) - 1):
-            in_files += '/results/' + fil + '/' + fil + '_' + line[i].strip() + '.las '
+            if line[i].strip() == '000':
+                in_files += '/data/' + fil + '.las '
+            else:
+                in_files += '/results/' + fil + '/' + fil + '_' + line[i].strip() + '.las '
     else:
         in_files += '/results/' + fil + '/' + fil + '_' + line[0].strip() + '.las '
 
