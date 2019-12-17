@@ -28,9 +28,5 @@ veg_risk(outfile,
          classification_inter=4,
          distance_veg=3)
 
-polygon_select(outfile,
-               resolution=10,
-               classif=15,
-               classed='polygon'):
 
 outfile.close()

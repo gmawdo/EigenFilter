@@ -84,8 +84,8 @@ def merge_job(las_tile_location, out_location, tile_results, job_number, compres
         merge_files = run_command(" ls {}/*/*_{}.las |"
                                   " sed s/'{}'/' -i \/data'/g | tr '\\n' ' '".
                                   format(tile_results, job_number, tile_results.replace("/", "\/"))).strip()
-
-        print(result, no_tiles)
+        # print(tile_results)
+        # print(result, no_tiles)
         if result == no_tiles:
             out_name = run_command("ls {}/*/*_{}.las | sed s/'_Tile'/'  '/g |"
                                    " sed s/'\/'/' '/g | awk '{}' | tail -1".
@@ -96,9 +96,9 @@ def merge_job(las_tile_location, out_location, tile_results, job_number, compres
 
             docker_merge = "docker run -v {}:/data -v {}:/data_out pointscene/lastools" \
                            " lasmerge {} -o /data_out/{}_{}.{}". \
-                format(tile_results,out_location, merge_files, out_name, job_number, method)
+                format(tile_results, out_location, merge_files, out_name, job_number, method)
             print(run_command(docker_merge))
-            print("Equal")
+            # print("Equal")
             break
 
 
