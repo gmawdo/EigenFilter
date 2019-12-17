@@ -2,20 +2,42 @@ import numpy as np
 from inspect import signature
 
 
-def point_cloud_type(name, attributes, datatypes):
-    assert len(attributes) >= len(datatypes), "Fewer attributes than data types."
-    assert len(attributes) <= len(datatypes), "Fewer data types than attributes."
+def point_cloud_type(name, attributes, datatypes = None):
+    """
+    A class factory.
+    @param name:
+    @param attributes:
+    @return:
+    """
+    if datatypes is not None:
+        assert len(datatypes) >= len(attributes):, "Fewer attributes than datatypes."
+        assert len(datatypes) <= len(attributes):, "Fewer datatypes than attributes."
 
-    def point_cloud_init(self, length, values, user_info=None):
+    def __init__(self, values, user_info=None):
+        L = values[0].size
+
+        assert len(values) > 0, "No values given."
         assert len(attributes) >= len(values), "Fewer attributes than values."
         assert len(attributes) <= len(values), "Fewer values than attributes."
-        assert all(a.size == length for a in values), f"All values must have shape {(length,)}"
+        assert all(a.shape == (L,) for a in values), f"All values must be 1d arrays with same length."
+
+
         self.user_info = user_info
+        self.attributes = attributes
+        if datatypes is None:
+            self.datatypes = {item: values[index].dtype for index, item in enumerate(attributes)}
+        else
+            self.datatypes = datatypes
+        self._data_len = L.size
+        for index, item in enumerate(attributes):
+            setattr(item, values[index].astype(self.datatypes[item]))
 
-    attribute_dict = {}
-    attribute_dict["__init__"] = LAS_init
+    def __len__(self):
+        return self._data_len
 
-    return type(name, (DataFrame,), attribute_dict)
+    attribute_dict = dict(__slots__=attributes + ["user_info"], __init__=__init__, __len__=__len__)
+
+    return type(name, values, attribute_dict)
 
 
 RedHawkPointCloud = point_cloud_type(name="RedHawkPointCloud",
