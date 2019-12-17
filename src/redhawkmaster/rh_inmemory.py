@@ -2,59 +2,100 @@ import numpy as np
 from inspect import signature
 
 
-def point_cloud_type(name, attributes, datatypes=None):
-    """
-    A class factory.
-    @param name:
-    @param attributes:
-    @return:
-    """
-    if datatypes is not None:
-        assert len(datatypes) >= len(attributes), "Fewer attributes than datatypes."
-        assert len(datatypes) <= len(attributes), "Fewer datatypes than attributes."
+class PointCloud:
 
     def __init__(self, values, user_info=None):
-        L = values[0].size
+        assert values, "Provide some values."
+        assert all((isinstance(v, np.ndarray) for v in values.values())), "All values must be nd arrays"
+        self.user_info = user_info
+        self.dimensions = set(values.keys())
+        self.data_types = {key: values[key].dtype for key in self.dimensions}
+        self.shapes = {key: values[key].shape for key in self.dimensions}
+        for key in self.dimensions:
+            setattr(self, key, values[key])
 
-        assert len(values) > 0, "No values given."
-        assert len(attributes) >= len(values), "Fewer attributes than values."
-        assert len(attributes) <= len(values), "Fewer values than attributes."
-        assert all(a.shape == (L,) for a in values), f"All values must be 1d arrays with same length."
+    def __len__(self):
+        return {key: values[key].shape for key in self.dimensions}
+
+    def __setattr__(self, dimension, value):
+        if dimension in self.dimensions:
+            super().__setattr__(dimension, value.astype(self.data_types[dimension]))
+        else:
+            super().__setattr__(dimension, value)
+
+    def get_dimension(self, dimension):
+        assert dimension in self.dimensions, "No attribute called " + dimension + "."
+        return getattr(self, dimension)
+
+    def set_dimension(self, dimension, value):
+        assert dimension in self.dimensions, "No attribute called " + dimension + "."
+        setattr(self, dimension, value.astype(data_types[dimension]))
+        return None
+
+
+def point_cloud_type(name, dimensions, data_types=None):
+    """
+
+    @param name:
+    @param dimensions:
+    @param data_types:
+    @return:
+    """
+    if data_types:
+        assert set(dimensions) == set(data_types.keys()), "Data type keys must be the attributes."
+    assert dimensions, "No attributes given."
+
+    def __init__(self, values, user_info=None):
+        assert set(dimensions) == set(values.keys()), "Value keys must be the attributes."
+        l = values[list(values)[0]].size
+        assert all(values[key].shape == (l,) for key in values), f"All values must be 1d arrays with same length."
 
         self.user_info = user_info
-        self.attributes = attributes
-        if datatypes is None:
-            self.datatypes = {item: values[index].dtype for index, item in enumerate(attributes)}
+        self.dimensions = set(dimensions)
+        if data_types:
+            self.data_types = {key: data_types[key] for key in self.dimensions}
         else:
-            self.datatypes = {item: datatypes[index] for index, item in enumerate(attributes)}
-        self._data_len = L
-        for index, item in enumerate(attributes):
-            setattr(self, item, values[index].astype(self.datatypes[item]))
+            self.data_types = {key: values[key].dtype for key in self.dimensions}
+        self._data_len = l
+        for key in self.dimensions:
+            setattr(self, key, values[key])
 
     def __len__(self):
         return self._data_len
 
-    attribute_dict = dict(__slots__=attributes + "user_info attributes datatypes _data_len".split(), __init__=__init__,
-                          __len__=__len__)
+    def get_dimension(self, dimension):
+        assert dimension in self.dimensions, "No attribute called " + dimension + "."
+        return getattr(self, dimension)
+
+    def set_dimension(self, dimension, value):
+        assert dimension in self.dimensions, "No attribute called " + dimension + "."
+        setattr(self, dimension, value.astype(data_types[dimension]))
+        return None
+
+    attribute_dict = dict(__slots__=dimensions + "dimensions values user_info data_types _data_len".split(),
+                          __init__=__init__,
+                          __len__=__len__,
+                          __setattr__=__setattr__,
+                          get_dimension=get_dimension,
+                          set_dimension=set_dimension)
 
     return type(name, (object,), attribute_dict)
 
 
 RedHawkPointCloud = point_cloud_type(name="RedHawkPointCloud",
-                                     attributes="x y z classification".split())
-                                     datatypes=[np.float64, np.float64, np.float64,
-                                                np.int8])  # one could choose to omit datatypes and let them be auto
+                                     dimensions="x y z classification".split(),
+                                     data_types={"x": np.float64, "y": np.float64, "z": np.float64,
+                                                 "classification": np.int8})
 
+
+# one could choose to omit datatypes and let them be auto
 
 def FileLaspy(filename):
     from laspy.file import File
     inFile = File(filename)
-    x = inFile.x
-    y = inFile.y
-    z = inFile.z
-    classification = inFile.classification
     user_info = {'inFile': inFile}
-    return RedHawkPointCloud((inFile.x, inFile.y, inFile.z, inFile.classification), user_info=user_info)
+    values = {"x": inFile.x, "y": inFile.y, "z": inFile.z, "classification": inFile.classification}
+    return PointCloud(values=values, user_info=user_info)
 
 
 class RedHawkPipe:
@@ -95,7 +136,10 @@ class RedHawkPipeline:
         self.functions = functions
 
     def compose(self):
-        return sum(functions)
+        i = lambda x: x
+        for item in functions:
+            i = item.vcomp(i)
+        return i
 
-    def run(self, input):
-        function = self.compose()
+    def run(self, infile):
+        function = self.compose(infile)
