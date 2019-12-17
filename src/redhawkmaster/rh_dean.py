@@ -3,7 +3,7 @@ from laspy.file import File
 from sklearn.cluster import DBSCAN
 from sklearn.neighbors import NearestNeighbors
 from scipy.spatial import Delaunay
-# from redhawkmaster import lasmaster as lm
+import lasmaster as lm
 from redhawkmaster.las_modules import virus_background
 import pandas as pd
 import os
