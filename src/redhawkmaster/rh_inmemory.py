@@ -2,7 +2,7 @@ import numpy as np
 from inspect import signature
 
 
-def point_cloud_type(name, attributes, datatypes = None):
+def point_cloud_type(name, attributes, datatypes=None):
     """
     A class factory.
     @param name:
@@ -10,8 +10,8 @@ def point_cloud_type(name, attributes, datatypes = None):
     @return:
     """
     if datatypes is not None:
-        assert len(datatypes) >= len(attributes):, "Fewer attributes than datatypes."
-        assert len(datatypes) <= len(attributes):, "Fewer datatypes than attributes."
+        assert len(datatypes) >= len(attributes), "Fewer attributes than datatypes."
+        assert len(datatypes) <= len(attributes), "Fewer datatypes than attributes."
 
     def __init__(self, values, user_info=None):
         L = values[0].size
@@ -21,41 +21,40 @@ def point_cloud_type(name, attributes, datatypes = None):
         assert len(attributes) <= len(values), "Fewer values than attributes."
         assert all(a.shape == (L,) for a in values), f"All values must be 1d arrays with same length."
 
-
         self.user_info = user_info
         self.attributes = attributes
         if datatypes is None:
             self.datatypes = {item: values[index].dtype for index, item in enumerate(attributes)}
-        else
-            self.datatypes = datatypes
-        self._data_len = L.size
+        else:
+            self.datatypes = {item: datatypes[index] for index, item in enumerate(attributes)}
+        self._data_len = L
         for index, item in enumerate(attributes):
-            setattr(item, values[index].astype(self.datatypes[item]))
+            setattr(self, item, values[index].astype(self.datatypes[item]))
 
     def __len__(self):
         return self._data_len
 
-    attribute_dict = dict(__slots__=attributes + ["user_info"], __init__=__init__, __len__=__len__)
+    attribute_dict = dict(__slots__=attributes + "user_info attributes datatypes _data_len".split(), __init__=__init__,
+                          __len__=__len__)
 
-    return type(name, values, attribute_dict)
+    return type(name, (object,), attribute_dict)
 
 
 RedHawkPointCloud = point_cloud_type(name="RedHawkPointCloud",
-                                     attributes="x y z classification".split(),
-                                     datatypes=[np.float32, np.float32, np.float32,
-                                                np.int8])  # this is a subclass of DataFrame
+                                     attributes="x y z classification".split())
+                                     datatypes=[np.float64, np.float64, np.float64,
+                                                np.int8])  # one could choose to omit datatypes and let them be auto
 
 
-class FileLaspy(filename):
+def FileLaspy(filename):
+    from laspy.file import File
     inFile = File(filename)
-    header = inFile.header
     x = inFile.x
     y = inFile.y
     z = inFile.z
     classification = inFile.classification
-    user_info = {'header': header}
-    dimensions = [spec.name for spec in inFile.point_format]
-    self.redhawk = RedHawkPointCloud()
+    user_info = {'inFile': inFile}
+    return RedHawkPointCloud((inFile.x, inFile.y, inFile.z, inFile.classification), user_info=user_info)
 
 
 class RedHawkPipe:
