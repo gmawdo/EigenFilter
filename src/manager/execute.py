@@ -210,6 +210,23 @@ def parallel(args, big_file):
     pool.close()
 
 
+class NoDaemonProcess(multiprocessing.Process):
+    # make 'daemon' attribute always return False
+    def _get_daemon(self):
+        return False
+
+    def _set_daemon(self, value):
+        pass
+
+    daemon = property(_get_daemon, _set_daemon)
+
+
+# We sub-class multiprocessing.pool.Pool instead of multiprocessing.Pool
+# because the latter is only a wrapper function, not a proper class.
+class MyPool(multiprocessing.pool.Pool):
+    Process = NoDaemonProcess
+
+
 def get_last_job():
     fileHandle = open(args.flow, 'r')
     lineList = fileHandle.readlines()
@@ -221,8 +238,44 @@ def get_last_job():
     return lineList[-1].strip().split(',')[-1]
 
 
-if __name__ == '__main__':
+def init_flow(infile):
+    global sorted_filename_list
+    sorted_filename_list = infile
 
+
+def run_a_flow(item):
+    big_file = sorted_filename_list[item].split('.')[0]
+    if not os.path.exists(args.results + '/200_TILES/' + big_file):
+        os.mkdir(args.results + '/200_TILES/' + big_file)
+
+    print("===== Unlaz Start =====")
+    las_zip(laz_location=args.results + '/000_RECEIVED_DATA_LAZ',
+            las_location=args.results + '/100_BIG_FILES_LAS',
+            move_location=args.results + '/001_RECEIVED_DATA_LAZ_COMPLETE',
+            tile_name=big_file,
+            unzip=True)
+    print("===== Unlaz End   =====")
+    # if args.bigfile != 'None':
+    print("===== Tiling Start =====")
+    rh_tiling_gps_equal_filesize(args.results + '/100_BIG_FILES_LAS/' + big_file + '.las',
+                                 args.results + '/200_TILES/' + big_file + '/', filesize=float(args.mbpt))
+    print("===== Tiling End   =====")
+
+    print("===== Processing Start =====")
+    parallel(args, big_file)
+    print("===== Processing End   =====")
+
+    print("===== Merge Start =====")
+    print(get_last_job())
+    merge_job(las_tile_location=args.results + '/200_TILES/' + big_file + '/',
+              tile_results=args.results + '/' + big_file + '/',
+              out_location=args.results + '/300_PRODUCTS/',
+              job_number=get_last_job(),
+              compressed=True)
+    print("===== Merge End   =====")
+
+
+if __name__ == '__main__':
 
     if not os.path.exists(args.results):
         os.mkdir(args.results)
@@ -252,35 +305,15 @@ if __name__ == '__main__':
         # print(sorted_filename_list[0].split('.')[0])
 
         if sorted_filename_list:
-            big_file = sorted_filename_list[0].split('.')[0]
+            pool = MyPool(processes=len(sorted_filename_list), initializer=init_flow,
+                          initargs=(sorted_filename_list,))
+            # pool = multiprocessing.Pool(processes=len(sorted_filename_list), initializer=init_flow,
+            #                             initargs=(sorted_filename_list,))
 
-            if not os.path.exists(args.results + '/200_TILES/' + big_file):
-                os.mkdir(args.results + '/200_TILES/' + big_file)
+            pool.map(run_a_flow, range(len(sorted_filename_list)))
+            pool.close()
+            pool.join()
 
-            print("===== Unlaz Start =====")
-            las_zip(laz_location=args.results + '/000_RECEIVED_DATA_LAZ',
-                    las_location=args.results + '/100_BIG_FILES_LAS',
-                    move_location=args.results + '/001_RECEIVED_DATA_LAZ_COMPLETE',
-                    tile_name=big_file,
-                    unzip=True)
-            print("===== Unlaz End   =====")
-            # if args.bigfile != 'None':
-            print("===== Tiling Start =====")
-            rh_tiling_gps_equal_filesize(args.results + '/100_BIG_FILES_LAS/' + big_file + '.las',
-                                         args.results + '/200_TILES/' + big_file + '/', filesize=float(args.mbpt))
-            print("===== Tiling End   =====")
 
-            print("===== Processing Start =====")
-            parallel(args, big_file)
-            print("===== Processing End   =====")
-
-            print("===== Merge Start =====")
-            print(get_last_job())
-            merge_job(las_tile_location=args.results + '/200_TILES/' + big_file + '/',
-                      tile_results=args.results + '/' + big_file+'/',
-                      out_location=args.results + '/300_PRODUCTS/',
-                      job_number=get_last_job(),
-                      compressed=True)
-            print("===== Merge End   =====")
         end = time.time()
         print("Time: " + str(end - start))
