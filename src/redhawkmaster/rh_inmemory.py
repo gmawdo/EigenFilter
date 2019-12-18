@@ -2,89 +2,31 @@ import numpy as np
 from inspect import signature
 
 
-class PointCloud:
+def point_cloud_type(name, datatypes):
 
-    def __init__(self, values, user_info=None):
-        assert values, "Provide some values."
-        assert all((isinstance(v, np.ndarray) for v in values.values())), "All values must be nd arrays"
+    def __init__(self, length, user_info):
         self.user_info = user_info
-        self.dimensions = set(values.keys())
-        self.data_types = {key: values[key].dtype for key in self.dimensions}
-        self.shapes = {key: values[key].shape for key in self.dimensions}
-        for key in self.dimensions:
-            setattr(self, key, values[key])
+        self.length = length
+        for key in datatypes:
+        	setattr(self, "__"+key, np.zeros(length, dtype = datatypes[key]))
 
     def __len__(self):
-        return {key: values[key].shape for key in self.dimensions}
+    	return self.length
 
-    def __setattr__(self, dimension, value):
-        if dimension in self.dimensions:
-            super().__setattr__(dimension, value.astype(self.data_types[dimension]))
-        else:
-            super().__setattr__(dimension, value)
-
-    def get_dimension(self, dimension):
-        assert dimension in self.dimensions, "No attribute called " + dimension + "."
-        return getattr(self, dimension)
-
-    def set_dimension(self, dimension, value):
-        assert dimension in self.dimensions, "No attribute called " + dimension + "."
-        setattr(self, dimension, value.astype(data_types[dimension]))
-        return None
-
-
-def point_cloud_type(name, dimensions, data_types=None):
-    """
-
-    @param name:
-    @param dimensions:
-    @param data_types:
-    @return:
-    """
-    if data_types:
-        assert set(dimensions) == set(data_types.keys()), "Data type keys must be the attributes."
-    assert dimensions, "No attributes given."
-
-    def __init__(self, values, user_info=None):
-        assert set(dimensions) == set(values.keys()), "Value keys must be the attributes."
-        l = values[list(values)[0]].size
-        assert all(values[key].shape == (l,) for key in values), f"All values must be 1d arrays with same length."
-
-        self.user_info = user_info
-        self.dimensions = set(dimensions)
-        if data_types:
-            self.data_types = {key: data_types[key] for key in self.dimensions}
-        else:
-            self.data_types = {key: values[key].dtype for key in self.dimensions}
-        self._data_len = l
-        for key in self.dimensions:
-            setattr(self, key, values[key])
-
-    def __len__(self):
-        return self._data_len
-
-    def get_dimension(self, dimension):
-        assert dimension in self.dimensions, "No attribute called " + dimension + "."
-        return getattr(self, dimension)
-
-    def set_dimension(self, dimension, value):
-        assert dimension in self.dimensions, "No attribute called " + dimension + "."
-        setattr(self, dimension, value.astype(data_types[dimension]))
-        return None
-
-    attribute_dict = dict(__slots__=dimensions + "dimensions values user_info data_types _data_len".split(),
-                          __init__=__init__,
-                          __len__=__len__,
-                          __setattr__=__setattr__,
-                          get_dimension=get_dimension,
-                          set_dimension=set_dimension)
+    attribute_dict = dict(datatypes = datatypes, __init__ = __init__, __len__ = __len__)
+    
+    for key in datatypes:
+    	def fset(self, values):
+    			new = np.zeros(self.length, dtype = datatypes[key])
+    			new[:] = values[:]
+    			setattr(self, "__"+key, new)
+    	attribute_dict[key] = property(fset = fset, fget = lambda self: getattr(self, "__"+key))
 
     return type(name, (object,), attribute_dict)
 
 
 RedHawkPointCloud = point_cloud_type(name="RedHawkPointCloud",
-                                     dimensions="x y z classification".split(),
-                                     data_types={"x": np.float64, "y": np.float64, "z": np.float64,
+                                     datatypes={"x": np.float64, "y": np.float64, "z": np.float64,
                                                  "classification": np.int8})
 
 
@@ -93,9 +35,12 @@ RedHawkPointCloud = point_cloud_type(name="RedHawkPointCloud",
 def FileLaspy(filename):
     from laspy.file import File
     inFile = File(filename)
-    user_info = {'inFile': inFile}
-    values = {"x": inFile.x, "y": inFile.y, "z": inFile.z, "classification": inFile.classification}
-    return PointCloud(values=values, user_info=user_info)
+    pc = RedHawkPointCloud(length = len(inFile), user_info = inFile)
+    pc.x = inFile.x
+    pc.y = inFile.y
+    pc.z = inFile.z
+    pc.classification = inFile.classification
+    return pc
 
 
 class RedHawkPipe:
