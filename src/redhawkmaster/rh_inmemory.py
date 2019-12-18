@@ -81,11 +81,6 @@ def file_laspy(filename):
     return pc
 
 
-class RedHawkPipe:
-    def __init__(self, function):
-        self.function = function
-
-
 class RedHawkPipeline:
     def __init__(self, pipes):
         self.pipes = pipes
