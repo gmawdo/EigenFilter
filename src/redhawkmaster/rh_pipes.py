@@ -1,1 +1,1 @@
-from redhawkmaster.rh_inmemory import RedHawkPointCloud, RedHawkPipe
+from redhawkmaster.rh_inmemory import RedHawkPointCloud
