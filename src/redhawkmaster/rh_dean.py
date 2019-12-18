@@ -914,7 +914,7 @@ def finish_tile(pair, output_file):
     outFile.z = inFile.z[args]
 
 
-def pdal_enel(input_file, output_file):
+def pdal_smrf_enel(input_file, output_file):
     #	ground_command = "pdal ground --initial_distance 1.0 --writers.las.extra_dims=all -i {} -o {}"
     ground_command = "pdal translate " \
                      "--readers.las.extra_dims=\"slpid=uint64\" " \
