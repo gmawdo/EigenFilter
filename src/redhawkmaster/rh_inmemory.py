@@ -2,40 +2,46 @@ import numpy as np
 from inspect import signature
 
 
-def point_cloud_type(name, datatypes):
+def nd_array_setter(key, data_type):
+    def setter(self, value):
+        new_value = np.zeros(self.length, dtype=data_type)
+        new_value[:] = value
+        setattr(self, "__" + key, new_value.astype(data_type))
 
+    return setter
+
+
+def nd_array_getter(key):
+    def getter(self):
+        return getattr(self, "__" + key)
+
+    return getter
+
+
+def point_cloud_type(name, datatypes):
     def __init__(self, length, user_info):
         self.user_info = user_info
         self.length = length
-        for key in datatypes:
-        	setattr(self, "__"+key, np.zeros(length, dtype = datatypes[key]))
 
     def __len__(self):
-    	return self.length
+        return self.length
 
-    attribute_dict = dict(datatypes = datatypes, __init__ = __init__, __len__ = __len__)
-    
+    attribute_dict = dict(datatypes=datatypes, __init__=__init__, __len__=__len__)
+
     for key in datatypes:
-    	def fset(self, values):
-    			new = np.zeros(self.length, dtype = datatypes[key])
-    			new[:] = values[:]
-    			setattr(self, "__"+key, new)
-    	attribute_dict[key] = property(fset = fset, fget = lambda self: getattr(self, "__"+key))
+        attribute_dict[key] = property(fset=nd_array_setter(key, datatypes[key]), fget=nd_array_getter(key))
 
     return type(name, (object,), attribute_dict)
 
 
 RedHawkPointCloud = point_cloud_type(name="RedHawkPointCloud",
                                      datatypes={"x": np.float64, "y": np.float64, "z": np.float64,
-                                                 "classification": np.int8})
-
-
-# one could choose to omit datatypes and let them be auto
+                                                "classification": np.int8})
 
 def FileLaspy(filename):
     from laspy.file import File
     inFile = File(filename)
-    pc = RedHawkPointCloud(length = len(inFile), user_info = inFile)
+    pc = RedHawkPointCloud(length=len(inFile), user_info=inFile)
     pc.x = inFile.x
     pc.y = inFile.y
     pc.z = inFile.z
@@ -48,43 +54,51 @@ class RedHawkPipe:
         self.function = function
         self.numargs = len(signature(function).parameters)
 
-    def vcomp(self, other):
+    def vertical_composition(self, other):
         """
         This defines vertical composition of pipes.
         """
 
-        def vcomposition(x):
+        def composition(x):
             p = other(x)
             return self.function(*p)
 
-        return vcomposition
+        return composition
 
-    def hcomp(self, other):
+    def horizontal_composition(self, other):
         """
         This defines horizontal composition of pipes.
         """
 
-        def hcomposition(x):
-            nf = f.numargs
-            ng = g.numargs
-            lx = len(x)
-            assert nf + ng == lx, \
-                f'Expected {nf}+{ng}={nf + ng} arguments, got {lx}.'
-            return (f(x[:num_args(f)]), g(x[:-num_args(g)]))
+        def composition(x):
+            num_args_self = self.numargs
+            num_args_other = other.numargs
+            length_arg = len(x)
+            assert num_args_self + num_args_other == length_arg, \
+                f'Expected {num_args_self}+{num_args_other}={num_args_self + num_args_other} arguments, got {length_arg}.'
+            return f(x[:num_args_self]), g(x[:-num_args_other])
 
-        return hcomposition
+        return composition
 
 
 class RedHawkPipeline:
-    def __init__(self, functions):
+    def __init__(self, pipes):
         self.input = input
-        self.functions = functions
+        self.pipes = pipes
 
     def compose(self):
-        i = lambda x: x
-        for item in functions:
-            i = item.vcomp(i)
-        return i
+        initial_pipe = self.pipes[0]
+        for item in self.pipes[1:]:
+            composition = item.vertical_composition(initial_pipe)
+        return composition
 
     def run(self, infile):
-        function = self.compose(infile)
+        self.compose(infile)
+
+def pipe1
+
+pipeline = RedHawkPipeLine(
+    pipes = [
+
+    ]
+)
