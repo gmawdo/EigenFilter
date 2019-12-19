@@ -73,12 +73,13 @@ def point_cloud_type(name: str, data_types: dict) -> type:
     def __len__(self):
         return self.length
 
-    def add_dimension(self, key, datatype):
-        self.datatypes[key] = datatype
-        setattr(type(self), key, property(fset=nd_array_setter(key, data_types[key]), fget=nd_array_getter(key),
-                                          fdel=nd_array_deller(key)))
+    def add_dimension(self, dimension, datatype):
+        self.datatypes[dimension] = datatype
+        setattr(type(self), dimension,
+                property(fset=nd_array_setter(dimension, data_types[dimension]), fget=nd_array_getter(dimension),
+                         fdel=nd_array_deller(dimension)))
 
-    attribute_dict = dict( __init__=__init__, __len__=__len__, add_dimension = add_dimension, datatypes=data_types)
+    attribute_dict = dict(__init__=__init__, __len__=__len__, add_dimension=add_dimension, datatypes=data_types)
 
     for key in data_types:
         attribute_dict[key] = property(fset=nd_array_setter(key, data_types[key]), fget=nd_array_getter(key),
@@ -86,21 +87,22 @@ def point_cloud_type(name: str, data_types: dict) -> type:
 
     return type(name, (object,), attribute_dict)
 
+
 RedHawkPointCloud = point_cloud_type(name="RedHawkPointCloud",
                                      data_types={"x": np.float64, "y": np.float64, "z": np.float64,
                                                  "classification": np.uint8, "intensity": np.uint16})
 
 
-def file_laspy(filename):
-    from laspy.file import File
-    in_file = File(filename)
-    pc = RedHawkPointCloud(length=len(in_file), user_info=in_file)
-    pc.x = in_file.x
-    pc.y = in_file.y
-    pc.z = in_file.z
-    pc.classification = in_file.classification
-    pc.intensity = in_file.intensity
-    return pc
+# def file_laspy(filename):
+# from laspy.file import File
+# in_file = File(filename)
+# pc = RedHawkPointCloud(length=len(in_file), user_info=in_file)
+# pc.x = in_file.x
+# pc.y = in_file.y
+# pc.z = in_file.z
+# pc.classification = in_file.classification
+# pc.intensity = in_file.intensity
+# return pc
 
 
 class RedHawkPipeline:
