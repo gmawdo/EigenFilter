@@ -2,13 +2,63 @@ from redhawkmaster.rh_inmemory import RedHawkPointCloud
 import numpy as np
 
 
-def point_id(infile: RedHawkPointCloud,
+def uicondition2mask(range):
+    """
+    The ui sometimes gives the user the option to enter a range. This looks something like
+    range = (0,1),(2,4),[-1,-0.5],[10,...], (...,-10)
+    This means that the we need to select points with:
+    0<x<1 or 2<x<4 or -1<=x<=0.5 or 10<=x or x<-10
+    We need to take the range and get a function of x which produces a mask. This is what this function does.
+    @param range: The range gotten from the UI
+    @return: A function we can apply to x (the vector to be ranged) which outputs a mask
+    """
+    condition1 = lambda x: (isinstance(x, tuple) or isinstance(x, list))
+    condition2 = lambda x: (len(x) == 1) or (len(x) == 2)
+    for item in range:
+        assert condition1(item) and isinstance(range, list), "ranges should be list of lists, or a list of tuples"
+        assert condition2(item), "items in the range should be length 1 or 2"
+    f = lambda x: np.zeros(len(x), dtype=bool)
+
+    rh_or = lambda f, g: lambda x: (f(x) | g(x))
+    rh_and = lambda f, g: lambda x: (f(x) & g(x))
+
+    gt = lambda t: lambda x: x > t[0]
+    lt = lambda t: lambda x: x < t[-1]
+    geq = lambda t: lambda x: x >= t[0]
+    leq = lambda t: lambda x: x <= t[-1]
+
+    for item in range:
+        cond = lambda x: np.ones(len(x), dtype=bool)
+        if isinstance(item, list):
+            if item[0] is ...:
+                pass
+            else:
+                cond = rh_and(cond, geq(item))
+            if item[-1] is ...:
+                pass
+            else:
+                cond = rh_and(cond, leq(item))
+        if isinstance(item, tuple):
+            if item[0] is ...:
+                pass
+            else:
+                cond = rh_and(cond, gt(item))
+            if item[-1] is ...:
+                pass
+            else:
+                cond = rh_and(cond, lt(item))
+        f = rh_or(f, cond)
+
+    return f
+
+
+def point_id(in_memory: RedHawkPointCloud,
              point_id_name: str,
              start_value: int = 0,
              inc_step: int = 1):
     """
     Add incremental point ID to a tile.
-    :param infile: RedHawkPointCloud to have point id added
+    :param in_memory: RedHawkPointCloud to have point id added
     :param point_id_name: name of the dimension
     :param start_value: where the point id dimension will start
     :param inc_step: how much to increment the point ID.
@@ -16,20 +66,20 @@ def point_id(infile: RedHawkPointCloud,
     """
 
     pid = np.arange(start=start_value,
-                    stop=(len(infile) * inc_step) + start_value,
+                    stop=(len(in_memory) * inc_step) + start_value,
                     step=inc_step,
                     dtype=np.uint64)
 
-    infile.add_dimension(point_id_name, pid.dtype)
+    in_memory.add_dimension(point_id_name, pid.dtype)
 
-    setattr(infile, point_id_name, pid)
+    setattr(in_memory, point_id_name, pid)
 
     return None
 
 
-def cluster_labels(infile,
-                   attribute,
-                   range_to_cluster,
+def cluster_labels(in_memory,
+                   select_attribute,
+                   select_range,
                    distance,
                    min_pts,
                    cluster_attribute,
@@ -38,40 +88,34 @@ def cluster_labels(infile,
     Inputs a file and a classification to cluster. Outputs a file with cluster labels.
     Clusters with label 0 are non-core points, i.e. points without "min_pts" within
     "tolerance" (see DBSCAN documentation), or points outside the classification to cluster.
-    :param infile: RedHawkPointCloud to have cluster labels added
-    :param attribute: the attribute which you want to use to select a range from
-    :param range_to_cluster: python list of values to cluster e.g. for classification [3,4,5] for the three types of veg
+    :param in_memory: RedHawkPointCloud to have cluster labels added
+    :param select_attribute: the attribute which you want to use to select a range from
+    :param select_range: python list of values to cluster e.g. for classification [3,4,5] for the three types of veg
     :param distance: how close must two points be to be put in the same cluster
     :param min_pts: minimum number of points each point must have in a radius of size "distance"
     :param cluster_attribute: the name given to the clustering labels
     :param minimum_length: the minimum length of a cluster
     """
 
-    x = infile.x
-    y = infile.y
-    z = infile.z
+    x = in_memory.x
+    y = in_memory.y
+    z = in_memory.z
     # make a vector to store labels
-    labels_allpts = np.zeros(len(infile), dtype=int)
+    labels_allpts = np.zeros(len(in_memory), dtype=int)
     # get the point positions
     coords = np.stack((x, y, z), axis=1)
     # make the clusters
-    attr = getattr(infile, attribute)
-    mask = uicondition2mask(range_to_cluster)(attr)
+    attr = getattr(in_memory, select_attribute)
+    mask = uicondition2mask(select_range)(attr)
     labels = 1 + clustering(coords[mask], distance, minimum_length, min_pts)
     # assign the target classification's labels
     labels_allpts[mask] = labels  # find our labels (DBSCAN starts at -1 and we want to start at 0, so add 1)
     # make the output file
-    out_file = File(outfile, mode="w", header=infile.header)
-    dimensions = [spec.name for spec in infile.point_format]
+    data_types = in_memory.datatypes
     # add new dimension
-    if cluster_attribute not in dimensions:
-        out_file.define_new_dimension(name=cluster_attribute, data_type=6, description="clustering labels")
-    # add pre-existing point records
-    for dimension in dimensions:
-        dat = infile.reader.get_dimension(dimension)
-        out_file.writer.set_dimension(dimension, dat)
+    if cluster_attribute not in data_types:
+        add_dimension(in_memory, cluster_attribute, np.int64)
     # set new dimension to labels
-    out_file.writer.set_dimension(cluster_attribute, labels_allpts)
-    out_file.close()
+    setattr(in_memory, cluster_attribute, labels_allpts)
 
     return None
