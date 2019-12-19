@@ -36,7 +36,6 @@ def nd_array_getter(key):
 
     return getter
 
-
 def point_cloud_type(name: str, data_types: dict) -> type:
     """
     This function produces the type of a file with a given dictionary of data types
