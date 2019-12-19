@@ -123,17 +123,6 @@ def acquisition_modelling(
     record(f"radial mode highest ppm {max(ppm)}")
     record(f"radial mode avg ppm {np.mean(ppm)}")
 
-
-    newHeader = Header()
-    newFile = File("als_model.las", mode="w", header=newHeader)
-    newFile.header.scale = [0.0001, 0.0001, 0.0001]  # 4 dp
-    newFile.x = x
-    newFile.y = y
-    newFile.z = z
-    newFile.intensity = ppm
-    newFile.classification = inv % 32
-    newFile.close()
-
     newFile = RedHawkPointCloud(num_pts)
     newFile.x = x
     newFile.y = y
