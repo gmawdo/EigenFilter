@@ -1,8 +1,12 @@
 from redhawkmaster.rh_inmemory import RedHawkPointCloud
 import numpy as np
+import pandas as pd
+from sklearn.neighbors import NearestNeighbors
+from laspy.file import File
+from laspy.header import Header
 
 
-def acquisition_modelling(
+def acquisition_modelling_v01_0(
         flying_height=500,
         FOV=75.0,
         SR=225.0,
@@ -29,11 +33,11 @@ def acquisition_modelling(
     @return:
     """
     if text_file:
-        f = open(text_file, "a+")
+        f = open(text_file, "w+")
 
     def record(statement):
         if text_file:
-            f.write(statement)
+            f.write(statement + "\n")
 
     speed_mps = 0.514444 * speed_kts  # convert speed to mps
     flight_time = x_range / speed_mps  # figure out how long we will fly for
@@ -72,12 +76,12 @@ def acquisition_modelling(
     coords = np.stack((x, y, z), axis=1)
     differences = coords[:-1, :] - coords[1:, :]
     distances_across_track = np.sqrt(np.sum(differences ** 2, axis=1))
-    record("")
     record(
-        f"max pt spacing across track {np.max(distances_across_track[distances_across_track < 0.5 * (max(x) - min(x))])}")
-    record(f"max pt spacing along track speed_{mps / frequency}")
+        "max pt spacing across track" +
+        f"{np.max(distances_across_track[distances_across_track < 0.5 * (max(x) - min(x))])}")
+    record(f"max pt spacing along track speed_{speed_mps / frequency}")
     record("")
-    record(f"swath width {np.round(max(x) - min(x), 2)")
+    record(f"swath width {np.round(max(x) - min(x), 2)}")
     record(f"time elapsed {np.round(max(times) - min(times), 2)}")
     record("")
     unq, ind, inv, cnt = np.unique((np.floor(coords)).astype(int), return_index=True, return_inverse=True,
@@ -106,22 +110,23 @@ def acquisition_modelling(
 
     if density_mode == "radial":
         radius = np.sqrt(area_of_circles / np.pi)
-    done = np.zeros(num_pts, dtype=bool)
-    ppm = np.empty(num_pts, dtype=int)
-    k = 1
-    while not (done.all()):
-        nhbrs = NearestNeighbors(n_neighbors=k, algorithm="kd_tree").fit(coords[:, :2])
-        distances, indices = nhbrs.kneighbors(coords[~ done, :2])  # (num_pts,k)
-        k_found = distances[:, -1] >= radius
-        not_done_save = ~done
-        done[~done] = k_found
-        ppm_not_done = ppm[not_done_save]
-        ppm_not_done[k_found] = k
-        ppm[not_done_save] = ppm_not_done
-        k += 1
+        done = np.zeros(num_pts, dtype=bool)
+        ppm = np.empty(num_pts, dtype=int)
+        k = 1
+        while not (done.all()):
+            nhbrs = NearestNeighbors(n_neighbors=k, algorithm="kd_tree").fit(coords[:, :2])
+            distances, indices = nhbrs.kneighbors(coords[~ done, :2])  # (num_pts,k)
+            k_found = distances[:, -1] >= radius
+            not_done_save = ~done
+            done[~done] = k_found
+            ppm_not_done = ppm[not_done_save]
+            ppm_not_done[k_found] = k
+            ppm[not_done_save] = ppm_not_done
+            k += 1
     record(f"radial mode lowest ppm {min(ppm)}")
     record(f"radial mode highest ppm {max(ppm)}")
     record(f"radial mode avg ppm {np.mean(ppm)}")
+    f.close()
 
     newFile = RedHawkPointCloud(num_pts)
     newFile.x = x
@@ -130,11 +135,12 @@ def acquisition_modelling(
     newFile.intensity = ppm
 
     if qc:
-        newHeader = Header()
-        outFile = File(qc, mode = "w")
+        new_header = Header()
+        outFile = File(qc, mode="w", header=new_header)
         outFile.header.scale = [0.0001, 0.0001, 0.0001]  # 4 dp
-        outFile.x = x
-        outFile.y = y
-        outFile.z = z
+        outFile.x = newFile.x
+        outFile.y = newFile.y
+        outFile.z = newFile.z
+        outFile.intensity = newFile.intensity
 
     return newFile

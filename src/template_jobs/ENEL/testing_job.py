@@ -337,7 +337,7 @@ def virus_testing():
                               protect_attribute=None,
                               protect_range=None,
                               attack_attribute='raw_classification',
-                              value=7
+                              value=7)
 
         infile = '006_' + infile
         outfile = '007_' + infile
@@ -466,9 +466,26 @@ def virus_testing():
                     renumber=False)
 
 
+def acquisition_modeling_testing():
+    from redhawkmaster.acquisition_modelling import acquisition_modelling_v01_0
+
+    acquisition_modelling_v01_0(flying_height=500,
+                          FOV=70.0,
+                          SR=225.0,
+                          pulse_rate=1800000,
+                          speed_kts=110,
+                          x_range=100,
+                          mode="shm",
+                          density_mode="voxel",
+                          area_of_circles=1,
+                          qc="acquisition_modelling.las",
+                          text_file="aqcuisition_modelling.txt")
+
+
 # triangulation_test()
 # dimension1d2d3d_clustering_testing()
 # cluster_labels_testing()
 # decimation_testing()
 # build_add_classification()
-virus_testing()
+# virus_testing()
+acquisition_modeling_testing()

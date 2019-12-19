@@ -64,7 +64,7 @@ def point_cloud_type(name: str, data_types: dict) -> type:
     #    for key in self.data_types:
     #        setattr(pc, key, getattr(self, key))
 
-    attribute_dict = dict(datatypes=data_types, __init__=__init__, __len__=__len__, add_attribute = add_attribute)
+    attribute_dict = dict(datatypes=data_types, __init__=__init__, __len__=__len__)
 
     for key in data_types:
         attribute_dict[key] = property(fset=nd_array_setter(key, data_types[key]), fget=nd_array_getter(key))
