@@ -126,6 +126,8 @@ def acquisition_modelling_v01_0(
             ppm_not_done[k_found] = k
             ppm[not_done_save] = ppm_not_done
             k += 1
+        ppm -= 1 # the above method counts one too many, so subtract 1
+        # (it waits until k_found is satisfied before stopping, and at that point we have gone one point too far)
     record(f"radial mode lowest ppm {min(ppm)}")
     record(f"radial mode highest ppm {max(ppm)}")
     record(f"radial mode avg ppm {np.mean(ppm)}")

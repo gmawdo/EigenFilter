@@ -472,7 +472,7 @@ def acquisition_modeling_testing():
     acquisition_modelling_v01_0(flying_height=500,
                                 field_of_view=39.0,
                                 scan_rate=40.0,
-                                pulse_rate=450000,
+                                pulse_rate=450000/4,
                                 speed_kts=110,
                                 x_range=100,
                                 mode="shm",
