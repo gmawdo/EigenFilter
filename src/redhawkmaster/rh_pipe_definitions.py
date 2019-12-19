@@ -114,7 +114,7 @@ def cluster_labels(in_memory,
     data_types = in_memory.datatypes
     # add new dimension
     if cluster_attribute not in data_types:
-        add_dimension(in_memory, cluster_attribute, np.int64)
+        in_memory.add_dimension(cluster_attribute, np.int64)
     # set new dimension to labels
     setattr(in_memory, cluster_attribute, labels_allpts)
 
