@@ -76,7 +76,7 @@ def merge_job(las_tile_location, out_location, tile_results, job_number, compres
     """
 
     while 1:
-        time.sleep(2)
+        time.sleep(20)
 
         result = run_command("ls {}/* | grep _{}.las | wc -l".format(tile_results, job_number)).strip()
         no_tiles = run_command("ls {} | wc -l".format(las_tile_location)).strip()

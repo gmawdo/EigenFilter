@@ -114,7 +114,7 @@ def get_in_files(line, count, fil):
 
 
 global sema
-sema = multiprocessing.Semaphore(20)
+sema = multiprocessing.Semaphore(int(args.core_limit))
 
 
 def run_process(cmd):
@@ -278,6 +278,11 @@ def run_a_flow(item):
     print("===== Processing End   =====")
 
     print("===== Merge Start =====")
+    multiprocessing.Process(target=merge_job, args=(args.results + '/200_TILES/' + big_file + '/',
+                                                    args.results + '/300_PRODUCTS',
+                                                    args.results + '/' + big_file + '/',
+                                                    get_last_job(),
+                                                    True,)).start()
     # print(get_last_job())
     # merge_job(las_tile_location=args.results + '/200_TILES/' + big_file + '/',
     #           tile_results=args.results + '/' + big_file + '/',
