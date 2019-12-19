@@ -36,6 +36,24 @@ def nd_array_getter(key):
 
     return getter
 
+
+def nd_array_deller(key):
+    """
+    This function is used in point_cloud_type to delete the property corresponding to each datatype.
+    It accesses deletes the hidden variable so that users can evaluate the property for each dimension.
+    @param key: name of dimension
+    @return: the fget function for this data_type, for the property class
+    """
+
+    def deller(self):
+        # simply extract the value from the hidden variable
+        delattr(self, "__" + key)
+        delattr(type(self), key)
+        del self.datatypes[key]
+
+    return deller
+
+
 def point_cloud_type(name: str, data_types: dict) -> type:
     """
     This function produces the type of a file with a given dictionary of data types
@@ -55,21 +73,18 @@ def point_cloud_type(name: str, data_types: dict) -> type:
     def __len__(self):
         return self.length
 
-    #def add_attribute(self, new_class_name, attribute_name, attribute_data_type):
-    #    new_data_types = {key: data_types[key] for key in data_types}
-    #    new_data_types[attribute_name] = attribute_data_type
-    #    pct = point_cloud_type(name = new_class_name, data_types = new_data_types)
-    #    pc = pct(self.length, self.user_info)
-    #    for key in self.data_types:
-    #        setattr(pc, key, getattr(self, key))
+    def add_dimension(self, key, datatype):
+        self.datatypes[key] = datatype
+        setattr(type(self), key, property(fset=nd_array_setter(key, data_types[key]), fget=nd_array_getter(key),
+                                          fdel=nd_array_deller(key)))
 
-    attribute_dict = dict(datatypes=data_types, __init__=__init__, __len__=__len__)
+    attribute_dict = dict( __init__=__init__, __len__=__len__, add_dimension = add_dimension, datatypes=data_types)
 
     for key in data_types:
-        attribute_dict[key] = property(fset=nd_array_setter(key, data_types[key]), fget=nd_array_getter(key))
+        attribute_dict[key] = property(fset=nd_array_setter(key, data_types[key]), fget=nd_array_getter(key),
+                                       fdel=nd_array_deller(key))
 
     return type(name, (object,), attribute_dict)
-
 
 RedHawkPointCloud = point_cloud_type(name="RedHawkPointCloud",
                                      data_types={"x": np.float64, "y": np.float64, "z": np.float64,

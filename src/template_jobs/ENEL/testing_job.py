@@ -470,16 +470,16 @@ def acquisition_modeling_testing():
     from redhawkmaster.acquisition_modelling import acquisition_modelling_v01_0
 
     acquisition_modelling_v01_0(flying_height=500,
-                          FOV=70.0,
-                          SR=225.0,
-                          pulse_rate=1800000,
-                          speed_kts=110,
-                          x_range=100,
-                          mode="shm",
-                          density_mode="voxel",
-                          area_of_circles=1,
-                          qc="acquisition_modelling.las",
-                          text_file="aqcuisition_modelling.txt")
+                                field_of_view=39.0,
+                                scan_rate=40.0,
+                                pulse_rate=450000,
+                                speed_kts=110,
+                                x_range=100,
+                                mode="shm",
+                                density_mode="radial",
+                                area_of_circles=1,
+                                qc="acquisition_modelling_radius.las",
+                                text_file="aqcuisition_modelling_radius.txt")
 
 
 # triangulation_test()

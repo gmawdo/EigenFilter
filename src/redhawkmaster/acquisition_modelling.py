@@ -8,8 +8,8 @@ from laspy.header import Header
 
 def acquisition_modelling_v01_0(
         flying_height=500,
-        FOV=75.0,
-        SR=225.0,
+        field_of_view=75.0,
+        scan_rate=225.0,
         pulse_rate=1800000,
         speed_kts=110,
         x_range=100,
@@ -20,16 +20,19 @@ def acquisition_modelling_v01_0(
         text_file="aqcuisition_modelling.txt"):  # for 1 meter voxels
     """
     @param flying_height: the height which the aircraft flies above ground in the model
-    @param FOV: angle swepth left-to-right in degrees
-    @param SR: scan rate (frequency of sweeps) or lines-per-second/LPS in Riegl docs, in Hz
-    @param pulse_rate: pulse rate of laser
+    @param field_of_view: angle swepth left-to-right in degrees
+    @param scan_rate: scan rate (frequency of sweeps) or lines-per-second/LPS in Riegl docs, in Hz
+    @param pulse_rate: pulse rate of laser, Hz
     @param speed_kts: speed in knots (not mps)
-    @param x_range: distance the aircraft flies in the model in meters
-    @param mode: mode of oscillation, shm" or "triangular" or "sawtooth"
+    @param x_range: distance the aircraft flies in the model in meters, x along axis of flight
+    @param mode: mode of oscillation, "shm" or "triangular" or "sawtooth"
     @param density_mode:  "none" or "voxel" or "radial" - "none" means we don't calculate densities,
     "voxel" means we use square (x,y)-voxels and "radial" means we use a circle over every point
     Note "circle" is a lot slower.
     @param area_of_circles: area of circles to use if density_mode == "radial" (does nothing otherwise)
+    @param qc: Put a string ending in .las here if  you want a qc with that name (doesn't output qc otherwise)
+    @param text_file: Put a string ending in .txt here if  you want a text file with that name (doesn't output text file
+     otherwise)
     @return:
     """
     if text_file:
@@ -57,8 +60,8 @@ def acquisition_modelling_v01_0(
     y = np.empty(num_pts, dtype=float)
     z = np.empty(num_pts, dtype=float)
 
-    angular_amplitude = (FOV / 2) * (np.pi / 180)  # formulas subject to change when more understanding gained
-    frequency = SR  # formulas subject to change when more understanding gained
+    angular_amplitude = (field_of_view / 2) * (np.pi / 180)  # formulas subject to change when more understanding gained
+    frequency = scan_rate  # formulas subject to change when more understanding gained
 
     if mode == "shm":
         function = lambda x: np.cos(2 * np.pi * x)
