@@ -1,7 +1,11 @@
 from redhawkmaster.rh_inmemory import RedHawkPointCloud
+from sklearn.cluster import DBSCAN
+from sklearn.neighbors import NearestNeighbors
+from scipy.spatial import Delaunay
 import numpy as np
+from pandas import DataFrame
 
-
+# background functions go here
 def uicondition2mask(range):
     """
     The ui sometimes gives the user the option to enter a range. This looks something like
@@ -51,7 +55,38 @@ def uicondition2mask(range):
 
     return f
 
+def clustering(coords, tolerance, min_length, min_pts):
+    """
+    THIS IS A PURE FUNCTION - NOT FOR USE BY END USER
+    :param coords: points to cluster.
+    :param tolerance: how close do two points have to be in order to be in same cluster?
+    :param max_length: how long can a cluster be?
+    :param min_pts: how many points must a cluster have?
+    :return:
+    """
+    if coords.shape[0] >= 1:
+        x = coords[:, 0]
+        y = coords[:, 1]
+        z = coords[:, 2]
+        clustering = DBSCAN(eps=tolerance, min_samples=min_pts).fit(coords)
+        labels = clustering.labels_
+        frame = {
+            'A': labels,
+            'X': x,
+            'Y': y,
+            'Z': z,
+        }
+        df = DataFrame(frame)
+        maxs = (df.groupby('A').max()).values
+        mins = (df.groupby('A').min()).values
+        unq, ind, inv, cnt = np.unique(labels, return_index=True, return_inverse=True, return_counts=True)
+        lengths = np.sqrt((maxs[inv, 0] - mins[inv, 0]) ** 2 + (maxs[inv, 1] - mins[inv, 1]) ** 2)
+        labels[lengths < min_length] = -1
+    else:
+        labels = np.zeros(coords.shape[0], dtype=int)
+    return labels
 
+# pipe definitions go here
 def point_id(in_memory: RedHawkPointCloud,
              point_id_name: str,
              start_value: int = 0,
