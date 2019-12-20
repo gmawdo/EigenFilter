@@ -5,8 +5,8 @@ import pathmagic
 # once in-memory flow is built we should release to master - no need for version numbers anymore on functions
 # note that we cannot import * locally in functions so we must do it at module lv. - hence commenting out above
 
-from rh_inmemory import *
-from rh_pipe_definitions import *
+from redhawkmaster.rh_inmemory import *
+from redhawkmaster.rh_pipe_definitions import *
 
 assert pathmagic
 
@@ -478,7 +478,7 @@ def acquisition_modeling_testing():
     acquisition_modelling_v01_0(flying_height=500,
                                 field_of_view=39.0,
                                 scan_rate=40.0,
-                                pulse_rate=450000/4,
+                                pulse_rate=450000 / 4,
                                 speed_kts=110,
                                 x_range=100,
                                 mode="shm",
@@ -487,13 +487,27 @@ def acquisition_modeling_testing():
                                 qc="acquisition_modelling_radius.las",
                                 text_file="aqcuisition_modelling_radius.txt")
 
-def in_memory_flow_modelling():
 
-
+def in_memory_testing():
     in_memory = file_laspy("T000.las")
-    pipeline = RedHawkPipeline
-
-
+    pipeline = RedHawkPipeline(
+        RedHawkPipe(cluster_labels,
+                    "intensity",
+                    [[0, 500], [500, 1000]],
+                    0.5,
+                    2,
+                    "whatever",
+                    0.10
+                    ),
+        RedHawkPipe(point_id,
+                    "pid",
+                    0,
+                    1
+                    )
+    )
+    pipeline.run(in_memory)
+    print(in_memory.pid)
+    print(in_memory.whatever)
 
 
 # triangulation_test()
@@ -502,4 +516,5 @@ def in_memory_flow_modelling():
 # decimation_testing()
 # build_add_classification()
 # virus_testing()
-acquisition_modeling_testing()
+# acquisition_modeling_testing()
+in_memory_testing()

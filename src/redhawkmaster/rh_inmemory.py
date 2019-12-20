@@ -105,9 +105,9 @@ def file_laspy(filename):
     return pc
 
 
-class RedHawkPipe
-    def __init__(self, fun, parameters):
-        self.fun = fun
+class RedHawkPipe:
+    def __init__(self, pipe_definition, *parameters):
+        self.pipe_defintition = pipe_definition
         self.parameters = parameters
 
     def curry(self):
@@ -116,13 +116,14 @@ class RedHawkPipe
         @param params: The parameters of the function.
         @return:
         """
-        return lambda _: pipe(_, *params)
+        parameters = self.parameters
+        return lambda _: self.pipe_defintition(_, *parameters)
 
 
 class RedHawkPipeline:
-    def __init__(self, pipes):
+    def __init__(self, *pipes):
         self.pipes = pipes
 
     def run(self, in_memory):
         for item in self.pipes:
-            item.curry(in_memory)
+            item.curry()(in_memory)

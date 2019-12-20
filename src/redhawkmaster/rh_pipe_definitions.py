@@ -152,10 +152,7 @@ def cluster_labels(in_memory,
     # assign the target classification's labels
     labels_allpts[mask] = labels  # find our labels (DBSCAN starts at -1 and we want to start at 0, so add 1)
     # make the output file
-    data_types = in_memory.datatypes
-    # add new dimension
-    if cluster_attribute not in data_types:
-        in_memory.add_dimension(cluster_attribute, np.int64)
+    in_memory.add_dimension(cluster_attribute, np.int64)
     # set new dimension to labels
     setattr(in_memory, cluster_attribute, labels_allpts)
 
