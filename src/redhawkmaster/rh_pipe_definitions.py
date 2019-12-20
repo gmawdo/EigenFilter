@@ -157,3 +157,11 @@ def cluster_labels(in_memory,
     setattr(in_memory, cluster_attribute, labels_allpts)
 
     return None
+
+def ferry_values(in_memory, out_of, in_to):
+    value_A = getattr(in_memory, out_of)
+    value_B = getattr(in_memory, in_to)
+    setattr(in_memory, out_of, value_B)
+    setattr(in_memory, in_to, value_A)
+
+    return None

@@ -7,6 +7,7 @@ import pathmagic
 
 from redhawkmaster.rh_inmemory import *
 from redhawkmaster.rh_pipe_definitions import *
+from redhawkmaster.rh_io import *
 
 assert pathmagic
 
@@ -489,25 +490,33 @@ def acquisition_modeling_testing():
 
 
 def in_memory_testing():
-    in_memory = file_laspy("T000.las")
+    in_memory = ReadIn("T000.las")
+
     pipeline = RedHawkPipeline(
-        RedHawkPipe(cluster_labels,
-                    "intensity",
-                    [[0, 500], [500, 1000]],
-                    0.5,
-                    2,
-                    "whatever",
-                    0.10
+        RedHawkPipe(pipe_definition=cluster_labels,
+                    select_attribute="intensity",
+                    select_range=[[0, 500], [500, 1000]],
+                    distance=0.5,
+                    min_pts=2,
+                    cluster_attribute="whatever",
+                    minimum_length=0.10
                     ),
-        RedHawkPipe(point_id,
-                    "pid",
-                    0,
-                    1
+        RedHawkPipe(pipe_definition=point_id,
+                    point_id_name="pid",
+                    start_value=0,
+                    inc_step=1
+                    ),
+        RedHawkPipe(pipe_definition=ferry_values,
+                    out_of="whatever",
+                    in_to="intensity",
+                    ),
+        RedHawkPipe(pipe_definition=ferry_values,
+                    out_of="whatever",
+                    in_to="classification",
                     )
     )
     pipeline.run(in_memory)
-    print(in_memory.pid)
-    print(in_memory.whatever)
+    in_memory.qc(new_file_name="result.las")
 
 
 # triangulation_test()

@@ -93,20 +93,8 @@ RedHawkPointCloud = point_cloud_type(name="RedHawkPointCloud",
                                                  "classification": np.uint8, "intensity": np.uint16})
 
 
-def file_laspy(filename):
-    from laspy.file import File
-    in_file = File(filename)
-    pc = RedHawkPointCloud(length=len(in_file), user_info=in_file)
-    pc.x = in_file.x
-    pc.y = in_file.y
-    pc.z = in_file.z
-    pc.classification = in_file.classification
-    pc.intensity = in_file.intensity
-    return pc
-
-
 class RedHawkPipe:
-    def __init__(self, pipe_definition, *parameters):
+    def __init__(self, pipe_definition, **parameters):
         self.pipe_defintition = pipe_definition
         self.parameters = parameters
 
@@ -117,7 +105,7 @@ class RedHawkPipe:
         @return:
         """
         parameters = self.parameters
-        return lambda _: self.pipe_defintition(_, *parameters)
+        return lambda _: self.pipe_defintition(_, **parameters)
 
 
 class RedHawkPipeline:
