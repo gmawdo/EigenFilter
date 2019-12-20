@@ -5,23 +5,24 @@ from scipy.spatial import Delaunay
 import numpy as np
 from pandas import DataFrame
 
-# background functions go here
-def uicondition2mask(range):
+
+# === BACKGROUND FUNCTIONS ===
+def condition2mask(ranges):
     """
     The ui sometimes gives the user the option to enter a range. This looks something like
     range = (0,1),(2,4),[-1,-0.5],[10,...], (...,-10)
     This means that the we need to select points with:
     0<x<1 or 2<x<4 or -1<=x<=0.5 or 10<=x or x<-10
     We need to take the range and get a function of x which produces a mask. This is what this function does.
-    @param range: The range gotten from the UI
+    @param ranges: The range gotten from the UI
     @return: A function we can apply to x (the vector to be ranged) which outputs a mask
     """
     condition1 = lambda x: (isinstance(x, tuple) or isinstance(x, list))
     condition2 = lambda x: (len(x) == 1) or (len(x) == 2)
-    for item in range:
-        assert condition1(item) and isinstance(range, list), "ranges should be list of lists, or a list of tuples"
+    for item in ranges:
+        assert condition1(item) and isinstance(ranges, list), "ranges should be list of lists, or a list of tuples"
         assert condition2(item), "items in the range should be length 1 or 2"
-    f = lambda x: np.zeros(len(x), dtype=bool)
+    condition = lambda x: np.zeros(len(x), dtype=bool)
 
     rh_or = lambda f, g: lambda x: (f(x) | g(x))
     rh_and = lambda f, g: lambda x: (f(x) & g(x))
@@ -31,7 +32,7 @@ def uicondition2mask(range):
     geq = lambda t: lambda x: x >= t[0]
     leq = lambda t: lambda x: x <= t[-1]
 
-    for item in range:
+    for item in ranges:
         cond = lambda x: np.ones(len(x), dtype=bool)
         if isinstance(item, list):
             if item[0] is ...:
@@ -51,16 +52,20 @@ def uicondition2mask(range):
                 pass
             else:
                 cond = rh_and(cond, lt(item))
-        f = rh_or(f, cond)
+        condition = rh_or(condition, cond)
 
-    return f
+    return condition
 
-def clustering(coords, tolerance, min_length, min_pts):
+
+def clustering(coords,
+               tolerance,
+               min_length,
+               min_pts):
     """
     THIS IS A PURE FUNCTION - NOT FOR USE BY END USER
     :param coords: points to cluster.
     :param tolerance: how close do two points have to be in order to be in same cluster?
-    :param max_length: how long can a cluster be?
+    :param min_length: how long can a cluster be?
     :param min_pts: how many points must a cluster have?
     :return:
     """
@@ -68,8 +73,8 @@ def clustering(coords, tolerance, min_length, min_pts):
         x = coords[:, 0]
         y = coords[:, 1]
         z = coords[:, 2]
-        clustering = DBSCAN(eps=tolerance, min_samples=min_pts).fit(coords)
-        labels = clustering.labels_
+        clusters = DBSCAN(eps=tolerance, min_samples=min_pts).fit(coords)
+        labels = clusters.labels_
         frame = {
             'A': labels,
             'X': x,
@@ -86,7 +91,8 @@ def clustering(coords, tolerance, min_length, min_pts):
         labels = np.zeros(coords.shape[0], dtype=int)
     return labels
 
-# pipe definitions go here
+
+#  === PIPE DEFINITIONS ===
 def point_id(in_memory: RedHawkPointCloud,
              point_id_name: str,
              start_value: int = 0,
@@ -141,7 +147,7 @@ def cluster_labels(in_memory,
     coords = np.stack((x, y, z), axis=1)
     # make the clusters
     attr = getattr(in_memory, select_attribute)
-    mask = uicondition2mask(select_range)(attr)
+    mask = condition2mask(select_range)(attr)
     labels = 1 + clustering(coords[mask], distance, minimum_length, min_pts)
     # assign the target classification's labels
     labels_allpts[mask] = labels  # find our labels (DBSCAN starts at -1 and we want to start at 0, so add 1)

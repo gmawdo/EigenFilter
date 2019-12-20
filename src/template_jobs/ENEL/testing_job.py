@@ -1,6 +1,12 @@
 import pathmagic
 
-from redhawkmaster.rh_dean import *
+# from redhawkmaster.rh_dean import *
+# the above commented out to avoid conflict with rh_inmemory and acquisition_modelling
+# once in-memory flow is built we should release to master - no need for version numbers anymore on functions
+# note that we cannot import * locally in functions so we must do it at module lv. - hence commenting out above
+
+from rh_inmemory import *
+from rh_pipe_definitions import *
 
 assert pathmagic
 
@@ -480,6 +486,14 @@ def acquisition_modeling_testing():
                                 area_of_circles=1,
                                 qc="acquisition_modelling_radius.las",
                                 text_file="aqcuisition_modelling_radius.txt")
+
+def in_memory_flow_modelling():
+
+
+    in_memory = file_laspy("T000.las")
+    pipeline = RedHawkPipeline
+
+
 
 
 # triangulation_test()

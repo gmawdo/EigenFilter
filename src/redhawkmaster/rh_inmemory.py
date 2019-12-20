@@ -105,10 +105,24 @@ def file_laspy(filename):
     return pc
 
 
+class RedHawkPipe
+    def __init__(self, fun, parameters):
+        self.fun = fun
+        self.parameters = parameters
+
+    def curry(self):
+        """
+        @param self: A function designed whose first argument is a RedHawkPointCloud object and the rest are parameters
+        @param params: The parameters of the function.
+        @return:
+        """
+        return lambda _: pipe(_, *params)
+
+
 class RedHawkPipeline:
     def __init__(self, pipes):
         self.pipes = pipes
 
-    def run(self, infile):
+    def run(self, in_memory):
         for item in self.pipes:
-            item(infile)
+            item.curry(in_memory)
