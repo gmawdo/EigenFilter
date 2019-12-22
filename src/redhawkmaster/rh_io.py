@@ -2,6 +2,8 @@ from laspy.file import File
 import numpy as np
 import os
 import argparse
+from redhawkmaster.rh_inmemory import RedHawkPointCloud
+
 
 def las_input(input_name, mode):
     """
@@ -64,14 +66,14 @@ def merge(array_input, output):
 
     # Input the array of file names for the input
     for inp in array_input:
-        coms += inp+" "
+        coms += inp + " "
 
     # Complete the command
     coms += output
     command += " " + coms
 
     # Run the command
-    os.system(command+' --writers.las.extra_dims="all"')
+    os.system(command + ' --writers.las.extra_dims="all"')
 
 
 def script_params():
@@ -86,3 +88,23 @@ def script_params():
 
     return args
 
+
+class ReadIn(RedHawkPointCloud):
+    def __init__(self, file_name):
+        in_file = File(file_name)
+        super().__init__(len(in_file))
+        self.x = in_file.x
+        self.y = in_file.y
+        self.z = in_file.z
+        self.classification = in_file.classification
+        self.intensity = in_file.intensity
+        self.user_info = in_file
+
+    def qc(self, new_file_name):
+        assert len(self) == len(
+            self.user_info), "The in-memory representation of the file does not have the correct length."
+        out_file = File(new_file_name, mode="w", header=self.user_info.header)
+        out_file.points = self.user_info.points
+        out_file.classifion = self.classification
+        out_file.intensity = self.intensity
+        out_file.close()
