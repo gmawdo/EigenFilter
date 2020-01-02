@@ -98,17 +98,15 @@ one job for all tiles and running them in parallel.
 
 Run the scripts like this:
 
-`python3 execute_process.py -c /home/mcus/workspace/redhawk-pure-python/src -b /home/mcus/Downloads/ENEL_old/BIGFILE_ENEL.las -d /home/mcus/Downloads/ENEL_data -r /home/mcus/workspace/RESULTS -f /home/mcus/workspace/redhawk-pure-python/src/manager/ENEL_flow -t ENEL -mb 15 -cl 20`
+`python3 new_execute.py -c /home/mcus/workspace/redhawk-pure-python/src -r /home/mcus/workspace/automation_flow -f ENEL_flow -t ENEL -mb 15 -cl 5`
 
 Explanation of the arguments:
 
-1. **-c** is the location where your readhawk project is.
-2. **-b** is the large file from which to get the tiles. If it is None then no tiling.
-3. **-d** is the location where your tiles are.
-4. **-r** is the location where the results of the jobs will be put in.
-5. **-f** is the location of the flow file.
-6. **-t** which template jobs we are going to use.
-7. **-mb** mb per tile if -b is different then None
-8. **-cl** is the core limit for **execute.py** and process count for **execute_process.py**
+1. **-c** is the location where your readhawk project is
+2. **-r** is the location where the results of the jobs will be put in.
+3. **-f** which flow to use from the template jobs.
+4. **-t** which template jobs we are going to use.
+5. **-mb** mb per tile if -b is different then None
+6. **-cl** is the core limit for **execute.py** and process count for **execute_process.py**
 
 Note: all of these arguments are required.
