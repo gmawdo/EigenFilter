@@ -2,14 +2,17 @@ import pathmagic
 import numpy as np
 from redhawkmaster import rh_io
 from redhawkmaster.las_modules import las_range
+from redhawkmaster.rh_io import script_params
+
 assert pathmagic
 
 # This job gets one input file and outputs a file
 # which has everything that IS classification 10
+args = script_params()
 
 job = '002'
-input_file = 'ILIJA_FlightlineTest.las'
-output_file = 'ILIJA_FlightlineTest_job002.las'
+input_file = args.input[0]
+output_file = args.output[0]
 
 f001 = rh_io.las_input(input_file,
                        mode='r')

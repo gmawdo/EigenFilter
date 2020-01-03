@@ -2,14 +2,17 @@ import pathmagic
 import numpy as np
 from redhawkmaster import rh_io
 from redhawkmaster.las_modules import rh_attribute_compute, rh_mult_attr, las_range
+from redhawkmaster.rh_io import script_params
+
 assert pathmagic
 
-input_file = 'ILIJA_FlightlineTest_job110_03.las'
-output_file = 'ILIJA_FlightlineTest_job110_04.las'
+args = script_params()
+
+input_file = args.input[0]
+output_file = args.output[0]
 np.seterr(divide='ignore', invalid='ignore')
 
 f110_03 = rh_io.las_input(input_file, mode='r')
-
 
 f110_04 = rh_attribute_compute(f110_03, output_file)
 
@@ -20,7 +23,6 @@ rh_mult_attr(f110_04)
 point_mask_xy_lin = las_range(dimension=f110_04.xy_lin_reg,
                               reverse=False,
                               point_id_mask=point_id)
-
 
 point_mask_lin_reg = las_range(dimension=f110_04.lin_reg,
                                reverse=False,
@@ -61,7 +63,6 @@ point_mask_ent = las_range(dimension=f110_04.ent,
                            start=1,
                            reverse=False,
                            point_id_mask=point_mask_iso)
-
 
 point_mask_plang = las_range(dimension=f110_04.plang,
                              reverse=False,

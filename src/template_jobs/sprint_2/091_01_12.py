@@ -1,10 +1,14 @@
 import pathmagic
 from redhawkmaster import rh_io
 from redhawkmaster.las_modules import rh_mult_attr
+from redhawkmaster.rh_io import script_params
+
 assert pathmagic
 
-input_file = 'T000_job091_01_00.las'
-output_file = 'T000_job091_01_12.las'
+args = script_params()
+
+input_file = args.input[0]
+output_file = args.output[0]
 
 f091_001 = rh_io.las_input(input_file, mode='r')
 f091_012 = rh_io.las_output(output_file, f091_001)
