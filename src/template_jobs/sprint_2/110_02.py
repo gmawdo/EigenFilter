@@ -13,9 +13,6 @@ args = script_params()
 input_file = args.input[0]
 temp = args.output[0]
 output_file = args.output[1]
-input_file = 'ILIJA_FlightlineTest_job110_01.las'
-temp = 'ILIJA_FlightlineTest_job110_02_1.las'
-output_file = 'ILIJA_FlightlineTest_job110_02.las'
 
 f110_01 = rh_io.las_input(input_file, mode='r')
 

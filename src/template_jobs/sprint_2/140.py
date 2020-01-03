@@ -21,4 +21,4 @@ point_id_not14 = las_range(dimension=infile.classification,
                            reverse=True,
                            point_id_mask=mask_corridor)
 
-outFile = rh_io.las_output(output_file, infile.point_id_not14)
+outFile = rh_io.las_output(output_file, infile, point_id_not14)
