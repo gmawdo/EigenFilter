@@ -17,7 +17,7 @@ parser = argparse.ArgumentParser()
 parser.add_argument('-c', '--code', help='Location where is your redhawk code.', required=True)
 # parser.add_argument('-d', '--data', help='Location where is the data you need to run.', required=True)
 parser.add_argument('-r', '--results', help='Location where the result data to be.', required=True)
-parser.add_argument('-f', '--flow', help='Location where the flow of the jobs is.', required=True)
+parser.add_argument('-f', '--flow', help='Name of the flow for the jobs.It must be located inside template.', required=True)
 parser.add_argument('-t', '--template', help='Which template jobs to use.', required=True)
 parser.add_argument('-mb', '--mbpt', help='MB per tile.', required=True)
 parser.add_argument('-cl', '--core_limit', help='Number of cores to run the tiles through.', required=True)
@@ -113,20 +113,27 @@ def get_in_files(line, count, fil):
     return in_files
 
 
+global sema
+sema = multiprocessing.Semaphore(int(args.core_limit))
+
+
 def run_process(cmd):
     """
     Run the tiles job sequential
     :param cmd:
     :return:
     """
+    sema.acquire()
+    print(sema)
     for cm in cmd:
         subprocess.call(cm, shell=True)
+    sema.release()
 
 
 def parallel(args, big_file):
     """
     Function that is making the commands that needs to be runned into the docker containers.
-    :param args: arguments from the output command.
+    :param args: argumenpool_tilests from the output command.
     :return:
     """
 
@@ -208,9 +215,10 @@ def parallel(args, big_file):
 
     # print(results)
     # Open multiprocessing pool and run the jobs
-    pool = multiprocessing.Pool(processes=int(args.core_limit))
-    pool.map(run_process, results)
-    pool.close()
+    for res in results:
+        multiprocessing.Process(target=run_process, args=(res,)).start()
+    # pool_tiles.map(run_process, results)
+    # pool_tiles.join()
 
 
 class NoDaemonProcess(multiprocessing.Process):
@@ -259,7 +267,7 @@ def run_a_flow(item):
             unzip=True)
     print("===== Unlaz End   =====")
     # if args.bigfile != 'None':
-    
+
     print("===== Tiling Start =====")
     rh_tiling_gps_equal_filesize(args.results + '/100_BIG_FILES_LAS/' + big_file + '.las',
                                  args.results + '/200_TILES/' + big_file + '/', filesize=float(args.mbpt))
@@ -270,12 +278,17 @@ def run_a_flow(item):
     print("===== Processing End   =====")
 
     print("===== Merge Start =====")
-    print(get_last_job())
-    merge_job(las_tile_location=args.results + '/200_TILES/' + big_file + '/',
-              tile_results=args.results + '/' + big_file + '/',
-              out_location=args.results + '/300_PRODUCTS/',
-              job_number=get_last_job(),
-              compressed=True)
+    multiprocessing.Process(target=merge_job, args=(args.results + '/200_TILES/' + big_file + '/',
+                                                    args.results + '/300_PRODUCTS',
+                                                    args.results + '/' + big_file + '/',
+                                                    get_last_job(),
+                                                    True,)).start()
+    # print(get_last_job())
+    # merge_job(las_tile_location=args.results + '/200_TILES/' + big_file + '/',
+    #           tile_results=args.results + '/' + big_file + '/',
+    #           out_location=args.results + '/300_PRODUCTS/',
+    #           job_number=get_last_job(),
+    #           compressed=True)
     print("===== Merge End   =====")
 
 
@@ -307,16 +320,17 @@ if __name__ == '__main__':
         time_sorted_list = sorted(full_list, key=os.path.getmtime)
         sorted_filename_list = [os.path.basename(i) for i in time_sorted_list]
         # print(sorted_filename_list[0].split('.')[0])
-
+        # poolTiles = multiprocessing.Pool(processes=int(args.core_limit))
         if sorted_filename_list:
-            pool = MyPool(processes=len(sorted_filename_list), initializer=init_flow,
-                          initargs=(sorted_filename_list,))
             # pool = multiprocessing.Pool(processes=len(sorted_filename_list), initializer=init_flow,
             #                             initargs=(sorted_filename_list,))
+            pool = MyPool(processes=2, initializer=init_flow,
+                          initargs=(sorted_filename_list,))
 
             pool.map(run_a_flow, range(len(sorted_filename_list)))
-            pool.close()
-            pool.join()
 
         end = time.time()
         print("Time: " + str(end - start))
+
+    pool.close()
+    pool.join()
