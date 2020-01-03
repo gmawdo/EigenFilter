@@ -2,12 +2,15 @@ import pathmagic
 import numpy as np
 from redhawkmaster import rh_io
 from redhawkmaster.las_modules import las_range, rh_clip
+from redhawkmaster.rh_io import script_params
+
 assert pathmagic
 
 # Clip around ground points
+args = script_params()
 
-input_file = 'ILIJA_FlightlineTest_job050.las'
-output_file = 'ILIJA_FlightlineTest_job060.las'
+input_file = args.input[0]
+output_file = args.output[0]
 
 f050 = rh_io.las_input(input_file, mode='r')
 f060_000 = rh_io.las_output(output_file, f050)

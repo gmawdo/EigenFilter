@@ -2,10 +2,14 @@ import pathmagic
 import numpy as np
 from redhawkmaster import rh_io
 from redhawkmaster.las_modules import duplicate_attr, rh_cluster, las_range, rh_cluster_id_count_max
+from redhawkmaster.rh_io import script_params
+
 assert pathmagic
 
-input_file = 'ILIJA_FlightlineTest_job110_02.las'
-output_file = 'ILIJA_FlightlineTest_job110_03.las'
+args = script_params()
+
+input_file = args.input[0]
+output_file = args.output[0]
 
 f110_02 = rh_io.las_input(input_file, mode='r')
 

@@ -2,10 +2,14 @@ import pathmagic
 import numpy as np
 from redhawkmaster import rh_io
 from redhawkmaster.las_modules import rh_kdistance, las_range, duplicate_attr, rh_cluster, rh_cluster_id_count_max
+from redhawkmaster.rh_io import script_params
+
 assert pathmagic
 
-input_file = 'ILIJA_FlightlineTest_job110_05.las'
-output_file = 'ILIJA_FlightlineTest_job110_06.las'
+args = script_params()
+
+input_file = args.input[0]
+output_file = args.output[0]
 
 f110_05 = rh_io.las_input(input_file, mode='r')
 
@@ -67,7 +71,6 @@ f110_06 = rh_io.las_output(output_file,
                            mask=point_count_max)
 
 point_id = np.arange(len(f110_06))
-
 
 f110_06 = duplicate_attr(f110_06,
                          attribute_in='raw_classification',
