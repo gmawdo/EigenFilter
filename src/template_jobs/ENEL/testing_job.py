@@ -495,7 +495,7 @@ def in_memory_testing():
 
     in_memory = ReadIn("T000.las")
 
-    pipeline = RedHawkPipeline(
+    pipeline = UserPipeline(
         _(
             tool=cluster_labels,
             select_attribute="intensity",

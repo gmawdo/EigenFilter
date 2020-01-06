@@ -100,10 +100,9 @@ class ReadIn(RedHawkPointCloud):
         self.intensity = in_file.intensity
         self.user_info = in_file
 
-    def qc(self, new_file_name, all_points=False):
+    def qc(self, new_file_name):
         out_file = File(new_file_name, mode="w", header=self.user_info.header)
-        if all_points:
-            out_file.points = self.user_info.points
+        out_file.points = self.user_info.points # if we delete this line we need to add in x, y, z
         out_file.classification = self.classification
         out_file.intensity = self.intensity
         out_file.close()
@@ -129,7 +128,3 @@ class UserPipeline:
 
     def run(self, in_memory):
         self.pipeline.run(in_memory)
-        if self.qc is None:
-            pass
-        else:
-            in_memory.qc(self.qc, all_points=True)

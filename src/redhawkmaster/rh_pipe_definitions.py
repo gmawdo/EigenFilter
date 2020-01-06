@@ -1,4 +1,3 @@
-from redhawkmaster.rh_inmemory import RedHawkPointCloud
 from sklearn.cluster import DBSCAN
 from sklearn.neighbors import NearestNeighbors
 from scipy.spatial import Delaunay
@@ -93,7 +92,7 @@ def clustering(coords,
 
 
 #  === PIPE DEFINITIONS ===
-def point_id(in_memory: RedHawkPointCloud,
+def point_id(in_memory,
              point_id_name: str,
              start_value: int = 0,
              inc_step: int = 1):
