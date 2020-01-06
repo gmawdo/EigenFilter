@@ -95,17 +95,15 @@ RedHawkPointCloud = point_cloud_type(name="RedHawkPointCloud",
 
 class RedHawkPipe:
     def __init__(self, pipe_definition, **parameters):
-        self.pipe_defintition = pipe_definition
+        self.pipe_definition = pipe_definition
         self.parameters = parameters
 
     def curry(self):
-        """
-        @param self: A function designed whose first argument is a RedHawkPointCloud object and the rest are parameters
-        @param params: The parameters of the function.
-        @return:
-        """
         parameters = self.parameters
-        return lambda _: self.pipe_defintition(_, **parameters)
+        return lambda _: self.pipe_definition(_, **parameters)
+
+    def run(self, in_memory):
+        self.curry()(in_memory)
 
 
 class RedHawkPipeline:
@@ -114,4 +112,4 @@ class RedHawkPipeline:
 
     def run(self, in_memory):
         for item in self.pipes:
-            item.curry()(in_memory)
+            item.run(in_memory)

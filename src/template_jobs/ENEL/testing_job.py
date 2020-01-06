@@ -491,33 +491,34 @@ assert pathmagic
 
 
 def in_memory_testing():
+    _ = UserPipe
+
     in_memory = ReadIn("T000.las")
 
     pipeline = RedHawkPipeline(
-        RedHawkPipe(pipe_definition=cluster_labels,
-                    select_attribute="intensity",
-                    select_range=[[0, 500], [500, 1000]],
-                    distance=0.5,
-                    min_pts=2,
-                    cluster_attribute="whatever",
-                    minimum_length=0.10
-                    ),
-        RedHawkPipe(pipe_definition=point_id,
-                    point_id_name="pid",
-                    start_value=0,
-                    inc_step=1
-                    ),
-        RedHawkPipe(pipe_definition=ferry_values,
-                    out_of="whatever",
-                    in_to="intensity",
-                    ),
-        RedHawkPipe(pipe_definition=ferry_values,
-                    out_of="whatever",
-                    in_to="classification",
-                    )
+        _(
+            tool=cluster_labels,
+            select_attribute="intensity",
+            select_range=[[0, 500], [750, 1000]],
+            distance=0.5,
+            min_pts=2,
+            cluster_attribute="whatever",
+            minimum_length=0.10
+        ),
+        _(
+            tool=point_id,
+            point_id_name="pid",
+            start_value=0,
+            inc_step=1
+        ),
+        _(
+            tool=ferry_values,
+            out_of="whatever",
+            in_to="intensity",
+            qc="QCnew.las"
+        )
     )
     pipeline.run(in_memory)
-    in_memory.qc(new_file_name="result.las")
 
 
 # triangulation_test()

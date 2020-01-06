@@ -158,6 +158,7 @@ def cluster_labels(in_memory,
 
     return None
 
+
 def ferry_values(in_memory, out_of, in_to):
     value_A = getattr(in_memory, out_of)
     value_B = getattr(in_memory, in_to)
@@ -165,3 +166,5 @@ def ferry_values(in_memory, out_of, in_to):
     setattr(in_memory, in_to, value_A)
 
     return None
+
+# def add_attributes(in_memory, min_k, max_k, )

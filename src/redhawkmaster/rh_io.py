@@ -2,7 +2,7 @@ from laspy.file import File
 import numpy as np
 import os
 import argparse
-from redhawkmaster.rh_inmemory import RedHawkPointCloud
+from redhawkmaster.rh_inmemory import RedHawkPointCloud, RedHawkPipeline, RedHawkPipe
 
 
 def las_input(input_name, mode):
@@ -100,11 +100,36 @@ class ReadIn(RedHawkPointCloud):
         self.intensity = in_file.intensity
         self.user_info = in_file
 
-    def qc(self, new_file_name):
-        assert len(self) == len(
-            self.user_info), "The in-memory representation of the file does not have the correct length."
+    def qc(self, new_file_name, all_points=False):
         out_file = File(new_file_name, mode="w", header=self.user_info.header)
-        out_file.points = self.user_info.points
-        out_file.classifion = self.classification
+        if all_points:
+            out_file.points = self.user_info.points
+        out_file.classification = self.classification
         out_file.intensity = self.intensity
         out_file.close()
+
+
+class UserPipe:
+    def __init__(self, tool, qc=None, **parameters):
+        self.pipe = RedHawkPipe(pipe_definition=tool, **parameters)
+        self.qc = qc
+
+    def run(self, in_memory):
+        self.pipe.run(in_memory)
+        if self.qc is None:
+            pass
+        else:
+            in_memory.qc(self.qc)
+
+
+class UserPipeline:
+    def __init__(self, *pipes, qc=None):
+        self.pipeline = RedHawkPipeline(*pipes)
+        self.qc = qc
+
+    def run(self, in_memory):
+        self.pipeline.run(in_memory)
+        if self.qc is None:
+            pass
+        else:
+            in_memory.qc(self.qc, all_points=True)
