@@ -106,9 +106,6 @@ class ReadIn(RedHawkPointCloud):
         out_file = File(new_file_name, mode="w", header=self.__original_header)
         condition = self.__condition
         out_file.points = self.__original_points[condition]
-        out_file.x = self.x[condition]
-        out_file.y = self.y[condition]
-        out_file.z = self.z[condition]
         out_file.classification = self.classification[condition]
         out_file.intensity = self.intensity[condition]
         out_file.close()
