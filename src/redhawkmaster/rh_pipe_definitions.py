@@ -4,6 +4,8 @@ from scipy.spatial import Delaunay
 import numpy as np
 from pandas import DataFrame
 
+from .rh_inmemory import RedHawkPipe
+
 
 # === BACKGROUND FUNCTIONS ===
 def condition2mask(ranges):
@@ -93,28 +95,42 @@ def clustering(coords,
 
 #  === PIPE DEFINITIONS ===
 # IN PIPES, in_memory must always be the first argument - otherwise it will not work!
-class PointId:
+
+def point_id(in_memory,
+             point_id_name,
+             start_value,
+             inc_step):
+    """
+    Add incremental point ID to a tile.
+    :param in_memory: RedHawkPointCloud to have point id added
+    :param point_id_name: name of the dimension
+    :param start_value: where the point id dimension will start
+    :param inc_step: how much to increment the point ID.
+    :return:
+    """
+
+    pid = np.arange(start=start_value,
+                    stop=(len(in_memory) * inc_step) + start_value,
+                    step=inc_step,
+                    dtype=np.uint64)
+
+    in_memory.add_dimension(point_id_name, pid.dtype)
+
+    setattr(in_memory, point_id_name, pid)
+
+    return None
+
+
+class PointId(RedHawkPipe):
 
     def __init__(self,
                  point_id_name,
-                 start_value: int = 0,
-                 inc_step: int = 1):
-        self.point_id_name = point_id_name
-        self.start_value = start_value
-        self.inc_step = inc_step
-
-    def __call__(self, in_memory):
-        point_id_name = self.point_id_name
-        start_value = self.start_value
-        inc_step = self.inc_step
-        pid = np.arange(start=start_value,
-                        stop=(len(in_memory) * inc_step) + start_value,
-                        step=inc_step,
-                        dtype=np.uint64)
-
-        in_memory.add_dimension(point_id_name, pid.dtype)
-        setattr(in_memory, point_id_name, pid)
-        return None
+                 start_value=0,
+                 inc_step=1):
+        super().__init__(pipe_definition=point_id,
+                         point_id_name=point_id_name,
+                         start_value=start_value,
+                         inc_step=inc_step)
 
 
 def cluster_labels(in_memory,
@@ -156,6 +172,23 @@ def cluster_labels(in_memory,
     setattr(in_memory, cluster_attribute, labels_allpts)
 
     return None
+
+
+class ClusterLabels:
+    def __init__(self,
+                 select_attribute,
+                 select_range,
+                 distance,
+                 min_pts,
+                 cluster_attribute,
+                 minimum_length):
+        super().__init__(pipe_definition=cluster_labels(),
+                         select_attribute,
+                         select_range,
+                         distance,
+                         min_pts,
+                         cluster_attribute,
+                         minimum_length)
 
 
 def ferry_values(in_memory, out_of, in_to):

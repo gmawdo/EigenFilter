@@ -91,6 +91,18 @@ RedHawkPointCloud = point_cloud_type(name="RedHawkPointCloud",
                                                  "classification": np.uint8, "intensity": np.uint16})
 
 
+class RedHawkPipe:
+    def __init__(self, pipe_definition, *args, **kwargs):
+        self.__pipe_definition = pipe_definition
+        self.__args = args
+        self.__kwargs = kwargs
+
+    def __call__(self, in_memory):
+        args = self.__args
+        kwargs = self.__kwargs
+        return self.__pipe_definition(in_memory, *args, **kwargs)
+
+
 class RedHawkPipeline:
     def __init__(self, *pipes):
         self.pipes = pipes
@@ -98,6 +110,10 @@ class RedHawkPipeline:
     def __call__(self, in_memory):
         for item in self.pipes:
             item(in_memory)
+
+    def __doc__(self):
+
+
 
 
 class RedHawkArrow:

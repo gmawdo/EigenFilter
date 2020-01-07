@@ -2,7 +2,7 @@ from laspy.file import File
 import numpy as np
 import os
 import argparse
-from redhawkmaster.rh_inmemory import RedHawkPointCloud, RedHawkPipeline, RedHawkPipe
+from .rh_inmemory import RedHawkPointCloud
 
 
 def las_input(input_name, mode):
@@ -109,24 +109,3 @@ class ReadIn(RedHawkPointCloud):
         out_file.classification = self.classification[condition]
         out_file.intensity = self.intensity[condition]
         out_file.close()
-
-
-class UserPipe:
-    def __init__(self, tool, qc=None, **parameters):
-        self.pipe = RedHawkPipe(pipe_definition=tool, **parameters)
-        self.qc = qc
-
-    def run(self, in_memory):
-        self.pipe.run(in_memory)
-        if self.qc is None:
-            pass
-        else:
-            in_memory.qc(self.qc)
-
-
-class UserPipeline:
-    def __init__(self, *pipes):
-        self.pipeline = RedHawkPipeline(*pipes)
-
-    def run(self, in_memory):
-        self.pipeline.run(in_memory)

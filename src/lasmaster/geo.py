@@ -2,8 +2,7 @@ import numpy as np
 
 np.seterr(divide='ignore', invalid='ignore')
 from sklearn.neighbors import NearestNeighbors
-from lasmaster.infotheory import entropy
-from lasmaster import fun
+from .infotheory import entropy
 import pandas as pd
 
 
