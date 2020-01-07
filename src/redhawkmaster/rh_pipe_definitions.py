@@ -113,10 +113,8 @@ class PointId:
                         dtype=np.uint64)
 
         in_memory.add_dimension(point_id_name, pid.dtype)
-
-    setattr(in_memory, point_id_name, pid)
-
-    return None
+        setattr(in_memory, point_id_name, pid)
+        return None
 
 
 def cluster_labels(in_memory,
