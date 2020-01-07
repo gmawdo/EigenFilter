@@ -491,8 +491,6 @@ assert pathmagic
 
 
 def in_memory_testing():
-    _ = UserPipe
-
     in_memory = ReadIn("T000.las")
 
     # === OPTION 1 ===
@@ -520,7 +518,6 @@ def in_memory_testing():
     # in_memory.qc("QCNew.las")
 
     # === OPTION 2 ===
-
     pipeline = UserPipeline(
         _(
             tool=cluster_labels,
