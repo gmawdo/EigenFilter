@@ -99,9 +99,9 @@ class PointId:
                  point_id_name,
                  start_value: int = 0,
                  inc_step: int = 1):
-        self.point_id_name=point_id_name
-        self.start_value=start_value
-        self.inc_step=inc_step
+        self.point_id_name = point_id_name
+        self.start_value = start_value
+        self.inc_step = inc_step
 
     def __call__(self, in_memory):
         point_id_name = self.point_id_name
