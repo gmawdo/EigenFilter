@@ -92,6 +92,7 @@ def clustering(coords,
 
 
 #  === PIPE DEFINITIONS ===
+# IN PIPES, in_memory must always be the first argument - otherwise it will not work!
 def point_id(in_memory,
              point_id_name: str,
              start_value: int = 0,
@@ -159,10 +160,10 @@ def cluster_labels(in_memory,
 
 
 def ferry_values(in_memory, out_of, in_to):
-    value_A = getattr(in_memory, out_of)
-    value_B = getattr(in_memory, in_to)
-    setattr(in_memory, out_of, value_B)
-    setattr(in_memory, in_to, value_A)
+    value_a = getattr(in_memory, out_of)
+    value_b = getattr(in_memory, in_to)
+    setattr(in_memory, out_of, value_b)
+    setattr(in_memory, in_to, value_a)
 
     return None
 

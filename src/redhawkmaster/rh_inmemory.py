@@ -66,8 +66,7 @@ def point_cloud_type(name: str, data_types: dict) -> type:
     one can set inFile.x, inFile.y, inFile.z, and inFile.intensity once an object inFile is initialised.
     """
 
-    def __init__(self, length, user_info=None):
-        self.user_info = user_info
+    def __init__(self, length):
         self.length = length
 
     def __len__(self):
@@ -84,7 +83,6 @@ def point_cloud_type(name: str, data_types: dict) -> type:
     for key in data_types:
         attribute_dict[key] = property(fset=nd_array_setter(key, data_types[key]), fget=nd_array_getter(key),
                                        fdel=nd_array_deller(key))
-
     return type(name, (object,), attribute_dict)
 
 
@@ -113,3 +111,23 @@ class RedHawkPipeline:
     def run(self, in_memory):
         for item in self.pipes:
             item.run(in_memory)
+
+
+class RedHawkArrow:
+    def __init__(self, source: int, target: int, arrow_definition):
+        self.source = source
+        self.target = target
+        self.arrow_definition = arrow_definition
+
+    def __add__(self, other):
+        source = self.source + other.source
+        target = self.target + other.target
+        arrow_definition = lambda *x: self.arrow_definition(x[self.source]) + other.arrow_definition(x[-other.target])
+        return RedHawkArrow(source, target, arrow_definition)
+
+    def and_then(self, other):
+        assert self.target == other.source, "Not composable, target and source mismatch."
+        source = self.source
+        target = other.target
+        arrow_definition = lambda f: lambda g: lambda *x: g(f(*x))
+        return RedHawkArrow(source, target, arrow_definition)

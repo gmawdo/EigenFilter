@@ -495,6 +495,32 @@ def in_memory_testing():
 
     in_memory = ReadIn("T000.las")
 
+    # === OPTION 1 ===
+    #
+    # cluster_labels(
+    #     in_memory,
+    #     select_attribute="intensity",
+    #     select_range=[[0, 500], [750, 1000]],
+    #     distance=0.5,
+    #     min_pts=2,
+    #     cluster_attribute="whatever",
+    #     minimum_length=0.10
+    # )
+    # point_id(
+    #     in_memory,
+    #     point_id_name="pid",
+    #     start_value=0,
+    #     inc_step=1
+    # )
+    # ferry_values(
+    #     in_memory,
+    #     out_of="whatever",
+    #     in_to="intensity"
+    # )
+    # in_memory.qc("QCNew.las")
+
+    # === OPTION 2 ===
+
     pipeline = UserPipeline(
         _(
             tool=cluster_labels,

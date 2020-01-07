@@ -98,13 +98,19 @@ class ReadIn(RedHawkPointCloud):
         self.z = in_file.z
         self.classification = in_file.classification
         self.intensity = in_file.intensity
-        self.user_info = in_file
+        self.__original_header = in_file.header
+        self.__original_points = in_file.points
+        self.__condition = np.ones(len(in_file), dtype=bool)
 
     def qc(self, new_file_name):
-        out_file = File(new_file_name, mode="w", header=self.user_info.header)
-        out_file.points = self.user_info.points # if we delete this line we need to add in x, y, z
-        out_file.classification = self.classification
-        out_file.intensity = self.intensity
+        out_file = File(new_file_name, mode="w", header=self.__original_header)
+        condition = self.__condition
+        out_file.points = self.__original_points[condition]
+        out_file.x = self.x[condition]
+        out_file.y = self.y[condition]
+        out_file.z = self.z[condition]
+        out_file.classification = self.classification[condition]
+        out_file.intensity = self.intensity[condition]
         out_file.close()
 
 
@@ -122,9 +128,8 @@ class UserPipe:
 
 
 class UserPipeline:
-    def __init__(self, *pipes, qc=None):
+    def __init__(self, *pipes):
         self.pipeline = RedHawkPipeline(*pipes)
-        self.qc = qc
 
     def run(self, in_memory):
         self.pipeline.run(in_memory)
