@@ -17,10 +17,13 @@ parser = argparse.ArgumentParser()
 parser.add_argument('-c', '--code', help='Location where is your redhawk code.', required=True)
 # parser.add_argument('-d', '--data', help='Location where is the data you need to run.', required=True)
 parser.add_argument('-r', '--results', help='Location where the result data to be.', required=True)
-parser.add_argument('-f', '--flow', help='Name of the flow for the jobs.It must be located inside template.', required=True)
+parser.add_argument('-f', '--flow', help='Name of the flow for the jobs.It must be located inside template.',
+                    required=True)
 parser.add_argument('-t', '--template', help='Which template jobs to use.', required=True)
 parser.add_argument('-mb', '--mbpt', help='MB per tile.', required=True)
 parser.add_argument('-cl', '--core_limit', help='Number of cores to run the tiles through.', required=True)
+parser.add_argument('-ot', '--one_tile', help='Set this to True if you want to run just one tile.', required=False)
+
 args = parser.parse_args()
 
 
@@ -126,6 +129,7 @@ def run_process(cmd):
     sema.acquire()
     print(sema)
     for cm in cmd:
+
         subprocess.call(cm, shell=True)
     sema.release()
 
@@ -215,8 +219,13 @@ def parallel(args, big_file):
 
     # print(results)
     # Open multiprocessing pool and run the jobs
-    for res in results:
-        multiprocessing.Process(target=run_process, args=(res,)).start()
+    # print(results[0])
+    if args.one_tile == 'False':
+        for res in results:
+            multiprocessing.Process(target=run_process, args=(res,)).start()
+    elif args.one_tile == 'True':
+
+        multiprocessing.Process(target=run_process, args=(results[0],)).start()
     # pool_tiles.map(run_process, results)
     # pool_tiles.join()
 
@@ -239,7 +248,7 @@ class MyPool(multiprocessing.pool.Pool):
 
 
 def get_last_job():
-    fileHandle = open(args.flow, 'r')
+    fileHandle = open(args.code + '/template_jobs/' + args.template + '/' + args.flow, 'r')
     lineList = fileHandle.readlines()
     if lineList[-1].split(',')[-1] == 'cleanup':
         if lineList[-2].strip().split(',')[-1] in lineList[-2].strip().split(',')[-2]:

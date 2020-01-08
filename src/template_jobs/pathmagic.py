@@ -7,6 +7,8 @@ sys.path.insert(0, path)
 
 sys.path.insert(0, path+'/src')
 
+sys.path.insert(0, path+'/code/')
+
 pathname = os.path.abspath(sys.argv[0])
 sys.path.insert(0, pathname.split('/src/')[0]+'/src'
                 )

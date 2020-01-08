@@ -194,17 +194,22 @@ def pdal_smrf(inname, outname, extra_dims=[("slpid"), ("uint64")], ground_classi
     i = 0
     # if we have multiple dimensions make the string in way
     # "extra1=type,extra2=type"
-    for dim in extra_dims:
-        i += 1
-        if i == len(extra_dims):
-            readers += dim[0]+'='+dim[1]+'\" '
-        else:
-            readers += dim[0] + '=' + dim[1] + ','
+
+    if not extra_dims:
+        readers = ""
+    else:
+        for dim in extra_dims:
+            i += 1
+            if i == len(extra_dims):
+                readers += dim[0]+'='+dim[1]+'\" '
+            else:
+                readers += dim[0] + '=' + dim[1] + ','
+
 
     # The ground command v2 with translate
     ground_command_v2 = "pdal translate " \
                         + readers + \
-                        "--writers.las.extra_dims=all {} {} smrf" \
+                        " --writers.las.extra_dims=all {} {} smrf" \
                         " --filters.smrf.slope={} " \
                         "--filters.smrf.cut={} " \
                         "--filters.smrf.window={} " \
@@ -218,7 +223,7 @@ def pdal_smrf(inname, outname, extra_dims=[("slpid"), ("uint64")], ground_classi
     # populate the command with all the attributes that ground have
     command_v2 = ground_command_v2.format(inname, outname, slope, cut, window, cell, scalar, threshold)
     # command = ground_command.format(infile.filename, outname)
-
+    print(command_v2)
     # call the command from the system which will make a file with name as outname
     os.system(command_v2)
 
@@ -337,7 +342,7 @@ def hough_3d(infile, dist=6.4, polygonHeightOuter=1, polygonWidthOuter=0.35,
     """
 
     # path of the exe for the hough3dlines
-    path_h3d = os.getcwd()+'/redhawkmaster/'
+    path_h3d = '/code/redhawkmaster/'
 
     # Pulling out X,Y,HeightAboveGround, Classification
     cls = infile.Classification
@@ -348,7 +353,7 @@ def hough_3d(infile, dist=6.4, polygonHeightOuter=1, polygonWidthOuter=0.35,
 
     # Make a clipping mask
     maskZ = (cls != 2)
-
+    print(infile.filename)
     # Apply the mask
     X = X_orig[maskZ]
     Y = Y_orig[maskZ]
@@ -367,8 +372,8 @@ def hough_3d(infile, dist=6.4, polygonHeightOuter=1, polygonWidthOuter=0.35,
     minY = min(Y) + dist/2
 
     # The helping directories for storing the output of the hough3dlines script
-    text_dir = "./TXT"
-    output_dir = "./OUTPUT"
+    text_dir = "/results/"+infile.filename.split('/')[2]+"/TXT_"+infile.filename.split('/')[2]
+    output_dir = "/results/"+infile.filename.split('/')[2]+"/OUTPUT_"+infile.filename.split('/')[2]
 
     # If they don't exist, create them
     if not os.path.exists(text_dir):
@@ -586,7 +591,7 @@ def hough_3d(infile, dist=6.4, polygonHeightOuter=1, polygonWidthOuter=0.35,
     userResult = []
 
     # Openning result file hough lines for vegetation selection
-    f = open('./hough_result_lines_' + str(1).zfill(2) + '.txt', 'a')
+    f = open('/results/'+infile.filename.split('/')[2]+'/hough_result_lines_' + infile.filename.split('/')[2] + '.txt', 'a')
     for line in resultLines:
         Ax = float(line[0])
         Ay = float(line[1])
@@ -710,8 +715,8 @@ def hough_3d(infile, dist=6.4, polygonHeightOuter=1, polygonWidthOuter=0.35,
         infile.Classification = cls
         print("Found " + str(len(wholeResult)) + " conductor lines!!")
         # Delete Output and TXT dirs
-        os.system("rm -r ./OUTPUT/")
-        os.system("rm -r ./TXT/")
+        # os.system("rm -r ./OUTPUT/")
+        # os.system("rm -r ./TXT/")
         # outs['USER_CLASS'] = user_cls
     else:
         print("There is no cable found")
@@ -745,16 +750,16 @@ def apply_hough(infile, tile_no='01', polygonHeightOuter=1, polygonWidthOuter=0.
 
     mask = []
 
-    f = open('./hough_applied_lines_' + tile_no + '.txt', 'w')
+    f = open('/results/'+infile.filename.split('/')[2]+'/hough_applied_lines_' + infile.filename.split('/')[2] + '.txt', 'w')
 
     try:
-        fb = open('./hough_result_lines_' + tile_no + '.txt', 'r')
+        fb = open('/results/'+infile.filename.split('/')[2]+'/hough_result_lines_' + infile.filename.split('/')[2] + '.txt', 'r')
         fb.close()
     except IOError as e:
         print("There is not any hough lines, Returning true.")
         exit()
 
-    with open('./hough_result_lines_' + tile_no + '.txt', 'r') as result_file:
+    with open('/results/'+infile.filename.split('/')[2]+'/hough_result_lines_' + infile.filename.split('/')[2] + '.txt', 'r') as result_file:
         csv_reader = csv.reader(result_file, delimiter=' ')
         data = [r for r in csv_reader]
 
@@ -885,7 +890,7 @@ def corridor(infile, tile_no='01', ext=10, m=0.6, min_Z=-10, max_Z=22, lOuter=0.
 
     mask = []
 
-    with open('./hough_applied_lines_' + tile_no + '.txt', 'r') as result_file:
+    with open('/results/'+infile.filename.split('/')[2]+'/hough_applied_lines_' + infile.filename.split('/')[2] + '.txt', 'r') as result_file:
         csv_reader = csv.reader(result_file, delimiter=' ')
         data = [r for r in csv_reader]
 
@@ -977,7 +982,7 @@ def pylon_extract(infile, min_mask_Z=4, max_mask_Z=12, dist=6.4, m=0.6, diff=20,
     """
 
     # path of the exe for the hough3dlines
-    path_h3d = os.getcwd() + '/redhawkmaster/'
+    path_h3d = '/code/redhawkmaster/'
 
     cls = infile.classification
 
@@ -1003,8 +1008,8 @@ def pylon_extract(infile, min_mask_Z=4, max_mask_Z=12, dist=6.4, m=0.6, diff=20,
     minY = min(Y)
     maxY = max(Y)
 
-    text_dir = './Pylon_TXT_'
-    output_dir = './Pylon_OUTPUT_'
+    text_dir = '/results/'+infile.filename.split('/')[2]+'/Pylon_TXT_'+ infile.filename.split('/')[2]
+    output_dir = '/results/'+infile.filename.split('/')[2]+'/Pylon_OUTPUT_'+ infile.filename.split('/')[2]
 
     if not os.path.exists(text_dir):
         os.makedirs(text_dir)
@@ -1016,7 +1021,7 @@ def pylon_extract(infile, min_mask_Z=4, max_mask_Z=12, dist=6.4, m=0.6, diff=20,
     resultLines = []
     tile = 0
 
-    f = open('./hough_pylon_lines_01.txt', 'w')
+    f = open('/results/'+infile.filename.split('/')[2]+'/hough_pylon_lines_'+ infile.filename.split('/')[2]+'.txt', 'w')
 
     for i in np.arange(minX, maxX+dist, dist):
         for j in np.arange(minY, maxY+dist, dist):
@@ -1174,13 +1179,13 @@ def apply_pylon(infile, tile_no='01', m=0.6, ext=0.5, lOuter=0.5, min_pylon_Z=-2
     mask = []
 
     try:
-        f = open('./hough_pylon_lines_' + tile_no + '.txt', 'r')
+        f = open('/results/'+infile.filename.split('/')[2]+'/hough_pylon_lines_' + infile.filename.split('/')[2] + '.txt', 'r')
         f.close()
     except IOError as e:
         print("Required hough file doesn't exist. Exiting")
         exit()
 
-    with open('./hough_pylon_lines_' + tile_no + '.txt', 'r') as result_file:
+    with open('/results/'+infile.filename.split('/')[2]+'/hough_pylon_lines_' + infile.filename.split('/')[2] + '.txt', 'r') as result_file:
         csv_reader = csv.reader(result_file, delimiter=' ')
         data = [r for r in csv_reader]
 
@@ -1286,7 +1291,7 @@ def classify_vegetation(infile, tile_no='01', m=0.6, polygonWidth=3, polygonHeig
 
     mask = []
 
-    with open('./hough_applied_lines_' + tile_no + '.txt', 'r') as result_file:
+    with open('/results/'+infile.filename.split('/')[2]+'/hough_applied_lines_' + infile.filename.split('/')[2] + '.txt', 'r') as result_file:
         csv_reader = csv.reader(result_file, delimiter=' ')
 
         data = [r for r in csv_reader]
