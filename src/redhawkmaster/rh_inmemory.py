@@ -96,18 +96,11 @@ class RedHawkPipe:
         self.__pipe_definition = pipe_definition
         self.__args = args
         self.__kwargs = kwargs
-        self.__domain = domain
-        self.__codomain = codomain
 
     def __call__(self, in_memory):
         args = self.__args
         kwargs = self.__kwargs
         return self.__pipe_definition(in_memory, *args, **kwargs)
-
-#    def __add__(self, other):
-#        self__pipe_definition = self.__pipe_definition
-#        other__pipe_definition
-#        def add__pipedefinition(in_memory):
 
 
 class RedHawkPipeline:
