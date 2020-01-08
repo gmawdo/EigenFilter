@@ -491,8 +491,6 @@ assert pathmagic
 
 
 def in_memory_testing():
-    in_memory = ReadIn("T000.las")
-
     # === OPTION 1 ===
     #
     # cluster_labels(
@@ -518,9 +516,11 @@ def in_memory_testing():
     # in_memory.qc("QCNew.las")
 
     # === OPTION 2 ===
-    pipeline = UserPipeline(
-        _(
-            tool=cluster_labels,
+    UIPipeline(
+        ReadIn(
+            file_name="T000.las"
+        ),
+        ClusterLabels(
             select_attribute="intensity",
             select_range=[[0, 500], [750, 1000]],
             distance=0.5,
@@ -528,20 +528,19 @@ def in_memory_testing():
             cluster_attribute="whatever",
             minimum_length=0.10
         ),
-        _(
-            tool=point_id,
+        PointId(
             point_id_name="pid",
             start_value=0,
             inc_step=1
         ),
-        _(
-            tool=ferry_values,
+        FerryValues(
             out_of="whatever",
-            in_to="intensity",
-            qc="QCnew.las"
+            in_to="intensity"
+        ),
+        QC(
+            file_name="QCnew.las"
         )
-    )
-    pipeline.run(in_memory)
+    )()
 
 
 # triangulation_test()

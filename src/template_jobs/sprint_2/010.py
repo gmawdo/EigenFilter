@@ -16,7 +16,7 @@ f004 = rh_io.las_input(input_file, mode='r')
 point_id = np.arange(len(f004))
 
 f010_000_prep = rh_io.las_output(output_file,
-                                 inFile=f004,
+                                 in_file=f004,
                                  mask=point_id)
 
 f010_000_prep.user_data = f004.Classification
