@@ -196,7 +196,6 @@ def pdal_smrf(inname, outname, extra_dims=[("slpid"), ("uint64")], ground_classi
     # "extra1=type,extra2=type"
 
     if not extra_dims:
-        print('OVDE')
         readers = ""
     else:
         for dim in extra_dims:
