@@ -43,6 +43,68 @@ def las_range(dimension, start=(-sys.maxsize - 1), end=sys.maxsize, reverse=Fals
     return point_id_mask[np.where(mask)[0]]
 
 
+def las_range_v01(dimension, range, inverse=False, point_id_mask=None):
+    """
+    The ui sometimes gives the user the option to enter a range. This looks something like
+    range = (0,1),(2,4),[-1,-0.5],[10,...], (...,-10)
+    We can't use [) or (].
+    This means that the we need to select points with:
+    0<x<1 or 2<x<4 or -1<=x<=0.5 or 10<=x or x<-10
+    We need to take the range and get a function of x which produces a mask. This is what this function does.
+    :param dimension: Vector to be ranged.
+    :param inverse: Bool value that tells if it is inversed or not.
+    :param point_id_mask: point id mask from the file.
+    :param range: The range gotten from the UI
+    :return: A function we can apply to x (the vector to be ranged) which outputs a mask
+    """
+    if point_id_mask is None:
+        point_id_mask = []
+    condition1 = lambda x: (isinstance(x, tuple) or isinstance(x, list))
+    condition2 = lambda x: (len(x) == 1) or (len(x) == 2)
+    for item in range:
+        assert condition1(item) and isinstance(range, list), "ranges should be list of lists, or a list of tuples"
+        assert condition2(item), "items in the range should be length 1 or 2"
+    f = lambda x: np.zeros(len(x), dtype=bool)
+
+    rh_or = lambda f, g: lambda x: (f(x) | g(x))
+    rh_and = lambda f, g: lambda x: (f(x) & g(x))
+
+    gt = lambda t: lambda x: x > t[0]
+    lt = lambda t: lambda x: x < t[-1]
+    geq = lambda t: lambda x: x >= t[0]
+    leq = lambda t: lambda x: x <= t[-1]
+
+    for item in range:
+        cond = lambda x: np.ones(len(x), dtype=bool)
+        if isinstance(item, list):
+            if item[0] is ...:
+                pass
+            else:
+                cond = rh_and(cond, geq(item))
+            if item[-1] is ...:
+                pass
+            else:
+                cond = rh_and(cond, leq(item))
+        if isinstance(item, tuple):
+            if item[0] is ...:
+                pass
+            else:
+                cond = rh_and(cond, gt(item))
+            if item[-1] is ...:
+                pass
+            else:
+                cond = rh_and(cond, lt(item))
+        f = rh_or(f, cond)
+    if point_id_mask is None:
+        return f
+    else:
+        if inverse:
+            mask = ~f(dimension)
+        else:
+            mask = f(dimension)
+        return point_id_mask[mask]
+
+
 def duplicate_attr(infile, attribute_in, attribute_out, attr_descrp, attr_type):
     """
     Gets input laspy object and it makes another laspy from that object that
