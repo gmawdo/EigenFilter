@@ -1,9 +1,10 @@
-from redhawkmaster.rh_inmemory import RedHawkPointCloud
 from sklearn.cluster import DBSCAN
 from sklearn.neighbors import NearestNeighbors
 from scipy.spatial import Delaunay
 import numpy as np
 from pandas import DataFrame
+
+from .rh_inmemory import RedHawkPipe
 
 
 # === BACKGROUND FUNCTIONS ===
@@ -93,10 +94,12 @@ def clustering(coords,
 
 
 #  === PIPE DEFINITIONS ===
-def point_id(in_memory: RedHawkPointCloud,
-             point_id_name: str,
-             start_value: int = 0,
-             inc_step: int = 1):
+# IN PIPES, in_memory must always be the first argument - otherwise it will not work!
+
+def point_id(in_memory,
+             point_id_name,
+             start_value,
+             inc_step):
     """
     Add incremental point ID to a tile.
     :param in_memory: RedHawkPointCloud to have point id added
@@ -116,6 +119,19 @@ def point_id(in_memory: RedHawkPointCloud,
     setattr(in_memory, point_id_name, pid)
 
     return None
+
+
+class PointId(RedHawkPipe):
+
+    def __init__(self,
+                 point_id_name,
+                 start_value=0,
+                 inc_step=1):
+        kwargs = dict(point_id_name=point_id_name,
+                      start_value=start_value,
+                      inc_step=inc_step)
+        super().__init__(pipe_definition=point_id,
+                         **kwargs)
 
 
 def cluster_labels(in_memory,
@@ -158,10 +174,41 @@ def cluster_labels(in_memory,
 
     return None
 
+
+class ClusterLabels(RedHawkPipe):
+    def __init__(self,
+                 select_attribute,
+                 select_range,
+                 distance,
+                 min_pts,
+                 cluster_attribute,
+                 minimum_length):
+        kwargs = dict(select_attribute=select_attribute,
+                      select_range=select_range,
+                      distance=distance,
+                      min_pts=min_pts,
+                      cluster_attribute=cluster_attribute,
+                      minimum_length=minimum_length)
+        super().__init__(pipe_definition=cluster_labels,
+                         **kwargs)
+
+
 def ferry_values(in_memory, out_of, in_to):
-    value_A = getattr(in_memory, out_of)
-    value_B = getattr(in_memory, in_to)
-    setattr(in_memory, out_of, value_B)
-    setattr(in_memory, in_to, value_A)
+    value_a = getattr(in_memory, out_of)
+    value_b = getattr(in_memory, in_to)
+    setattr(in_memory, out_of, value_b)
+    setattr(in_memory, in_to, value_a)
 
     return None
+
+
+class FerryValues(RedHawkPipe):
+    def __init__(self,
+                 out_of,
+                 in_to):
+        kwargs = dict(out_of=out_of,
+                      in_to=in_to)
+        super().__init__(pipe_definition=ferry_values,
+                         **kwargs)
+
+# def add_attributes(in_memory, min_k, max_k, )

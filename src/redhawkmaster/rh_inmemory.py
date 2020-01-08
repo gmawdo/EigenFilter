@@ -66,8 +66,7 @@ def point_cloud_type(name: str, data_types: dict) -> type:
     one can set inFile.x, inFile.y, inFile.z, and inFile.intensity once an object inFile is initialised.
     """
 
-    def __init__(self, length, user_info=None):
-        self.user_info = user_info
+    def __init__(self, length):
         self.length = length
 
     def __len__(self):
@@ -84,7 +83,6 @@ def point_cloud_type(name: str, data_types: dict) -> type:
     for key in data_types:
         attribute_dict[key] = property(fset=nd_array_setter(key, data_types[key]), fget=nd_array_getter(key),
                                        fdel=nd_array_deller(key))
-
     return type(name, (object,), attribute_dict)
 
 
@@ -94,24 +92,41 @@ RedHawkPointCloud = point_cloud_type(name="RedHawkPointCloud",
 
 
 class RedHawkPipe:
-    def __init__(self, pipe_definition, **parameters):
-        self.pipe_defintition = pipe_definition
-        self.parameters = parameters
+    def __init__(self, pipe_definition, *args, **kwargs):
+        self.__pipe_definition = pipe_definition
+        self.__args = args
+        self.__kwargs = kwargs
 
-    def curry(self):
-        """
-        @param self: A function designed whose first argument is a RedHawkPointCloud object and the rest are parameters
-        @param params: The parameters of the function.
-        @return:
-        """
-        parameters = self.parameters
-        return lambda _: self.pipe_defintition(_, **parameters)
+    def __call__(self, in_memory):
+        args = self.__args
+        kwargs = self.__kwargs
+        return self.__pipe_definition(in_memory, *args, **kwargs)
 
 
 class RedHawkPipeline:
     def __init__(self, *pipes):
-        self.pipes = pipes
+        self.__pipes = pipes
 
-    def run(self, in_memory):
-        for item in self.pipes:
-            item.curry()(in_memory)
+    def __call__(self, *in_memory):
+        for item in self.__pipes:
+            item(*in_memory)
+
+
+class RedHawkArrow:
+    def __init__(self, source: int, target: int, arrow_definition):
+        self.source = source
+        self.target = target
+        self.arrow_definition = arrow_definition
+
+    def __add__(self, other):
+        source = self.source + other.source
+        target = self.target + other.target
+        arrow_definition = lambda *x: self.arrow_definition(x[self.source]) + other.arrow_definition(x[-other.target])
+        return RedHawkArrow(source, target, arrow_definition)
+
+    def and_then(self, other):
+        assert self.target == other.source, "Not composable, target and source mismatch."
+        source = self.source
+        target = other.target
+        arrow_definition = lambda f: lambda g: lambda *x: g(f(*x))
+        return RedHawkArrow(source, target, arrow_definition)

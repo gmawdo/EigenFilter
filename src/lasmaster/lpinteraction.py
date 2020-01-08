@@ -2,8 +2,8 @@ import numpy as np
 
 np.seterr(divide='ignore', invalid='ignore')
 from laspy.file import File
-from lasmaster import geo
-from lasmaster import fun
+from . import geo
+from . import fun
 from laspy.header import VLR
 from sklearn.neighbors import NearestNeighbors
 import time

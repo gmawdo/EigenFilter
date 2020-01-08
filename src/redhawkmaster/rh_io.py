@@ -2,7 +2,7 @@ from laspy.file import File
 import numpy as np
 import os
 import argparse
-from redhawkmaster.rh_inmemory import RedHawkPointCloud
+from .rh_inmemory import RedHawkPointCloud, RedHawkPipe, RedHawkPipeline
 
 
 def las_input(input_name, mode):
@@ -17,35 +17,35 @@ def las_input(input_name, mode):
     """
     # Reading a las file
     # las file variable
-    inFile = File(input_name, mode=mode)
+    in_file = File(input_name, mode=mode)
 
-    return inFile
+    return in_file
 
 
-def las_output(output_name, inFile, mask=np.array([])):
+def las_output(output_name, in_file, mask=np.array([])):
     """
     output a file based on a input file and a mask
 
     :param output_name: output file name
     :type output_name: string
-    :param inFile: laspy object from which we get the header
-    :type inFile: laspy object
+    :param in_file: laspy object from which we get the header
+    :type in_file: laspy object
     :param mask: point id mask or bool mask which will trim down the file
     :type mask: numpy array or bool array
     :return  laspy object
     """
     # Outputting a las file (do not forget to close it)
     # las file output variable
-    outFile = File(output_name, mode='w', header=inFile.header)
+    out_file = File(output_name, mode='w', header=in_file.header)
 
     # If the size is not zero then we apply the mask
     # if it is zero then we take the whole file
     if mask.size != 0:
-        outFile.points = inFile.points[mask]
+        out_file.points = in_file.points[mask]
     else:
-        outFile.points = inFile.points
+        out_file.points = in_file.points
 
-    return outFile
+    return out_file
 
 
 def merge(array_input, output):
@@ -98,13 +98,33 @@ class ReadIn(RedHawkPointCloud):
         self.z = in_file.z
         self.classification = in_file.classification
         self.intensity = in_file.intensity
-        self.user_info = in_file
+        self.__original_header = in_file.header
+        self.__original_points = in_file.points
 
     def qc(self, new_file_name):
-        assert len(self) == len(
-            self.user_info), "The in-memory representation of the file does not have the correct length."
-        out_file = File(new_file_name, mode="w", header=self.user_info.header)
-        out_file.points = self.user_info.points
-        out_file.classifion = self.classification
+        out_file = File(new_file_name, mode="w", header=self.__original_header)
+        out_file.points = self.__original_points
+        out_file.classification = self.classification
         out_file.intensity = self.intensity
         out_file.close()
+
+
+# === STUFF FOR USER PIPELINE ===
+
+
+class QC(RedHawkPipe):
+    def __init__(self,
+                 file_name):
+        super().__init__(pipe_definition=ReadIn.qc, new_file_name=file_name)
+
+class UIPipeline:
+    def __init__(self, input_object, *pipes):
+        assert isinstance(input_object,
+                          ReadIn), f"The first step should read in a file, using {ReadIn.__name__}(file_name)"
+        assert all(isinstance(pipe, RedHawkPipe) for pipe in
+                   pipes), f"Every step after the ReadIn must be a {RedHawkPipe.__name__}"
+        self.__input_object = input_object
+        self.__pipeline = RedHawkPipeline(*pipes)
+
+    def __call__(self):
+        self.__pipeline(self.__input_object)
