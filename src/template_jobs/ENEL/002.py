@@ -1,8 +1,7 @@
 import pathmagic
 
-from redhawkmaster.rh_big_guns import pdal_smrf
-from redhawkmaster.rh_dean import pdal_enel
-from redhawkmaster.rh_io import las_input, script_params
+from redhawkmaster.rh_dean import pdal_smrf_enel
+from redhawkmaster.rh_io import script_params
 
 assert pathmagic
 
@@ -15,4 +14,4 @@ output_file = args.output[0]
 
 
 # Run the extract ground with all parameters
-pdal_enel(input_file, output_file)
+pdal_smrf_enel(input_file, output_file)
