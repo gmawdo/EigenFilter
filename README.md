@@ -98,7 +98,7 @@ one job for all tiles and running them in parallel.
 
 Run the scripts like this:
 
-`python3 new_execute.py -c /home/mcus/workspace/redhawk-pure-python/src -r /home/mcus/workspace/automation_flow -f ENEL_flow -t ENEL -mb 15 -cl 5`
+`python3 new_execute.py -c /home/mcus/workspace/redhawk-pure-python/src -r /home/mcus/workspace/automation_flow -f ENEL_flow -t ENEL -mb 15 -cl 5 -ot True`
 
 Explanation of the arguments:
 
@@ -108,5 +108,6 @@ Explanation of the arguments:
 4. **-t** which template jobs we are going to use.
 5. **-mb** mb per tile if -b is different then None
 6. **-cl** is the core limit for **execute.py** and process count for **execute_process.py**
+7. **-ot** if this is True run just one random tile
 
 Note: all of these arguments are required.
