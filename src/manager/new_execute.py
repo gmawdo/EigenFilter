@@ -129,7 +129,7 @@ def run_process(cmd):
     sema.acquire()
     print(sema)
     for cm in cmd:
-        print(cm)
+
         subprocess.call(cm, shell=True)
     sema.release()
 
