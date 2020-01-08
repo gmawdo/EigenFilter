@@ -4,8 +4,15 @@ from redhawkmaster import rh_io
 from redhawkmaster.las_modules import duplicate_attr, rh_return_index, rh_cluster, rh_pdal_cluster, \
     rh_cluster_median_return, rh_assign, las_range
 import os
-assert pathmagic
 
+from redhawkmaster.rh_io import script_params
+
+assert pathmagic
+args = script_params()
+
+input_file = args.input[0]
+temp = args.output[0]
+output_file = args.output[1]
 input_file = 'ILIJA_FlightlineTest_job110_01.las'
 temp = 'ILIJA_FlightlineTest_job110_02_1.las'
 output_file = 'ILIJA_FlightlineTest_job110_02.las'

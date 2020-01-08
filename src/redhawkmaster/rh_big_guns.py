@@ -11,7 +11,7 @@ from redhawkmaster.las_modules import las_range
 from multiprocessing import cpu_count, Pool
 
 
-def init_equal_time(bigFile, ss, ee):
+def init_equal_time(bigFile, ss, ee, output_location):
     """
     Function to initialize few global arguments for each process
     of the multiprocessing for the tiling with equal gps times.
@@ -28,6 +28,7 @@ def init_equal_time(bigFile, ss, ee):
     infile = bigFile
     start = ss
     end = ee
+    out_loc = output_location
 
 
 def tile_equal_time(i):
@@ -41,12 +42,12 @@ def tile_equal_time(i):
     """
     mask = las_range(infile.gps_time, start[i], end[i])
 
-    outFile = rh_io.las_output(infile.filename.split('/')[-1].split('.las')[0]+"_Tile"+str(i).zfill(3)+".las",
+    outFile = rh_io.las_output(out_loc+infile.filename.split('/')[-1].split('.las')[0]+"_Tile"+str(i).zfill(3)+".las",
                                infile, mask)
     outFile.close()
 
 
-def rh_tiling_gps_equal_time(filename, no_tiles=10):
+def rh_tiling_gps_equal_time(filename, output_location, no_tiles=10):
     """
     Starting the multiprocessing pool of threads that are going to
     split the big tile.
@@ -83,13 +84,13 @@ def rh_tiling_gps_equal_time(filename, no_tiles=10):
         g_time = g_time + step
 
     # Init the pool of processes
-    pool = Pool(processes=pool_size, initializer=init_equal_time, initargs=(bigFile, start_arr, end_arr))
+    pool = Pool(processes=pool_size, initializer=init_equal_time, initargs=(bigFile, start_arr, end_arr, output_location))
     # Map the processes from the pool
     pool.map(tile_equal_time, range(no_tiles))
     pool.close()
 
 
-def init_equal_filesize(bigFile, ss):
+def init_equal_filesize(bigFile, ss, output_location):
     """
     Function to initialize few global arguments for each process
     of the multiprocessing for the tiling with equal file sizes.
@@ -100,9 +101,10 @@ def init_equal_filesize(bigFile, ss):
     :param ss: digits on which to tile upon on
     :type ss: int array
     """
-    global infile, digits
+    global infile, digits, out_loc
     infile = bigFile
     digits = ss
+    out_loc = output_location
 
 
 def tile_equal_filesize(item):
@@ -115,24 +117,34 @@ def tile_equal_filesize(item):
     :return: writes a tile to the system
     """
     mask = (digits == item)
-
-    outFile = rh_io.las_output(infile.filename.split('/')[-1].split('.las')[0]+"_Tile"+str(item).zfill(3)+".las",
+    outFile = rh_io.las_output(out_loc+infile.filename.split('/')[-1].split('.las')[0]+"_Tile"+str(item).zfill(3)+"_000.las",
                                infile, mask)
     outFile.close()
 
- 
-def rh_tiling_gps_equal_filesize(filename, no_tiles=10):
+
+def file_size(file_path):
+    """
+    this function will return the file size
+    """
+    if os.path.isfile(file_path):
+        file_info = os.stat(file_path)
+        return file_info.st_size
+
+
+def rh_tiling_gps_equal_filesize(filename, output_location, filesize=30):
     """
     Starting the multiprocessing pool of threads that are going to
     split the big tile.
 
+    :param filesize: Size in MB for one tile
+    :param output_location: where to output the tiles
     :param filename: File name which needs to be tiled.
     :type filename: string
-    :param no_tiles: Number of tiles in which the file will be tiled
-    :type no_tiles: int
     """
     # Input the big file
     bigFile = rh_io.las_input(filename, mode="r")
+
+    no_tiles = round(file_size(filename)/(filesize*1048576))
 
     # Extract the gps time
     gps_time = bigFile.gps_time
@@ -147,17 +159,21 @@ def rh_tiling_gps_equal_filesize(filename, no_tiles=10):
     # Same as previous
     pool_size = cpu_count() * 2
 
-    pool = Pool(processes=pool_size, initializer=init_equal_filesize, initargs=(bigFile, digits))
+    pool = Pool(processes=pool_size, initializer=init_equal_filesize, initargs=(bigFile, digits, output_location))
     pool.map(tile_equal_filesize, range(no_tiles))
     pool.close()
 
 
-def rh_extract_ground(inname, outname, slope=0.1, cut=0.0, window=18, cell=1.0, scalar=0.5, threshold=0.5):
+def pdal_smrf(inname, outname, extra_dims=[("slpid"), ("uint64")], ground_classification=2, above_ground_classification=4,
+              slope=0.1, cut=0.0, window=18, cell=1.0, scalar=0.5, threshold=0.5):
     """
     Extraction of ground points. It is making the command
     to run the pdal ground app.
 
-    :param inname: File name on which we need to extract the ground points.
+    :param above_ground_classification: Classification on above
+    :param ground_classification: Classification on ground
+    :param extra_dims: Array of extra dimensions and types like [(extra1,uint64),(extra2,float)]
+    :param inname: Las file name on which we need to extract the ground points.
     :type inname: string
     :param outname: File name which will have the ground points classified
     :type outname: string
@@ -169,31 +185,25 @@ def rh_extract_ground(inname, outname, slope=0.1, cut=0.0, window=18, cell=1.0, 
     :param threshold: ground param
     """
 
-    # Example json which we don't need but
-    # might use later if we have pdal python library
-    json = '{"pipeline": ' \
-           '[{"count": "18446744073709551615", ' \
-           '"type": "readers.las", ' \
-           '"compression": "EITHER", ' \
-           '"filename": {}}, ' \
-           '{slope": {},' \
-           '"cut": {},' \
-           '"window": {},' \
-           '"cell": {},' \
-           '"scalar": {},' \
-           '"threshold": {},' \
-           '"type": "filters.smrf"' \
-           '},' \
-           '{' \
-           '"extra_dims": "all",' \
-           '"type": "writers.las",' \
-           '"filename": {}}' \
-           '}' \
-           ']' \
-           '}'
+    # if the extra dims is None make it empty array
+    if extra_dims is None:
+        extra_dims = []
+
+    # make a string for the extra dims
+    readers = " --readers.las.extra_dims=\""
+    i = 0
+    # if we have multiple dimensions make the string in way
+    # "extra1=type,extra2=type"
+    for dim in extra_dims:
+        i += 1
+        if i == len(extra_dims):
+            readers += dim[0]+'='+dim[1]+'\" '
+        else:
+            readers += dim[0] + '=' + dim[1] + ','
 
     # The ground command v2 with translate
     ground_command_v2 = "pdal translate " \
+                        + readers + \
                         "--writers.las.extra_dims=all {} {} smrf" \
                         " --filters.smrf.slope={} " \
                         "--filters.smrf.cut={} " \
@@ -203,12 +213,33 @@ def rh_extract_ground(inname, outname, slope=0.1, cut=0.0, window=18, cell=1.0, 
                         "--filters.smrf.threshold={} "
 
     # The ground command with pdal ground app
-    ground_command = "pdal ground --slope 0.1 --max_window_size 18 --cell_size 0.5 --initial_distance 2.0 -i {} -o {}"
+    # ground_command = "pdal ground --slope 0.1 --max_window_size 18 --cell_size 0.5 --initial_distance 2.0 -i {} -o {}"
 
+    # populate the command with all the attributes that ground have
     command_v2 = ground_command_v2.format(inname, outname, slope, cut, window, cell, scalar, threshold)
-    command = ground_command.format(inname, outname)
-    # print(command)
+    # command = ground_command.format(infile.filename, outname)
+
+    # call the command from the system which will make a file with name as outname
     os.system(command_v2)
+
+    # Read that file
+    outFile = File(outname, mode='rw')
+
+    # Take classification
+    cls_ground = outFile.classification
+
+    # See what is classified as ground
+    cls_mask_ground = cls_ground == 2
+
+    # Change the ground and above ground as we said in the parameters
+    cls_ground[cls_mask_ground] = ground_classification
+    cls_ground[~cls_mask_ground] = above_ground_classification
+
+    # Save the classification
+    outFile.classification = cls_ground
+
+    # return the las file
+    return outFile
 
 
 def rh_hag(inname, outname):

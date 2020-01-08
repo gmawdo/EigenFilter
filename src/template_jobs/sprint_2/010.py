@@ -2,18 +2,21 @@ import pathmagic
 import numpy as np
 from redhawkmaster import rh_io
 from redhawkmaster.las_modules import las_range, rh_assign
+from redhawkmaster.rh_io import script_params
+
 assert pathmagic
 
 # Job that is classifying additional noise in the dataset
+args = script_params()
 
-input_file = 'ILIJA_FlightlineTest_job004.las'
-output_file = 'ILIJA_FlightlineTest_job010.las'
+input_file = args.input[0]
+output_file = args.output[0]
 f004 = rh_io.las_input(input_file, mode='r')
 
 point_id = np.arange(len(f004))
 
 f010_000_prep = rh_io.las_output(output_file,
-                                 inFile=f004,
+                                 in_file=f004,
                                  mask=point_id)
 
 f010_000_prep.user_data = f004.Classification

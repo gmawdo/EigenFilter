@@ -2,10 +2,14 @@ import pathmagic
 import numpy as np
 from redhawkmaster import rh_io
 from redhawkmaster.las_modules import rh_kdistance, las_range
+from redhawkmaster.rh_io import script_params
+
 assert pathmagic
 
-input_file = 'ILIJA_FlightlineTest_job110_04.las'
-output_file = 'ILIJA_FlightlineTest_job110_05.las'
+args = script_params()
+
+input_file = args.input[0]
+output_file = args.output[0]
 
 f110_04 = rh_io.las_input(input_file, mode='r')
 
@@ -44,7 +48,6 @@ point_count_max = las_range(dimension=f110_05.kdistance,
                             reverse=False,
                             point_id_mask=point_count_max)
 
-
 rh_kdistance(f110_05,
              k=1,
              make_dimension=False,
@@ -184,7 +187,6 @@ point_count_max = las_range(dimension=f110_05.kdistance,
                             end=2.6,
                             reverse=False,
                             point_id_mask=point_count_max)
-
 
 rh_kdistance(f110_05,
              k=2,

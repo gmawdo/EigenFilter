@@ -1,11 +1,14 @@
 import pathmagic
 from redhawkmaster.rh_big_guns import rh_extract_ground
+from redhawkmaster.rh_io import script_params
+
 assert pathmagic
 
 # Extraction of ground points
+args = script_params()
 
-input_file = 'ILIJA_FlightlineTest_job010.las'
-output_file = 'ILIJA_FlightlineTest_job020.las'
+input_file = args.input[0]
+output_file = args.output[0]
 
 rh_extract_ground(inname=input_file,
                   outname=output_file,

@@ -2,12 +2,15 @@ import pathmagic
 import numpy as np
 from redhawkmaster import rh_io
 from redhawkmaster.las_modules import las_range, rh_kdistance, rh_assign
+from redhawkmaster.rh_io import script_params
+
 assert pathmagic
 
 # Clip around above points
+args = script_params()
 
-input_file = 'ILIJA_FlightlineTest_job071.las'
-output_file = 'ILIJA_FlightlineTest_job081.las'
+input_file = args.input[0]
+output_file = args.output[0]
 
 f071 = rh_io.las_input(input_file, mode='r')
 
@@ -29,7 +32,6 @@ rh_kdistance(f081_000,
              make_dimension=False,
              mask=point_id)
 
-
 point_id_130_returnnum = las_range(dimension=f081_000.return_num,
                                    start=1, end=2,
                                    reverse=False,
@@ -43,6 +45,5 @@ point_id_130_kd_clip1 = las_range(dimension=f081_000.kdistance,
 f081_000.Classification = rh_assign(f081_000.Classification,
                                     value=7,
                                     mask=point_id_130_kd_clip1)
-
 
 f081_000.close()
