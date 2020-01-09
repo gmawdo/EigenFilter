@@ -5,8 +5,7 @@ import pathmagic
 # once in-memory flow is built we should release to master - no need for version numbers anymore on functions
 # note that we cannot import * locally in functions so we must do it at module lv. - hence commenting out above
 
-from redhawkmaster.rh_io import *
-from redhawkmaster.rh_pipes import *
+from .rh_ui import *
 
 assert pathmagic
 

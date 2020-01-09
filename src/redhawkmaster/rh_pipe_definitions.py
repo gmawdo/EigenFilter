@@ -97,6 +97,7 @@ def splitter(in_memory, predicates):
     for key in predicates:
         in_memory.add_dimension(key, np.bool)
         setattr(in_memory, key, predicates[key])
+
     return None
 
 
@@ -112,14 +113,12 @@ def point_id(in_memory,
     :param inc_step: how much to increment the point ID.
     :return:
     """
-
     pid = np.arange(start=start_value,
                     stop=(len(in_memory) * inc_step) + start_value,
                     step=inc_step,
                     dtype=np.uint64)
 
     in_memory.add_dimension(point_id_name, pid.dtype)
-
     setattr(in_memory, point_id_name, pid)
 
     return None
@@ -164,9 +163,6 @@ def cluster_labels(in_memory,
     setattr(in_memory, cluster_attribute, labels_allpts)
 
     return None
-
-
-
 
 
 def ferry_values(in_memory, out_of, in_to):

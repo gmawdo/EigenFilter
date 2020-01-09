@@ -89,6 +89,8 @@ def script_params():
     return args
 
 
+# === STUFF FOR USER PIPELINE ===
+
 class ReadIn(RedHawkPointCloud):
     def __init__(self, file_name):
         in_file = File(file_name)
@@ -101,30 +103,15 @@ class ReadIn(RedHawkPointCloud):
         self.__original_header = in_file.header
         self.__original_points = in_file.points
 
-    def qc(self, new_file_name):
+    def qc(self, new_file_name, index=...):
         out_file = File(new_file_name, mode="w", header=self.__original_header)
-        out_file.points = self.__original_points
-        out_file.classification = self.classification
-        out_file.intensity = self.intensity
+        out_file.points = self.__original_points[index]
+        out_file.classification = self.classification[index]
+        out_file.intensity = self.intensity[index]
         out_file.close()
 
-
-# === STUFF FOR USER PIPELINE ===
 
 class QC(RedHawkPipe):
     def __init__(self,
                  file_name):
         super().__init__(pipe_definition=ReadIn.qc, new_file_name=file_name)
-
-
-class UIPipeline:
-    def __init__(self, input_object, *pipes):
-        assert isinstance(input_object,
-                          ReadIn), f"The first step should read in a file, using {ReadIn.__name__}(file_name)"
-        assert all(isinstance(pipe, RedHawkPipe) for pipe in
-                   pipes), f"Every step after the ReadIn must be a {RedHawkPipe.__name__}."
-        self.__input_object = input_object
-        self.__pipeline = RedHawkPipeline(*pipes)
-
-    def __call__(self):
-        self.__pipeline(self.__input_object)
