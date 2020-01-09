@@ -5,16 +5,13 @@ import pathmagic
 # once in-memory flow is built we should release to master - no need for version numbers anymore on functions
 # note that we cannot import * locally in functions so we must do it at module lv. - hence commenting out above
 
-from redhawkmaster.rh_inmemory import *
-from redhawkmaster.rh_pipe_definitions import *
 from redhawkmaster.rh_io import *
+from redhawkmaster.rh_pipes import *
 
 assert pathmagic
 
 
-
 def in_memory_testing():
-
     UIPipeline(
         ReadIn(
             file_name="T000.las"
@@ -27,6 +24,9 @@ def in_memory_testing():
             cluster_attribute="whatever",
             minimum_length=0.10
         ),
+        QC(
+            file_name="QCnew.las"
+        ),
         PointId(
             point_id_name="pid",
             start_value=0,
@@ -35,11 +35,8 @@ def in_memory_testing():
         FerryValues(
             out_of="whatever",
             in_to="intensity"
-        ),
-        QC(
-            file_name="QCnew.las"
         )
-    )()
+        )()
 
 
 # triangulation_test()

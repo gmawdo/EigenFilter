@@ -54,7 +54,7 @@ def nd_array_deller(key):
     return deller
 
 
-def point_cloud_type(name: str, data_types: dict) -> type:
+def point_cloud_type(name, data_types):
     """
     This function produces the type of a file with a given dictionary of data types
 
@@ -78,7 +78,19 @@ def point_cloud_type(name: str, data_types: dict) -> type:
                 property(fset=nd_array_setter(dimension, data_types[dimension]), fget=nd_array_getter(dimension),
                          fdel=nd_array_deller(dimension)))
 
-    attribute_dict = dict(__init__=__init__, __len__=__len__, add_dimension=add_dimension, data_types=data_types)
+    def __getitem__(self, indices):
+        if isinstance(indices, np.ndarray) and indices.dtype == np.bool:
+            length = np.count_nonzero(indices)
+            new_point_cloud = type(self)(length)
+            for key in self.data_types:
+                setattr(new_point_cloud, key, getattr(self, key)[indices])
+            return new_point_cloud
+
+    attribute_dict = dict(__init__=__init__,
+                          __len__=__len__,
+                          __getitem__=__getitem__,
+                          data_types=data_types,
+                          add_dimension=add_dimension)
 
     for key in data_types:
         attribute_dict[key] = property(fset=nd_array_setter(key, data_types[key]), fget=nd_array_getter(key),
