@@ -97,7 +97,7 @@ def splitter(in_memory, predicates):
     for key in predicates:
         in_memory.add_dimension(key, np.bool)
         setattr(in_memory, key, predicates[key])
-    return {key: in_memory[predicates[key]]}
+    return None
 
 
 def point_id(in_memory,
@@ -176,8 +176,3 @@ def ferry_values(in_memory, out_of, in_to):
     setattr(in_memory, in_to, value_a)
 
     return None
-
-
-
-
-# def add_attributes(in_memory, min_k, max_k, )

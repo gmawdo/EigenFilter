@@ -110,9 +110,6 @@ class ReadIn(RedHawkPointCloud):
 
 
 # === STUFF FOR USER PIPELINE ===
-class UIPointCloud(RedHawkPointCloud):
-    def __init__(self, point_cloud):
-
 
 class QC(RedHawkPipe):
     def __init__(self,

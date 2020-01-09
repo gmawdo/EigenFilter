@@ -79,12 +79,12 @@ def point_cloud_type(name, data_types):
                          fdel=nd_array_deller(dimension)))
 
     def __getitem__(self, indices):
-        if isinstance(indices, np.ndarray) and indices.dtype == np.bool:
-            length = np.count_nonzero(indices)
-            new_point_cloud = type(self)(length)
-            for key in self.data_types:
-                setattr(new_point_cloud, key, getattr(self, key)[indices])
-            return new_point_cloud
+        assert isinstance(indices, np.ndarray) and indices.dtype == np.bool, "Boolean indices only"
+        length = np.count_nonzero(indices)
+        new_point_cloud = type(self)(length)
+        for key in self.data_types:
+            setattr(new_point_cloud, key, getattr(self, key)[indices])
+        return new_point_cloud
 
     attribute_dict = dict(__init__=__init__,
                           __len__=__len__,
@@ -95,6 +95,7 @@ def point_cloud_type(name, data_types):
     for key in data_types:
         attribute_dict[key] = property(fset=nd_array_setter(key, data_types[key]), fget=nd_array_getter(key),
                                        fdel=nd_array_deller(key))
+
     return type(name, (object,), attribute_dict)
 
 
