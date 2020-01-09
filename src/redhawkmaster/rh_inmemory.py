@@ -12,7 +12,7 @@ def nd_array_setter(key, data_type):
 
     def setter(self, value):
         # make a new numpy vector
-        new_value = np.zeros(self.length, dtype=data_type)
+        new_value = np.empty(shape=self.shape, dtype=data_type)
         # set its value
         # this syntax should tell whether we have used a value with a shape which doesn't work
         new_value[:] = value
@@ -49,7 +49,7 @@ def nd_array_deller(key):
         # simply extract the value from the hidden variable
         delattr(self, "__" + key)
         delattr(type(self), key)
-        del self.datatypes[key]
+        del self.data_types[key]
 
     return deller
 
@@ -61,42 +61,42 @@ def point_cloud_type(name, data_types):
     @param name: Name of class. See documentation for type.
     @param data_types: Dictionary of data types
     e.g. data_types = {"x": np.float64, "y": np.float64, "z": np.float64, "intensity": np.int8}
-    @return: a type which takes a parameters two parameters "length" (a positive integer) and "user_info" (anything)
+    @return: a type which takes a parameters two parameters "shape" (a positive integer) and "user_info" (anything)
     to initialise. Note that the values for the data parameters can be set later. Following from the above example,
     one can set inFile.x, inFile.y, inFile.z, and inFile.intensity once an object inFile is initialised.
     """
 
-    def __init__(self, length):
-        self.length = length
+    def __init__(self, shape):
+        self.shape = shape
 
-    def __len__(self):
-        return self.length
-
-    def add_dimension(self, dimension, data_type):
-        self.data_types[dimension] = data_type
-        setattr(type(self), dimension,
-                property(fset=nd_array_setter(dimension, data_types[dimension]), fget=nd_array_getter(dimension),
-                         fdel=nd_array_deller(dimension)))
+    def add_dimension(self, key, data_type):
+        new_data_types = self.data_types
+        rub_out = len(str(new_data_types))
+        new_data_types[key] = data_type
+        new_point_cloud_type = point_cloud_type(name=self.initial_type_name[:-rub_out],
+                                                data_types=new_data_types)
+        self.__type__ = new_point_cloud_type
+        setattr(self, key, 0)
 
     def __getitem__(self, indices):
         assert isinstance(indices, np.ndarray) and indices.dtype == np.bool, "Boolean indices only"
-        length = np.count_nonzero(indices)
-        new_point_cloud = type(self)(length)
-        for dimension in self.data_types:
-            setattr(new_point_cloud, dimension, getattr(self, dimension)[indices])
+        shape = np.count_nonzero(indices)
+        new_point_cloud = type(self)(shape)
+        for key in self.data_types:
+            setattr(new_point_cloud, key, getattr(self, key)[indices])
         return new_point_cloud
 
     attribute_dict = dict(__init__=__init__,
-                          __len__=__len__,
                           __getitem__=__getitem__,
                           data_types=data_types,
                           add_dimension=add_dimension)
 
-    for key in data_types:
-        attribute_dict[key] = property(fset=nd_array_setter(key, data_types[key]), fget=nd_array_getter(key),
-                                       fdel=nd_array_deller(key))
+    for dimension in data_types:
+        attribute_dict[dimension] = property(fset=nd_array_setter(dimension, data_types[dimension]),
+                                             fget=nd_array_getter(dimension),
+                                             fdel=nd_array_deller(dimension))
 
-    return type(name, (object,), attribute_dict)
+    return type(name + str(data_types), (object,), attribute_dict)
 
 
 RedHawkPointCloud = point_cloud_type(name="RedHawkPointCloud",
@@ -123,6 +123,7 @@ class RedHawkPipeline:
     def __call__(self, *in_memory):
         for item in self.__pipes:
             item(*in_memory)
+        return None
 
 
 class RedHawkArrow:

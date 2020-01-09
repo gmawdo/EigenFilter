@@ -94,11 +94,7 @@ def clustering(coords,
 #  === PIPE DEFINITIONS ===
 # IN PIPES, in_memory must always be the first argument - otherwise it will not work!
 def splitter(in_memory, predicates):
-    for key in predicates:
-        in_memory.add_dimension(key, np.bool)
-        setattr(in_memory, key, predicates[key])
-
-    return None
+    return {key: in_memory[predicates[key]] for key in predicates}
 
 
 def point_id(in_memory,

@@ -2,6 +2,13 @@ from .rh_io import ReadIn
 from .rh_inmemory import RedHawkPipeline
 from .rh_pipes import *
 
+
+class UIReadIn(ReadIn):
+    def __init__(self, read_in: ReadIn, file_name):
+        super().__init__(file_name)
+        self.__stream = {}
+
+
 class UIPipeline:
     def __init__(self, input_object, *pipes):
         assert isinstance(input_object,

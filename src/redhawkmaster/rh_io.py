@@ -102,6 +102,7 @@ class ReadIn(RedHawkPointCloud):
         self.intensity = in_file.intensity
         self.__original_header = in_file.header
         self.__original_points = in_file.points
+        self.__streams = {}
 
     def qc(self, new_file_name, index=...):
         out_file = File(new_file_name, mode="w", header=self.__original_header)
