@@ -78,12 +78,11 @@ def point_cloud_type(name, data_types):
         self.__type__ = new_point_cloud_type
         setattr(self, key, 0)
 
-    def __getitem__(self, indices):
-        assert isinstance(indices, np.ndarray) and indices.dtype == np.bool, "Boolean indices only"
-        shape = np.count_nonzero(indices)
+    def __getitem__(self, subscript):
+        shape = (np.empty(self.shape)[subscript]).shape
         new_point_cloud = type(self)(shape)
         for key in self.data_types:
-            setattr(new_point_cloud, key, getattr(self, key)[indices])
+            setattr(new_point_cloud, key, getattr(self, key)[subscript])
         return new_point_cloud
 
     attribute_dict = dict(__init__=__init__,
