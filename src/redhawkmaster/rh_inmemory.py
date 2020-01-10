@@ -85,13 +85,10 @@ def array_manager_type(name, data_types):
 
 
 def point_cloud_type(name, data_types):
-
     def __init__(self, shape):
-        array_manager_type_data_types = array_manager_type("AM" + name, data_types)
+        array_manager_type_data_types = array_manager_type("ArrayManager" + name, data_types)
         self.__array_manager = array_manager_type_data_types(shape)
         self.__dict__["__core_data_types"] = data_types
-        for item in self.__array_manager.data_types:
-            setattr(self, item, 0)
 
     def __setattr__(self, key, value):
         if key == "__array_manager":
@@ -104,34 +101,68 @@ def point_cloud_type(name, data_types):
     def __getattr__(self, key):
         if key == "__array_manager":
             return self.__dict__["__array_manager"]
-        if key == "__core_data_types":
+        elif key == "__core_data_types":
             return self.__dict__["__core_data_types"]
-        if key in self.__array_manager.data_types:
+        elif key in self.__array_manager.data_types:
             return getattr(self.__array_manager, key)
+        elif key == "shape":
+            return self.__array_manager.shape
         else:
             pass
 
     def __delattr__(self, key):
-        if key in self.__core_data_types:
-            raise AttributeError("You cannot delete a core attribute")
-        if key in self.__array_manager.data_types:
+        if key in self.__array_manager.data_types and key not in self.__core_data_types:
             new_array_manager = self.__array_manager.delete_dimension(key)
             delattr(new_array_manager, key)
             self.__array_manager = new_array_manager
         else:
             pass
 
+    def __getitem__(self, subscript):
+        new_array_manager = self.__array_manager[subscript]
+        new_shape = new_array_manager.shape
+        new_point_cloud = type(self)(new_shape)
+        new_point_cloud.__array_manager = new_array_manager
+        return new_point_cloud
+
     attribute_dict = dict(__init__=__init__,
                           __setattr__=__setattr__,
                           __delattr__=__delattr__,
-                          __getattr__=__getattr__)
+                          __getattr__=__getattr__,
+                          __getitem__=__getitem__)
 
     return type(name, (), attribute_dict)
+
+
+def structure(entry_type):
+    if not isinstance(entry_type, type):
+        raise ValueError(f"{entry_type.__name__} is not a type")
+    if not hasattr(entry_type, "__getitem__"):
+        raise ValueError(f"{entry_type.__name__} is not a subscriptable type")
+
+    def __init__(self, **kwargs):
+        dict.__init__(self, {key: entry_type(kwargs[key]) for key in kwargs})
+        self.structure = {item: {item: slice(None)} for item in kwargs}
+
+    def split(self, key, **subscripts):
+        intersection = {item for item in subscripts}.intersection({item for item in self})
+        if intersection:
+            raise ValueError(f"{intersection} are already in use as a sub-object")
+        self[key] = {item: self[key][subscripts[item]] for item in subscripts}
+
+    def merge(self, key):
+
+
+    return type("TreeOf" + str(entry_type.__name__),
+                (dict,),
+                dict(__init__=__init__,
+                     split=split))
 
 
 RedHawkPointCloud = point_cloud_type(name="RedHawkPointCloud",
                                      data_types={"x": np.float64, "y": np.float64, "z": np.float64,
                                                  "classification": np.uint8, "intensity": np.uint16})
+RedHawkStructure = structure(RedHawkPointCloud)
 
 
 class RedHawkPipe:
