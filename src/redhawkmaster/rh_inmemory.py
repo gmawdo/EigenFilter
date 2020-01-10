@@ -37,7 +37,7 @@ def nd_array_getter(key):
     return getter
 
 
-def nd_array_deller(key):
+def nd_array_deleter(key):
     """
     This function is used in point_cloud_type to delete the property corresponding to each datatype.
     It accesses deletes the hidden variable so that users can evaluate the property for each dimension.
@@ -45,13 +45,13 @@ def nd_array_deller(key):
     @return: the fget function for this data_type, for the property class
     """
 
-    def deller(self):
+    def deleter(self):
         # simply extract the value from the hidden variable
         delattr(self, "__" + key)
         delattr(type(self), key)
         del self.data_types[key]
 
-    return deller
+    return deleter
 
 
 def point_cloud_type(name, data_types):
@@ -71,12 +71,10 @@ def point_cloud_type(name, data_types):
 
     def add_dimension(self, key, data_type):
         new_data_types = self.data_types
-        rub_out = len(str(new_data_types))
         new_data_types[key] = data_type
-        new_point_cloud_type = point_cloud_type(name=self.initial_type_name[:-rub_out],
+        new_point_cloud_type = point_cloud_type(name=name+str(new_data_types),
                                                 data_types=new_data_types)
-        self.__type__ = new_point_cloud_type
-        setattr(self, key, 0)
+        return new_point_cloud_type
 
     def __getitem__(self, subscript):
         shape = (np.empty(self.shape)[subscript]).shape
@@ -93,7 +91,7 @@ def point_cloud_type(name, data_types):
     for dimension in data_types:
         attribute_dict[dimension] = property(fset=nd_array_setter(dimension, data_types[dimension]),
                                              fget=nd_array_getter(dimension),
-                                             fdel=nd_array_deller(dimension))
+                                             fdel=nd_array_deleter(dimension))
 
     return type(name + str(data_types), (object,), attribute_dict)
 
