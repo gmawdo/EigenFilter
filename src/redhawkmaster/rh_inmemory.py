@@ -42,7 +42,7 @@ def nd_array_deleter(key):
     This function is used in point_cloud_type to delete the property corresponding to each datatype.
     It accesses deletes the hidden variable so that users can evaluate the property for each dimension.
     @param key: name of dimension
-    @return: the fget function for this data_type, for the property class
+    @return: the fdel function for this data_type, for the property class
     """
 
     def deleter(self):
