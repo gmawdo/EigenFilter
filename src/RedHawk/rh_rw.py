@@ -2,7 +2,7 @@ from laspy.file import File
 import numpy as np
 import os
 import argparse
-from .rh_inmemory import RedHawkPointCloud, RedHawkPipe, RedHawkPipeline
+from .rh_in_memory import RedHawkPointCloud, RedHawkPipe, RedHawkPipeline
 
 
 def las_input(input_name, mode):

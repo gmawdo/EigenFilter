@@ -1,5 +1,5 @@
 from .rh_io import ReadIn
-from .rh_inmemory import RedHawkPipeline
+from .rh_in_memory import RedHawkPipeline
 from .rh_pipes import *
 
 

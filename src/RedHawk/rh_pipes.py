@@ -1,4 +1,4 @@
-from .rh_inmemory import RedHawkPipe
+from .rh_in_memory import RedHawkPipe
 from .rh_pipe_definitions import *
 
 
