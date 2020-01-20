@@ -1781,7 +1781,7 @@ def reset_min(infile, output_file, attribute1, attribute2, new_minimum):
     dtype1 = vector1.dtype
     dtype2 = vector2.dtype
     dtype = [(attribute1, dtype1), (attribute2, dtype2)]
-    vector = np.empty(dtype=dtype)
+    vector = np.empty(len(in_file), dtype=dtype)
     vector[attribute1] = vector1
     vector[attribute2] = vector2
     args = np.lexsort(vector[:, ::-1])  # lex sort takes column -1 as primary, -2 as secondary, etc.
