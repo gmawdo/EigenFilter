@@ -142,13 +142,22 @@ def tree(entry_type):
 
     def __init__(self, **kwargs):
         dict.__init__(self, {key: entry_type(kwargs[key]) for key in kwargs})
-        self.tree = {item: {item: slice(None)} for item in kwargs}
+        self.structure = {item: {item: slice(None)} for item in kwargs}
+        self.parents = {item: item for item in kwargs}
+        self.children = {item: None for item in kwargs}
 
     def split(self, key, **subscripts):
+        if self.children[key]:
+            raise ValueError("That key already contains split data - you can't split it again")
         intersection = {item for item in subscripts}.intersection({item for item in self})
         if intersection:
-            raise ValueError(f"{intersection} are already in use as a sub-object")
+            raise ValueError(f"{intersection} already in use as sub-object(s)")
+        del intersection
         self[key] = {item: self[key][subscripts[item]] for item in subscripts}
+        for item in subscripts:
+            self.parents[item] = key
+            self.children[key] = {entry for entry in subscripts}
+        self.structure[key] =
 
     def merge(self, key):
 
