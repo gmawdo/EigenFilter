@@ -1764,3 +1764,30 @@ def create_attributes(infile, output_file, attribute_names=None):
         out_file.writer.set_dimension(dimension, dat)
 
     return out_file
+
+
+def reset_min(infile, output_file, attribute1, attribute2, new_minimum):
+    """
+    @param infile:
+    @param output_file:
+    @param attribute1: Primary attribute for grouping secondary, e.g. gps-time
+    @param attribute2: Attribute to be reset, e.g. return number
+    @param new_minimum: new group minimum for attribute2
+    @return:
+    """
+    in_file = File(infile)
+    vector1 = in_file.reader.get_dimension[attribute1]
+    vector2 = in_file.reader.get_dimension[attribute2]
+    dtype1 = vector1.dtype
+    dtype2 = vector2.dtype
+    dtype = [(attribute1, dtype1), (attribute2, dtype2)]
+    vector = np.empty(dtype=dtype)
+    vector[attribute1] = vector1
+    vector[attribute2] = vector2
+    args = np.lexsort(vector[:, ::-1])  # lex sort takes column -1 as primary, -2 as secondary, etc.
+    unq, ind, inv, cnt = np.unique(vector1[args], return_index=True, return_inverse=True, return_counts=True)
+    group_by_min = vector2[ind][inv]
+    vector2 = vector2 - group_by_min + new_minimum
+    output_file.writer.set_dimension(attribute2, vector2)
+
+    return output_file
