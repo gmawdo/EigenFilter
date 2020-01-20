@@ -2,71 +2,54 @@ import numpy as np
 
 
 class RedHawkVector(np.ndarray):
-    def __new__(cls, shape, **data_types):
-        for key in data_types:
-            if key == "points":
-                raise ValueError("You cannot have a dimension called points")
-        return super().__new__(shape, list(data_types.items()))
 
-    def __init__(self, shape, **data_types):
-        super().__init__(shape, list(data_types.items()))
-        self.data_types = data_types
+    def __new__(cls, shape, data_types):
+        return super().__new__(cls, shape, list(data_types.items()))
 
     def add_dimension(self, key, data_type):
-        new_data_types = self.data_types.copy()
-        new_data_types[key] = data_type
-        new_vector = RedHawkVector(self.shape, **new_data_types)
-        for item in self.data_types:
+        dt = {key: self.dtype[key] for key in self.dtype.fields}
+        new_dt = dt.copy()
+        new_dt[key] = data_type
+        new_vector = RedHawkVector(self.shape, new_dt)
+        for item in dt:
             new_vector[item] = self[item]
         return new_vector
 
     def delete_dimension(self, key):
-        new_data_types = self.data_types.copy()
-        del new_data_types[key]
-        new_vector = RedHawkVector(self.shape, **new_data_types)
-        for item in new_data_types:
+        dt = {key: self.dtype[key] for key in self.dtype.fields}
+        new_dt = dt.copy()
+        del new_dt[key]
+        new_vector = RedHawkVector(self.shape, new_dt)
+        for item in new_dt:
             new_vector[item] = self[item]
         return new_vector
 
 
 class RedHawkObject:
-    def __init__(self, shape, **data_types):
-        self.__dict__["__vector"] = RedHawkVector(shape, **data_types)
+    def __init__(self, shape, data_types):
+        self.__dict__["__vector"] = RedHawkVector(shape, data_types)
         self.__dict__["__core_data_types"] = data_types
 
     def __setattr__(self, key, value):
-        if key in self.points.data_types:
+        if key in self.__dict__["__vector"].dtype.fields:
             self.__dict__["__vector"][key] = value
-        elif key == "points":
-            new_points = np.empty(shape=self.points.shape, dtype=self.points.dtype)
-            new_points[:] = value
-            self.__dict__['__vector'] = new_points
         else:
             pass
 
     def __getattr__(self, key):
-        if key == "points":
-            return self.__dict__["__vector"]
-        elif key in self.points.data_types:
-            return self.points[key]
-        elif key == "shape":
-            return self.points.shape
+        if key in self.__dict__["__vector"].dtype.fields:
+            return self.__dict__["__vector"][key]
         else:
             pass
 
     def __delattr__(self, key):
-        if key in self.points.data_types and key not in self.__dict__["__core_data_types"]:
-            new_points = self.points.delete_dimension(key)
-            self.__dict__["__vector"] = new_points
+        if key in self.__dict__["__vector"].dtype.fields and key not in self.__dict__["__core_data_types"]:
+            self.__dict__["__vector"] = self.__dict__["__vector"].delete_dimension(key)
         else:
             pass
 
-    def __getitem__(self, subscript):
-        new_vector = self.points[subscript]
-        new_shape = new_vector.shape
-        new_object = RedHawkVector(new_shape, **self.points.data_types)
-        new_object.points = new_vector
-        return new_object
+    def add_dimension(self, key, data_type):
+        self.__dict__["__vector"] = self.__dict__["__vector"].add_dimension(key, data_type)
 
 
 def tree(entry_type):
