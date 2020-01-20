@@ -134,7 +134,7 @@ def point_cloud_type(name, data_types):
     return type(name, (), attribute_dict)
 
 
-def multi(entry_type):
+def tree(entry_type):
     if not isinstance(entry_type, type):
         raise ValueError(f"{entry_type.__name__} is not a type")
     if not hasattr(entry_type, "__getitem__"):
@@ -142,7 +142,7 @@ def multi(entry_type):
 
     def __init__(self, **kwargs):
         dict.__init__(self, {key: entry_type(kwargs[key]) for key in kwargs})
-        self.multi = {item: {item: slice(None)} for item in kwargs}
+        self.tree = {item: {item: slice(None)} for item in kwargs}
 
     def split(self, key, **subscripts):
         intersection = {item for item in subscripts}.intersection({item for item in self})
@@ -162,7 +162,7 @@ RedHawkPointCloud = point_cloud_type(name="RedHawkPointCloud",
                                      data_types={"x": np.float64, "y": np.float64, "z": np.float64,
                                                  "classification": np.uint8, "intensity": np.uint16})
 
-RedHawkShard = multi(RedHawkPointCloud)
+RedHawkTree = tree(RedHawkPointCloud)
 
 
 class RedHawkPipe:
