@@ -1,6 +1,32 @@
 import numpy as np
 
 
+class RedHawkVector(np.ndarray):
+    __new__ = lambda cls, shape, **data_types: np.ndarray.__new__(shape, list(data_types.items()))
+
+    def __init__(self, shape, **data_types):
+        super().__init__(shape, list(data_types.items()))
+        self.__original_shape = shape
+        self.__core_data_types = data_types
+        self.data_types = data_types
+
+    def add_dimension(self, key, data_type):
+        new_data_types = self.data_types.copy()
+        new_data_types[key] = data_type
+        new_vector = RedHawkVector(self.shape, **new_data_types)
+        for item in self.data_types:
+            new_vector[item] = self[item]
+        return new_vector
+
+    def delete_dimension(self, key):
+        new_data_types = self.data_types.copy()
+        del new_data_types[key]
+        new_vector = RedHawkVector(self.shape, **new_data_types)
+        for item in new_data_types:
+            new_vector[item] = self[item]
+        return new_array_manager_type
+
+
 def nd_array_setter(key, data_type):
     """
     This function is used in array_manager_type to define the property corresponding to each datatype.
