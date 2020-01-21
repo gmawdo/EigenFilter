@@ -1,11 +1,12 @@
 import pathmagic
 
 from redhawkmaster.rh_dean import *
+
 # the above commented out to avoid conflict with rh_inmemory and acquisition_modelling
 # once in-memory flow is built we should release to master - no need for version numbers anymore on functions
 # note that we cannot import * locally in functions so we must do it at module lv. - hence commenting out above
 
-#from .rh_ui import *
+# from .rh_ui import *
 
 assert pathmagic
 
@@ -488,7 +489,6 @@ assert pathmagic
 #                                 text_file="aqcuisition_modelling_radius.txt")
 
 
-
 # def in_memory_testing():
 #     UIPipeline(
 #         ReadIn(
@@ -517,10 +517,10 @@ assert pathmagic
 #         )()
 
 def return_nums_testing():
-    infile = 'SJ290.las'
-    outfile = 'new_returns_SJ290.las'
-    returns_clean(infile,
-                  outfile)
+    infile = 'SJ2970.las'
+    outfile = 'new_returns_SJ2970.las'
+    returns_clean_v01_0(infile,
+                        outfile)
 
 
 # triangulation_test()

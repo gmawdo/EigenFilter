@@ -1773,15 +1773,8 @@ def group_by_renumber(vector1, vector2, return_group_max=False):
     new_numbers = (1 + np.arange(inv.size) - ind[inv])[reverse_args]
     group_max = cnt[inv][reverse_args]
     if not return_group_max:
-        print('a', vector1[args])
-        print('b', vector2[args])
-        print('c', new_numbers[args])
         return new_numbers
     else:
-        print('a', vector1[args])
-        print('b', vector2[args])
-        print('c', new_numbers[args])
-        print('d', group_max[args])
         return new_numbers, group_max
 
 
@@ -1804,7 +1797,7 @@ def reset_min(infile, output_file, attribute1, attribute2, new_dimension):
     out_file.writer.set_dimension(new_dimension, new_numbers)
 
 
-def returns_clean(infile, output_file):
+def returns_clean_v01_0(infile, output_file, new_return_num=None, new_num_returns=None):
     """
     @param infile:
     @param output_file:
@@ -1812,8 +1805,20 @@ def returns_clean(infile, output_file):
     """
     in_file = File(infile)
     out_file = File(output_file, mode="w", header=in_file.header)
-    out_file.points = in_file.points
     a, b = group_by_renumber(in_file.gps_time, in_file.return_num, return_group_max=True)
-    out_file.return_num = a
-    out_file.num_returns = b
+    if new_return_num is not None:
+        out_file.define_new_dimension(new_return_num, 1)
+    if new_num_returns is not None:
+        out_file.define_new_dimension(new_num_returns, 1)
+    for dimension in (spec.name for spec in in_file.point_format):
+        out_file.writer.set_dimension(dimension, in_file.reader.get_dimension(dimension))
+    if new_return_num is None:
+        out_file.return_num = a
+    else:
+        out_file.writer.set_dimension(new_return_num, a)
+
+    if new_num_returns is None:
+        out_file.num_returns = b
+    else:
+        out_file.writer.set_dimension(new_num_returns, b)
     out_file.close()
