@@ -41,7 +41,7 @@ class RedHawkObject:
             pass
 
     def __getattr__(self, key):
-        if key=="points":
+        if key == "points":
             return self.__dict__["__points"]
         if key in self.points.dtype.fields:
             return self.points[key]
@@ -91,9 +91,9 @@ def tree(entry_type):
                      split=split))
 
 
-RedHawkPointCloud = point_cloud_type(name="RedHawkPointCloud",
-                                     data_types={"x": np.float64, "y": np.float64, "z": np.float64,
-                                                 "classification": np.uint8, "intensity": np.uint16})
+RedHawkPointCloud = lambda shape: RedHawkObject(shape,
+                                                data_types={"x": np.float64, "y": np.float64, "z": np.float64,
+                                                            "classification": np.uint8, "intensity": np.uint16})
 
 RedHawkTree = tree(RedHawkPointCloud)
 
