@@ -1811,11 +1811,9 @@ def returns_clean(infile, output_file):
     @return:
     """
     in_file = File(infile)
-    vector1 = in_file.gps_time
-    vector2 = in_file.return_num
-    new_numbers = group_by_renumber(vector1, vector2)
     out_file = File(output_file, mode="w", header=in_file.header)
     out_file.points = in_file.points
     a, b = group_by_renumber(in_file.gps_time, in_file.return_num, return_group_max=True)
+    out_file.return_num = a
     out_file.num_returns = b
     out_file.close()
