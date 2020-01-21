@@ -1797,7 +1797,7 @@ def reset_min(infile, output_file, attribute1, attribute2, new_dimension):
     out_file.writer.set_dimension(new_dimension, new_numbers)
 
 
-def returns_clean_v01_0(infile, output_file, new_return_num=None, new_num_returns=None):
+def returns_clean_v01_0(infile, output_file, return_threshold = 8, new_return_num=None, new_num_returns=None):
     """
     @param infile:
     @param output_file:
