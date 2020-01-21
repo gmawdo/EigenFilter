@@ -358,7 +358,7 @@ def add_attributes(tile_name, output_file, time_intervals=10, k=range(4, 50), ra
         "decimate": voxel_size,
     }
 
-    # Call the lasmaster
+    # Call the rh_local_pca
     lm.lpinteraction.attr(tile_name, output_file, config=cf)
 
 
@@ -1766,28 +1766,56 @@ def create_attributes(infile, output_file, attribute_names=None):
     return out_file
 
 
-def reset_min(infile, output_file, attribute1, attribute2, new_minimum):
+def group_by_renumber(vector1, vector2, return_group_max=False):
+    args = np.lexsort((vector2, vector1))  # lex sort takes column -1 as primary, -2 as secondary, etc.
+    reverse_args = np.argsort(args)
+    unq, ind, inv, cnt = np.unique(vector1[args], return_index=True, return_inverse=True, return_counts=True)
+    new_numbers = (1 + np.arange(inv.size) - ind[inv])[reverse_args]
+    group_max = cnt[inv][reverse_args]
+    if not return_group_max:
+        print('a', vector1[args])
+        print('b', vector2[args])
+        print('c', new_numbers[args])
+        return new_numbers
+    else:
+        print('a', vector1[args])
+        print('b', vector2[args])
+        print('c', new_numbers[args])
+        print('d', group_max[args])
+        return new_numbers, group_max
+
+
+def reset_min(infile, output_file, attribute1, attribute2, new_dimension):
     """
     @param infile:
     @param output_file:
     @param attribute1: Primary attribute for grouping secondary, e.g. gps-time
     @param attribute2: Attribute to be reset, e.g. return number
-    @param new_minimum: new group minimum for attribute2
+    @param new_dimension: A renumbered attribute2; 1, ..., cnt
     @return:
     """
     in_file = File(infile)
     vector1 = in_file.reader.get_dimension[attribute1]
     vector2 = in_file.reader.get_dimension[attribute2]
-    dtype1 = vector1.dtype
-    dtype2 = vector2.dtype
-    dtype = [(attribute1, dtype1), (attribute2, dtype2)]
-    vector = np.empty(len(in_file), dtype=dtype)
-    vector[attribute1] = vector1
-    vector[attribute2] = vector2
-    args = np.lexsort(vector[:, ::-1])  # lex sort takes column -1 as primary, -2 as secondary, etc.
-    unq, ind, inv, cnt = np.unique(vector1[args], return_index=True, return_inverse=True, return_counts=True)
-    group_by_min = vector2[ind][inv]
-    vector2 = vector2 - group_by_min + new_minimum
-    output_file.writer.set_dimension(attribute2, vector2)
+    new_numbers = group_by_renumber(vector1, vector2)
 
-    return output_file
+    out_file = File(output_file, mode="w", header=in_file.header)
+    out_file.define_new_dimension(name=new_dimension, data_type=7, description=new_dimension)
+    out_file.writer.set_dimension(new_dimension, new_numbers)
+
+
+def returns_clean(infile, output_file):
+    """
+    @param infile:
+    @param output_file:
+    @return:
+    """
+    in_file = File(infile)
+    vector1 = in_file.gps_time
+    vector2 = in_file.return_num
+    new_numbers = group_by_renumber(vector1, vector2)
+    out_file = File(output_file, mode="w", header=in_file.header)
+    out_file.points = in_file.points
+    a, b = group_by_renumber(in_file.gps_time, in_file.return_num, return_group_max=True)
+    out_file.num_returns = b
+    out_file.close()
