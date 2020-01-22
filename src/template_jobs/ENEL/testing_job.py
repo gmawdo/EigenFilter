@@ -530,8 +530,9 @@ def return_nums_testing2():
         s = time.time()
         returns_clean_v01_0(infile,
                             "returns_cleaned_" + infile,
-                            back_up_return_num="foooo",
-                            back_up_num_returns="baaar",
+                            algorithm='sawtooth',
+                            back_up_return_num='',
+                            back_up_num_returns='',
                             return_threshold=8)
         e = time.time() - s
 

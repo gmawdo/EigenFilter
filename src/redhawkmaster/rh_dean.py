@@ -1766,7 +1766,7 @@ def create_attributes(infile, output_file, attribute_names=None):
     return out_file
 
 
-def group_by_renumber(vector1, vector2, return_group_max=False):
+def group_by_renumber(vector1, vector2, return_group_max=True):
     args = np.lexsort((vector2, vector1))  # lex sort takes column -1 as primary, -2 as secondary, etc.
     reverse_args = np.argsort(args)
     unq, ind, inv, cnt = np.unique(vector1[args], return_index=True, return_inverse=True, return_counts=True)
@@ -1776,6 +1776,22 @@ def group_by_renumber(vector1, vector2, return_group_max=False):
         return new_numbers
     else:
         return new_numbers, group_max
+
+
+def saw_tooth(vector):
+    local_min = np.ones(vector.shape, bool)
+    local_min[1:] = vector[1:] <= vector[:-1]
+    local_min_arg = -np.ones(vector.shape, dtype=int)
+    local_min_arg[local_min] = np.arange(vector.size)[local_min]
+    while np.any(local_min_arg == -1):
+        c = np.copy(local_min_arg)
+        c[0] = local_min_arg[-1]
+        c[1:] = local_min_arg[:-1]
+        local_min_arg[local_min_arg == -1] = c[local_min_arg == -1]
+        print(local_min_arg)
+    a, b = group_by_renumber(local_min_arg, vector)
+
+    return a, b
 
 
 def reset_min(infile, output_file, attribute1, attribute2, new_dimension):
@@ -1796,7 +1812,8 @@ def reset_min(infile, output_file, attribute1, attribute2, new_dimension):
     out_file.writer.set_dimension(new_dimension, new_numbers)
 
 
-def returns_clean_v01_0(infile, output_file, back_up_return_num='', back_up_num_returns='', return_threshold=8):
+def returns_clean_v01_0(infile, output_file, algorithm='time', back_up_return_num='', back_up_num_returns='',
+                        return_threshold=8):
     """
     @param return_threshold:
     @param back_up_num_returns:
@@ -1817,9 +1834,17 @@ def returns_clean_v01_0(infile, output_file, back_up_return_num='', back_up_num_
         out_file.writer.set_dimension(back_up_return_num, in_file.return_num)
     if back_up_num_returns:
         out_file.writer.set_dimension(back_up_num_returns, in_file.num_returns)
-    a, b = group_by_renumber(in_file.gps_time, in_file.return_num, return_group_max=True)
-    a[a >= return_threshold] = 0
-    b[b >= return_threshold] = 0
-    out_file.return_num = a
-    out_file.num_returns = b
+    if algorithm == 'time':
+        a, b = group_by_renumber(in_file.gps_time, in_file.return_num, return_group_max=True)
+        a[a >= return_threshold] = 0
+        b[b >= return_threshold] = 0
+        out_file.return_num = a
+        out_file.num_returns = b
+    elif algorithm == 'sawtooth':
+        vector = np.empty(len(in_file), dtype=[('a', in_file.num_returns.dtype), ('b', in_file.return_num.dtype)])
+        vector['a'] = in_file.num_returns
+        vector['b'] = in_file.return_num
+        a, b = saw_tooth(vector)
+        out_file.return_num = a
+        out_file.num_returns = b
     out_file.close()
