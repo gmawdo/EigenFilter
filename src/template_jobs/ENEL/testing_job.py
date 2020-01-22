@@ -516,11 +516,24 @@ assert pathmagic
 #         )
 #         )()
 
-def return_nums_testing():
+def return_nums_testing1():
     infile = 'SJ2970.las'
     outfile = 'new_returns_SJ2970.las'
     returns_clean_v01_0(infile,
                         outfile)
+
+
+def return_nums_testing2():
+    import time
+    for i in range(1, 11):
+        infile = "DH5091309_{}_NoClass.las".format(str(i).zfill(6))
+        s = time.time()
+        returns_clean_v01_0(infile,
+                            "returns_cleaned_" + infile,
+                            back_up_return_num="foooo",
+                            back_up_num_returns="baaar",
+                            return_threshold=8)
+        e = time.time() - s
 
 
 # triangulation_test()
@@ -531,4 +544,4 @@ def return_nums_testing():
 # virus_testing()
 # acquisition_modeling_testing()
 # in_memory_testing()
-return_nums_testing()
+return_nums_testing2()

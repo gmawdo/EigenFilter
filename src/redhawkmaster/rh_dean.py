@@ -1791,34 +1791,35 @@ def reset_min(infile, output_file, attribute1, attribute2, new_dimension):
     vector1 = in_file.reader.get_dimension[attribute1]
     vector2 = in_file.reader.get_dimension[attribute2]
     new_numbers = group_by_renumber(vector1, vector2)
-
     out_file = File(output_file, mode="w", header=in_file.header)
     out_file.define_new_dimension(name=new_dimension, data_type=7, description=new_dimension)
     out_file.writer.set_dimension(new_dimension, new_numbers)
 
 
-def returns_clean_v01_0(infile, output_file, return_threshold = 8, new_return_num=None, new_num_returns=None):
+def returns_clean_v01_0(infile, output_file, back_up_return_num='', back_up_num_returns='', return_threshold=8):
     """
+    @param return_threshold:
+    @param back_up_num_returns:
+    @param back_up_return_num:
     @param infile:
     @param output_file:
     @return:
     """
     in_file = File(infile)
     out_file = File(output_file, mode="w", header=in_file.header)
-    a, b = group_by_renumber(in_file.gps_time, in_file.return_num, return_group_max=True)
-    if new_return_num is not None:
-        out_file.define_new_dimension(new_return_num, 1)
-    if new_num_returns is not None:
-        out_file.define_new_dimension(new_num_returns, 1)
+    if back_up_return_num:
+        out_file.define_new_dimension(back_up_return_num, 1, back_up_return_num)
+    if back_up_num_returns:
+        out_file.define_new_dimension(back_up_num_returns, 1, back_up_num_returns)
     for dimension in (spec.name for spec in in_file.point_format):
         out_file.writer.set_dimension(dimension, in_file.reader.get_dimension(dimension))
-    if new_return_num is None:
-        out_file.return_num = a
-    else:
-        out_file.writer.set_dimension(new_return_num, a)
-
-    if new_num_returns is None:
-        out_file.num_returns = b
-    else:
-        out_file.writer.set_dimension(new_num_returns, b)
+    if back_up_return_num:
+        out_file.writer.set_dimension(back_up_return_num, in_file.return_num)
+    if back_up_num_returns:
+        out_file.writer.set_dimension(back_up_num_returns, in_file.num_returns)
+    a, b = group_by_renumber(in_file.gps_time, in_file.return_num, return_group_max=True)
+    a[a >= return_threshold] = 0
+    b[b >= return_threshold] = 0
+    out_file.return_num = a
+    out_file.num_returns = b
     out_file.close()
