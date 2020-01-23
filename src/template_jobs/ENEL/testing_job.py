@@ -533,7 +533,7 @@ def return_nums_testing2():
                         back_up_num_returns='',
                         return_threshold=8)
 
-
+    sort('random_intensity.las', 'sorted_intensity.las', 'intensity', 'classification')
 # triangulation_test()
 # dimension1d2d3d_clustering_testing()
 # cluster_labels_testing()
@@ -542,4 +542,6 @@ def return_nums_testing2():
 # virus_testing()
 # acquisition_modeling_testing()
 # in_memory_testing()
+
+
 return_nums_testing2()
