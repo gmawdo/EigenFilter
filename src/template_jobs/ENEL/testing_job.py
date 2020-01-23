@@ -524,18 +524,14 @@ def return_nums_testing1():
 
 
 def return_nums_testing2():
-    import time
-    for i in range(1, 11):
-        infile = "DH5091309_{}_NoClass.las".format(str(i).zfill(6))
-        s = time.time()
-        returns_clean_v01_0(infile,
-                            "returns_cleaned_" + infile,
-                            algorithm='sawtooth',
-                            back_up_return_num='',
-                            back_up_num_returns='',
-                            return_threshold=8)
-        e = time.time() - s
-        print(infile, e)
+
+
+    returns_clean_v01_0(infile="DH5091309_000001_NoClass.las",
+                        outfile="returns_cleaned_DH5091309_000001_NoClass.las",
+                        algorithm='time',
+                        back_up_return_num='',
+                        back_up_num_returns='',
+                        return_threshold=8)
 
 
 # triangulation_test()

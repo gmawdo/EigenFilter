@@ -1811,24 +1811,28 @@ def reset_min(infile, output_file, attribute1, attribute2, new_dimension):
     out_file.writer.set_dimension(new_dimension, new_numbers)
 
 
-def returns_clean_v01_0(infile, output_file, algorithm='time', back_up_return_num='', back_up_num_returns='',
+def returns_clean_v01_0(infile, outfile, algorithm='time', back_up_return_num='', back_up_num_returns='',
                         return_threshold=8):
     """
-    @param return_threshold:
-    @param back_up_num_returns:
-    @param back_up_return_num:
     @param infile:
-    @param output_file:
+    @param outfile:
+    @param algorithm: can be 'time', ordering points primarily by time, secondarily by return number,
+    or 'sawtooth', ordering by a return index sawtooth, primarily in the order points are read
+    @param back_up_return_num: back up return nums into this name
+    @param back_up_num_returns: back up num returns into this name
+    @param return_threshold: max return num/num returns - recommended 8 to stop errors; we set > threshold to 0.
     @return:
     """
     in_file = File(infile)
-    out_file = File(output_file, mode="w", header=in_file.header)
+    out_file = File(outfile, mode="w", header=in_file.header)
+    # define back up fields
     if back_up_return_num:
         out_file.define_new_dimension(back_up_return_num, 1, back_up_return_num)
     if back_up_num_returns:
         out_file.define_new_dimension(back_up_num_returns, 1, back_up_num_returns)
     for dimension in (spec.name for spec in in_file.point_format):
         out_file.writer.set_dimension(dimension, in_file.reader.get_dimension(dimension))
+    # set back ups
     if back_up_return_num:
         out_file.writer.set_dimension(back_up_return_num, in_file.return_num)
     if back_up_num_returns:
@@ -1848,10 +1852,4 @@ def returns_clean_v01_0(infile, output_file, algorithm='time', back_up_return_nu
         b[b >= return_threshold] = 0
         out_file.return_num = a
         out_file.num_returns = b
-        print(infile)
-        print(in_file.return_num[1650:1670])
-        print(in_file.num_returns[1650:1670])
-        print(a[1650:1670])
-        print(b[1650:1670])
-        print("\n")
     out_file.close()
