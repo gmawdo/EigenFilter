@@ -535,6 +535,7 @@ def return_nums_testing2():
                             back_up_num_returns='',
                             return_threshold=8)
         e = time.time() - s
+        print(infile, e)
 
 
 # triangulation_test()

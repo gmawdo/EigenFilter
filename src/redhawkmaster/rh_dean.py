@@ -1780,7 +1780,7 @@ def group_by_renumber(vector1, vector2, return_group_max=True):
 
 def saw_tooth(vector):
     local_min = np.ones(vector.shape, bool)
-    local_min[1:] = vector[1:] <= vector[:-1]
+    local_min[1:] = (vector['a'][1:] <= vector['a'][:-1]) | (vector['b'][1:] != vector['b'][:-1])
     local_min_arg = -np.ones(vector.shape, dtype=int)
     local_min_arg[local_min] = np.arange(vector.size)[local_min]
     while np.any(local_min_arg == -1):
@@ -1788,8 +1788,7 @@ def saw_tooth(vector):
         c[0] = local_min_arg[-1]
         c[1:] = local_min_arg[:-1]
         local_min_arg[local_min_arg == -1] = c[local_min_arg == -1]
-        print(local_min_arg)
-    a, b = group_by_renumber(local_min_arg, vector)
+    a, b = group_by_renumber(local_min_arg, vector['a'])
 
     return a, b
 
@@ -1842,9 +1841,17 @@ def returns_clean_v01_0(infile, output_file, algorithm='time', back_up_return_nu
         out_file.num_returns = b
     elif algorithm == 'sawtooth':
         vector = np.empty(len(in_file), dtype=[('a', in_file.num_returns.dtype), ('b', in_file.return_num.dtype)])
-        vector['a'] = in_file.num_returns
-        vector['b'] = in_file.return_num
+        vector['b'] = in_file.num_returns
+        vector['a'] = in_file.return_num
         a, b = saw_tooth(vector)
+        a[a >= return_threshold] = 0
+        b[b >= return_threshold] = 0
         out_file.return_num = a
         out_file.num_returns = b
+        print(infile)
+        print(in_file.return_num[1650:1670])
+        print(in_file.num_returns[1650:1670])
+        print(a[1650:1670])
+        print(b[1650:1670])
+        print("\n")
     out_file.close()
