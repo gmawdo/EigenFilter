@@ -1,8 +1,6 @@
 import numpy as np
 
-
 class RedHawkVector(np.ndarray):
-
     def __new__(cls, shape, data_types):
         return super().__new__(cls, shape, list(data_types.items()))
 
@@ -54,34 +52,36 @@ class RedHawkObject:
         else:
             pass
 
+    def __getitem__(self, item):
+        vector = self.points[item]
+        new_object = RedHawkObject(vector.shape, {key: vector.dtype[key] for key in vector.dtype.fields})
+        new_object.points = vector
+        return new_object
+
     def add_dimension(self, key, data_type):
         self.__dict__["__points"] = self.__dict__["__points"].add_dimension(key, data_type)
 
 
-def tree(entry_type):
-    if not isinstance(entry_type, type):
-        raise ValueError(f"{entry_type.__name__} is not a type")
-    if not hasattr(entry_type, "__getitem__"):
-        raise ValueError(f"{entry_type.__name__} is not a subscriptable type")
+class RedHawkOperad:
+    def __init__(self, object):
+        self.arity = 1
+        self.parents = {'':''}
+        self.slices = {'': slice(None)}
+        self.object = object
 
-    def __init__(self, **kwargs):
-        dict.__init__(self, {key: entry_type(kwargs[key]) for key in kwargs})
-        self.structure = {item: {item: slice(None)} for item in kwargs}
-        self.parents = {item: item for item in kwargs}
-        self.children = {item: None for item in kwargs}
+    def split(self, key, *names, **slices):
+        for item in names:
+            if item in self.parents:
+                raise ValueError("{} already used. ('' is the root object.)".format(item))
+            self.parents[item]=key
 
-    def split(self, key, **subscripts):
-        if self.children[key]:
-            raise ValueError("That key already contains split data - you can't split it again")
-        intersection = {item for item in subscripts}.intersection({item for item in self})
-        if intersection:
-            raise ValueError(f"{intersection} already in use as sub-object(s)")
-        del intersection
-        self[key] = {item: self[key][subscripts[item]] for item in subscripts}
-        for item in subscripts:
-            self.parents[item] = key
-            self.children[key] = {entry for entry in subscripts}
-        self.structure[key] =
+    def __getitem__(self, key):
+        working_key = key
+        slices = []
+        while working_key != '':
+            slices.append(self.slices[working_key])
+            working_key = self.parents[working_key]
+
 
     def merge(self, key):
 
