@@ -62,25 +62,29 @@ class RedHawkObject:
         self.__dict__["__points"] = self.__dict__["__points"].add_dimension(key, data_type)
 
 
-class RedHawkOperad:
-    def __init__(self, object):
+class RedHawkFilter:
+    def __init__(self, thing):
         self.arity = 1
         self.parents = {'':''}
         self.slices = {'': slice(None)}
-        self.object = object
+        self.object = thing
 
-    def split(self, key, *names, **slices):
-        for item in names:
+    def bud(self, key, **slices):
+        for item in slices:
             if item in self.parents:
                 raise ValueError("{} already used. ('' is the root object.)".format(item))
             self.parents[item]=key
+            self.slices[item] = slices[item]
 
     def __getitem__(self, key):
-        working_key = key
-        slices = []
-        while working_key != '':
-            slices.append(self.slices[working_key])
-            working_key = self.parents[working_key]
+        if key in self.slices:
+            working_key = key
+            slices = []
+            while working_key != '':
+                slices.append(self.slices[working_key])
+                working_key = self.parents[working_key]
+        else:
+            raise ValueError("No subobject called {}".format(key))
 
 
     def merge(self, key):
