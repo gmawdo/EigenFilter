@@ -1853,3 +1853,15 @@ def returns_clean_v01_0(infile, outfile, algorithm='time', back_up_return_num=''
         out_file.return_num = a
         out_file.num_returns = b
     out_file.close()
+
+
+def sort(infile, outfile, *sort_keys):
+    in_file = File(infile)
+    dtype = [(key, in_file.points.dtype[key]) for key in sort_keys]
+    vector = np.empty(len(in_file), dtype=dtype)
+    for key in sort_keys:
+        vector[key] = in_file.point[key]
+    args = np.argsort(vector)
+    out_file = File(outfile, mode='w', header=in_file.header)
+    out_file.points = in_file.points[args]
+    out_file.close()
