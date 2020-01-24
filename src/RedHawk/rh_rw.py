@@ -2,6 +2,7 @@ from laspy.file import File
 import numpy as np
 import os
 import argparse
+from .rh_in_memory import RedHawkPointCloud, RedHawkPipe, RedHawkPipeline
 
 
 def las_input(input_name, mode):
@@ -86,3 +87,32 @@ def script_params():
     args = parser.parse_args()
 
     return args
+
+
+# === STUFF FOR USER PIPELINE ===
+
+class ReadIn(RedHawkPointCloud):
+    def __init__(self, file_name):
+        in_file = File(file_name)
+        super().__init__(len(in_file))
+        self.x = in_file.x
+        self.y = in_file.y
+        self.z = in_file.z
+        self.classification = in_file.classification
+        self.intensity = in_file.intensity
+        self.__original_header = in_file.header
+        self.__original_points = in_file.points
+        self.__streams = {}
+
+    def qc(self, new_file_name, index=...):
+        out_file = File(new_file_name, mode="w", header=self.__original_header)
+        out_file.points = self.__original_points[index]
+        out_file.classification = self.classification[index]
+        out_file.intensity = self.intensity[index]
+        out_file.close()
+
+
+class QC(RedHawkPipe):
+    def __init__(self,
+                 file_name):
+        super().__init__(pipe_definition=ReadIn.qc, new_file_name=file_name)

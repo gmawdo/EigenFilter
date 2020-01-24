@@ -358,7 +358,7 @@ def add_attributes(tile_name, output_file, time_intervals=10, k=range(4, 50), ra
         "decimate": voxel_size,
     }
 
-    # Call the lasmaster
+    # Call the rh_local_pca
     lm.lpinteraction.attr(tile_name, output_file, config=cf)
 
 
@@ -1488,7 +1488,7 @@ def count_v01_0(tile,
     outfile.close()
 
 
-def ferry_v01_0(infile, outfile, attribute1, attribute2, renumber, start=0):
+def ferry_v01_0(infile, outfile, attribute1, attribute2, renumber = False, start=0):
     """
     :param infile: file name to read
     :param outfile: file name to write
@@ -1500,11 +1500,11 @@ def ferry_v01_0(infile, outfile, attribute1, attribute2, renumber, start=0):
     inFile = File(infile)
     outFile = File(outfile, mode="w", header=inFile.header)
     outFile.points = inFile.points
-    a = inFile.reader.get_dimension(attribute1)
+    a = getattr(inFile, attribute1)
     if renumber:
         unq, ind, inv = np.unique(a, return_index=True, return_inverse=True, return_counts=False)
         a = np.arange(ind.size)[inv] + start
-    outFile.writer.set_dimension(attribute2, a)
+    setattr(outFile, attribute2, a)
 
 
 def ferry_v01_1(infile, outfile, attribute1, attribute2, renumber, start=0, manipulate=lambda x: x):
@@ -1738,7 +1738,7 @@ def attributeupdate_v01_1(infile, outfile, select_attribute, select_range, prote
     outfile.writer.set_dimension(attack_attribute, cls)
 
 
-def create_attributes(infile, output_file, attribute_names=None):
+def create_attributes_v01_0(infile, output_file, attribute_names=None):
     """
     Create the extra dimensions that are putted into attribute_names.
 
@@ -1764,3 +1764,153 @@ def create_attributes(infile, output_file, attribute_names=None):
         out_file.writer.set_dimension(dimension, dat)
 
     return out_file
+
+
+def group_by_renumber(vector1, vector2, return_group_max=True):
+    """
+    BACKGROUND FUNCTION
+    :param vector1:
+    :param vector2:
+    :param return_group_max:
+    :return:
+    """
+    args = np.lexsort((vector2, vector1))  # lex sort takes column -1 as primary, -2 as secondary, etc.
+    reverse_args = np.argsort(args)
+    unq, ind, inv, cnt = np.unique(vector1[args], return_index=True, return_inverse=True, return_counts=True)
+    new_numbers = (1 + np.arange(inv.size) - ind[inv])[reverse_args]
+    group_max = cnt[inv][reverse_args]
+    if not return_group_max:
+        return new_numbers
+    else:
+        return new_numbers, group_max
+
+
+def saw_tooth(vector):
+    """
+    BACKGROUND FUNCTION
+    :param vector:
+    :return:
+    """
+    local_min = np.ones(vector.shape, bool)
+    local_min[1:] = (vector['a'][1:] <= vector['a'][:-1]) | (vector['b'][1:] != vector['b'][:-1])
+    local_min_arg = -np.ones(vector.shape, dtype=int)
+    local_min_arg[local_min] = np.arange(vector.size)[local_min]
+    while np.any(local_min_arg == -1):
+        c = np.copy(local_min_arg)
+        c[0] = local_min_arg[-1]
+        c[1:] = local_min_arg[:-1]
+        local_min_arg[local_min_arg == -1] = c[local_min_arg == -1]
+    a, b = group_by_renumber(local_min_arg, vector['a'])
+
+    return a, b
+
+
+def reset_min_v01_0(infile, output_file, attribute1, attribute2, new_dimension):
+    """
+    @param infile:
+    @param output_file:
+    @param attribute1: Primary attribute for grouping secondary, e.g. gps-time
+    @param attribute2: Attribute to be reset, e.g. return number
+    @param new_dimension: A renumbered attribute2; 1, ..., cnt
+    @return:
+    """
+    in_file = File(infile)
+    vector1 = in_file.reader.get_dimension[attribute1]
+    vector2 = in_file.reader.get_dimension[attribute2]
+    new_numbers = group_by_renumber(vector1, vector2)
+    out_file = File(output_file, mode="w", header=in_file.header)
+    out_file.define_new_dimension(name=new_dimension, data_type=7, description=new_dimension)
+    out_file.writer.set_dimension(new_dimension, new_numbers)
+
+
+def returns_clean_v01_0(infile, outfile, algorithm='time', back_up_return_num='', back_up_num_returns='',
+                        return_threshold=8):
+    """
+    @param infile:
+    @param outfile:
+    @param algorithm: can be 'time', ordering points primarily by time, secondarily by return number,
+    or 'sawtooth', ordering by a return index sawtooth, primarily in the order points are read
+    @param back_up_return_num: back up return nums into this name
+    @param back_up_num_returns: back up num returns into this name
+    @param return_threshold: max return num/num returns - recommended 8 to stop errors; we set > threshold to 0.
+    @return:
+    """
+    in_file = File(infile)
+    out_file = File(outfile, mode="w", header=in_file.header)
+    # define back up fields
+    if back_up_return_num:
+        out_file.define_new_dimension(back_up_return_num, 1, back_up_return_num)
+    if back_up_num_returns:
+        out_file.define_new_dimension(back_up_num_returns, 1, back_up_num_returns)
+    for dimension in (spec.name for spec in in_file.point_format):
+        out_file.writer.set_dimension(dimension, in_file.reader.get_dimension(dimension))
+    # set back ups
+    if back_up_return_num:
+        out_file.writer.set_dimension(back_up_return_num, in_file.return_num)
+    if back_up_num_returns:
+        out_file.writer.set_dimension(back_up_num_returns, in_file.num_returns)
+    if algorithm == 'time':
+        a, b = group_by_renumber(in_file.gps_time, in_file.return_num, return_group_max=True)
+        a[a >= return_threshold] = 0
+        b[b >= return_threshold] = 0
+        out_file.return_num = a
+        out_file.num_returns = b
+    elif algorithm == 'sawtooth':
+        vector = np.empty(len(in_file), dtype=[('a', in_file.num_returns.dtype), ('b', in_file.return_num.dtype)])
+        vector['b'] = in_file.num_returns
+        vector['a'] = in_file.return_num
+        a, b = saw_tooth(vector)
+        a[a >= return_threshold] = 0
+        b[b >= return_threshold] = 0
+        out_file.return_num = a
+        out_file.num_returns = b
+    out_file.close()
+
+
+def sort_v01_0(infile, outfile, *sort_keys):
+    """
+    Sorts points - actually reorders the file
+    :param infile:
+    :param outfile:
+    :param sort_keys: Simply enter as many attributes as you like in decending order of importance for the sort
+    :return:
+    """
+    in_file = File(infile)
+    dtype = [(key, getattr(in_file, key).dtype) for key in sort_keys]
+    vector = np.empty(len(in_file), dtype=dtype)
+    for key in sort_keys:
+        vector[key] = getattr(in_file, key)
+    args = np.argsort(vector)
+    out_file = File(outfile, mode='w', header=in_file.header)
+    out_file.points = in_file.points[args]
+    out_file.close()
+
+
+def group_stats_v01_0(infile, outfile, sort_key1, sort_key2, key2_max, key2_min, laspy_data_type=6):
+    """
+    :param infile:
+    :param outfile:
+    :param sort_key1: Primary key for grouping
+    :param sort_key2: Secondary key for max/min
+    :param key2_max: Empty if you don't want to back up
+    :param key2_min: Empty if you dont' want to back up
+    :param laspy_data_type: set to signed 64-bit int; for float set this to 9 -
+    WE WILL HAVE THIS AUTOMATED IN THE IN-MEMORY WORK
+    :return:
+    """
+    in_file = File(infile)
+    vector1 = getattr(in_file, sort_key1)
+    vector2 = getattr(in_file, sort_key2)
+    frame = {'a': vector1, 'b': vector2}
+    df = pd.DataFrame(frame)
+    unq, inv = np.unique(vector1, return_inverse=True)
+    maxs = (df.groupby('a').max()).values[inv]
+    mins = (df.groupby('a').min()).values[inv]
+    out_file = File(outfile, mode='w', header=in_file.header)
+    out_file.define_new_dimension(key2_max, laspy_data_type, key2_max)
+    out_file.define_new_dimension(key2_min, laspy_data_type, key2_min)
+    out_file.writer.set_dimension(key2_max, maxs[:,0])
+    out_file.writer.set_dimension(key2_min, mins[:,0])
+    for dimension in in_file.point_format:
+        out_file.writer.set_dimension(dimension.name, in_file.reader.get_dimension(dimension.name))
+    out_file.close()
