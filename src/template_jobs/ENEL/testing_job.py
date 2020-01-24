@@ -524,8 +524,6 @@ def return_nums_testing1():
 
 
 def return_nums_testing2():
-
-
     returns_clean_v01_0(infile="DH5091309_000001_NoClass.las",
                         outfile="returns_cleaned_DH5091309_000001_NoClass.las",
                         algorithm='time',
@@ -534,6 +532,22 @@ def return_nums_testing2():
                         return_threshold=8)
 
     sort('random_intensity.las', 'sorted_intensity.las', 'intensity', 'classification')
+
+
+def sort_testing():
+
+    group_stats_v01_0(infile="DH5091309_000001_NoClass.las",
+                      outfile="groupstatstest.las",
+                      sort_key1 = "num_returns",
+                      sort_key2 = "return_num",
+                      key2_max = "max",
+                      key2_min = "min")
+
+    ferry_v01_0(infile = "groupstatstest.las",
+                outfile = "groupstatstest2.las",
+                attribute1="max",
+                attribute2="return_num")
+
 # triangulation_test()
 # dimension1d2d3d_clustering_testing()
 # cluster_labels_testing()
@@ -544,4 +558,4 @@ def return_nums_testing2():
 # in_memory_testing()
 
 
-return_nums_testing2()
+sort_testing()

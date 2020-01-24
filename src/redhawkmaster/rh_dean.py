@@ -1488,7 +1488,7 @@ def count_v01_0(tile,
     outfile.close()
 
 
-def ferry_v01_0(infile, outfile, attribute1, attribute2, renumber, start=0):
+def ferry_v01_0(infile, outfile, attribute1, attribute2, renumber = False, start=0):
     """
     :param infile: file name to read
     :param outfile: file name to write
@@ -1500,11 +1500,11 @@ def ferry_v01_0(infile, outfile, attribute1, attribute2, renumber, start=0):
     inFile = File(infile)
     outFile = File(outfile, mode="w", header=inFile.header)
     outFile.points = inFile.points
-    a = inFile.reader.get_dimension(attribute1)
+    a = getattr(inFile, attribute1)
     if renumber:
         unq, ind, inv = np.unique(a, return_index=True, return_inverse=True, return_counts=False)
         a = np.arange(ind.size)[inv] + start
-    outFile.writer.set_dimension(attribute2, a)
+    setattr(outFile, attribute2, a)
 
 
 def ferry_v01_1(infile, outfile, attribute1, attribute2, renumber, start=0, manipulate=lambda x: x):
@@ -1892,8 +1892,8 @@ def group_stats_v01_0(infile, outfile, sort_key1, sort_key2, key2_max, key2_min,
     :return:
     """
     in_file = File(infile)
-    vector1 = in_file.reader.get_dimension(sort_key1)
-    vector2 = in_file.reader.get_dimension(sort_key2)
+    vector1 = getattr(in_file, sort_key1)
+    vector2 = getattr(in_file, sort_key2)
     frame = {'a': vector1, 'b': vector2}
     df = pd.DataFrame(frame)
     unq, inv = np.unique(vector1, return_inverse=True)
@@ -1902,9 +1902,8 @@ def group_stats_v01_0(infile, outfile, sort_key1, sort_key2, key2_max, key2_min,
     out_file = File(outfile, mode='w', header=in_file.header)
     out_file.define_new_dimension(key2_max, laspy_data_type, key2_max)
     out_file.define_new_dimension(key2_min, laspy_data_type, key2_min)
-    out_file.writer.set_dimension(key2_max, maxs)
-    out_file.writer.set_dimension(key2_min, mins)
+    out_file.writer.set_dimension(key2_max, maxs[:,0])
+    out_file.writer.set_dimension(key2_min, mins[:,0])
     for dimension in in_file.point_format:
         out_file.writer.set_dimension(dimension.name, in_file.reader.get_dimension(dimension.name))
-
     out_file.close()
