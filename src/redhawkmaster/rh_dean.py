@@ -1868,6 +1868,13 @@ def returns_clean_v01_0(infile, outfile, algorithm='time', back_up_return_num=''
 
 
 def sort_v01_0(infile, outfile, *sort_keys):
+    """
+    Sorts points - actually reorders the file
+    :param infile:
+    :param outfile:
+    :param sort_keys: Simply enter as many attributes as you like in decending order of importance for the sort
+    :return:
+    """
     in_file = File(infile)
     dtype = [(key, getattr(in_file, key).dtype) for key in sort_keys]
     vector = np.empty(len(in_file), dtype=dtype)

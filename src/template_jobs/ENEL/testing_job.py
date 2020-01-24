@@ -535,18 +535,18 @@ def return_nums_testing2():
 
 
 def sort_testing():
-
     group_stats_v01_0(infile="DH5091309_000001_NoClass.las",
                       outfile="groupstatstest.las",
-                      sort_key1 = "num_returns",
-                      sort_key2 = "return_num",
-                      key2_max = "max",
-                      key2_min = "min")
+                      sort_key1="num_returns",
+                      sort_key2="return_num",
+                      key2_max="max",
+                      key2_min="min")
 
-    ferry_v01_0(infile = "groupstatstest.las",
-                outfile = "groupstatstest2.las",
+    ferry_v01_0(infile="groupstatstest.las",
+                outfile="groupstatstest2.las",
                 attribute1="max",
                 attribute2="return_num")
+
 
 # triangulation_test()
 # dimension1d2d3d_clustering_testing()

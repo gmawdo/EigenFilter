@@ -1,5 +1,6 @@
 import numpy as np
 
+
 class RedHawkVector(np.ndarray):
     def __new__(cls, shape, data_types):
         return super().__new__(cls, shape, list(data_types.items()))
@@ -53,10 +54,14 @@ class RedHawkObject:
             pass
 
     def __getitem__(self, item):
-        vector = self.points[item]
-        new_object = RedHawkObject(vector.shape, {key: vector.dtype[key] for key in vector.dtype.fields})
-        new_object.points = vector
+        vector = self.points[:]
+        new_object=RedHawkObject(vector.shape, {key: self.vector.dtype[key] for key in self.vector.dtype.fields})
+        new_object.__dict__['__points'] = vector[item]
         return new_object
+
+    def __setitem__(self, item, value):
+        self.points[item] = value.points
+
 
     def add_dimension(self, key, data_type):
         self.__dict__["__points"] = self.__dict__["__points"].add_dimension(key, data_type)
@@ -65,7 +70,7 @@ class RedHawkObject:
 class RedHawkFilter:
     def __init__(self, thing):
         self.arity = 1
-        self.parents = {'':''}
+        self.parents = {'': ''}
         self.slices = {'': slice(None)}
         self.object = thing
 
@@ -73,7 +78,7 @@ class RedHawkFilter:
         for item in slices:
             if item in self.parents:
                 raise ValueError("{} already used. ('' is the root object.)".format(item))
-            self.parents[item]=key
+            self.parents[item] = key
             self.slices[item] = slices[item]
 
     def __getitem__(self, key):
@@ -86,20 +91,12 @@ class RedHawkFilter:
         else:
             raise ValueError("No subobject called {}".format(key))
 
-
     def merge(self, key):
-
-    return type("TreeOf" + str(entry_type.__name__),
-                (dict,),
-                dict(__init__=__init__,
-                     split=split))
 
 
 RedHawkPointCloud = lambda shape: RedHawkObject(shape,
                                                 data_types={"x": np.float64, "y": np.float64, "z": np.float64,
                                                             "classification": np.uint8, "intensity": np.uint16})
-
-RedHawkTree = tree(RedHawkPointCloud)
 
 
 class RedHawkPipe:
