@@ -1738,7 +1738,7 @@ def attributeupdate_v01_1(infile, outfile, select_attribute, select_range, prote
     outfile.writer.set_dimension(attack_attribute, cls)
 
 
-def create_attributes(infile, output_file, attribute_names=None):
+def create_attributes_v01_0(infile, output_file, attribute_names=None):
     """
     Create the extra dimensions that are putted into attribute_names.
 
@@ -1767,6 +1767,13 @@ def create_attributes(infile, output_file, attribute_names=None):
 
 
 def group_by_renumber(vector1, vector2, return_group_max=True):
+    """
+    BACKGROUND FUNCTION
+    :param vector1:
+    :param vector2:
+    :param return_group_max:
+    :return:
+    """
     args = np.lexsort((vector2, vector1))  # lex sort takes column -1 as primary, -2 as secondary, etc.
     reverse_args = np.argsort(args)
     unq, ind, inv, cnt = np.unique(vector1[args], return_index=True, return_inverse=True, return_counts=True)
@@ -1779,6 +1786,11 @@ def group_by_renumber(vector1, vector2, return_group_max=True):
 
 
 def saw_tooth(vector):
+    """
+    BACKGROUND FUNCTION
+    :param vector:
+    :return:
+    """
     local_min = np.ones(vector.shape, bool)
     local_min[1:] = (vector['a'][1:] <= vector['a'][:-1]) | (vector['b'][1:] != vector['b'][:-1])
     local_min_arg = -np.ones(vector.shape, dtype=int)
@@ -1793,7 +1805,7 @@ def saw_tooth(vector):
     return a, b
 
 
-def reset_min(infile, output_file, attribute1, attribute2, new_dimension):
+def reset_min_v01_0(infile, output_file, attribute1, attribute2, new_dimension):
     """
     @param infile:
     @param output_file:
@@ -1855,7 +1867,7 @@ def returns_clean_v01_0(infile, outfile, algorithm='time', back_up_return_num=''
     out_file.close()
 
 
-def sort(infile, outfile, *sort_keys):
+def sort_v01_0(infile, outfile, *sort_keys):
     in_file = File(infile)
     dtype = [(key, getattr(in_file, key).dtype) for key in sort_keys]
     vector = np.empty(len(in_file), dtype=dtype)
@@ -1864,8 +1876,35 @@ def sort(infile, outfile, *sort_keys):
     args = np.argsort(vector)
     out_file = File(outfile, mode='w', header=in_file.header)
     out_file.points = in_file.points[args]
-    print(in_file.intensity)
-    print(in_file.classification)
-    print(out_file.intensity)
-    print(out_file.classification)
+    out_file.close()
+
+
+def group_stats_v01_0(infile, outfile, sort_key1, sort_key2, key2_max, key2_min, laspy_data_type=6):
+    """
+    :param infile:
+    :param outfile:
+    :param sort_key1: Primary key for grouping
+    :param sort_key2: Secondary key for max/min
+    :param key2_max: Empty if you don't want to back up
+    :param key2_min: Empty if you dont' want to back up
+    :param laspy_data_type: set to signed 64-bit int; for float set this to 9 -
+    WE WILL HAVE THIS AUTOMATED IN THE IN-MEMORY WORK
+    :return:
+    """
+    in_file = File(infile)
+    vector1 = in_file.reader.get_dimension(sort_key1)
+    vector2 = in_file.reader.get_dimension(sort_key2)
+    frame = {'a': vector1, 'b': vector2}
+    df = pd.DataFrame(frame)
+    unq, inv = np.unique(vector1, return_inverse=True)
+    maxs = (df.groupby('a').max()).values[inv]
+    mins = (df.groupby('a').min()).values[inv]
+    out_file = File(outfile, mode='w', header=in_file.header)
+    out_file.define_new_dimension(key2_max, laspy_data_type, key2_max)
+    out_file.define_new_dimension(key2_min, laspy_data_type, key2_min)
+    out_file.writer.set_dimension(key2_max, maxs)
+    out_file.writer.set_dimension(key2_min, mins)
+    for dimension in in_file.point_format:
+        out_file.writer.set_dimension(dimension.name, in_file.reader.get_dimension(dimension.name))
+
     out_file.close()
